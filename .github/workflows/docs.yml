@@ -1,12 +1,9 @@
-name: Build and Deploy Docs
+name: Generate and Commit Docs
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   workflow_dispatch:
-
-permissions:
-  contents: write  # necesario para publicar en gh-pages
 
 jobs:
   docs:
@@ -24,20 +21,26 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Install dependencies and build module
+      - name: Install Python dependencies and build module
         run: |
           python -m venv venv
           source venv/bin/activate
           pip install maturin pdoc
           maturin develop
 
-      - name: Build HTML docs with pdoc
+      - name: Clean and build documentation
         run: |
+          rm -rf docs
+          mkdir docs
           source venv/bin/activate
-          pdoc html go3 --output-dir docs
+          pdoc html go_similarity --output-dir docs
+          mv docs/go_similarity/* docs/
+          rm -r docs/go_similarity
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: docs/go3
+      - name: Commit updated docs to main branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add docs
+          git commit -m "Update docs [auto]" || echo "No changes to commit"
+          git push
