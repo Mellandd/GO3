@@ -9,6 +9,16 @@ pub fn term_ic(go_id: &str, counter: &TermCounter) -> f64 {
     *counter.ic.get(go_id).unwrap_or(&0.0)
 }
 
+/// Compute similarity between two GO terms using Resnik.
+///
+/// # Arguments
+///
+/// * `id1` - First GO term ID
+/// * `id2` - Second GO term ID
+///
+/// # Returns
+///
+/// Resnik similarity score (float)
 #[pyfunction]
 pub fn resnik_similarity(id1: &str, id2: &str, counter: &TermCounter) -> f64 {
     let (t1, t2) = match (get_term_by_id(id1).ok().flatten(), get_term_by_id(id2).ok().flatten()) {
