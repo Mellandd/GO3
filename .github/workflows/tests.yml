@@ -26,6 +26,11 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Download GOA human annotations
+        run: |
+          curl -L https://current.geneontology.org/annotations/goa_human.gaf.gz -o goa_human.gaf.gz
+          gunzip -f goa_human.gaf.gz
+
       - name: Set up virtual environment
         run: |
           python -m venv venv
