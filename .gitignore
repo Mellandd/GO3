@@ -1,1 +1,9 @@
 /target
+*.pyc
+__pycache__/
+/*.egg-info
+/build
+/dist
+.env
+*/goa_human.gaf
+*goa_human.gaf.gz

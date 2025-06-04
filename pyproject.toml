@@ -1,0 +1,16 @@
+[build-system]
+requires = ["maturin>1.2"]
+build-backend = "maturin"
+
+[project]
+name = "go3"
+version = "0.1.0"
+description = "Semantic similarity computations using Gene Ontology with Rust performance"
+authors = [{ name = "Jose Luis Mellina Andreu", email= "joseluis.mellinaa@um.es" }]
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.8"
+
+[tool.maturin]
+bindings = "pyo3"
+module-name = "go3"

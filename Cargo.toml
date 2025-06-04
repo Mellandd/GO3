@@ -1,6 +1,18 @@
 [package]
-name = "go_pyrust_sim"
+name = "go3"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+pyo3 = { version = "0.25.0", features = ["extension-module"] }
+reqwest = { version = "0.12.19", features = ["blocking", "json"] }
+once_cell = "1.18"
+rayon = "1.10.0"
+dashmap = "6.1.0"
+
+[lib]
+name = "go3"
+crate-type = ["cdylib"]  # importante para crear el módulo Python
+
+[profile.release]
+lto = true
