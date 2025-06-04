@@ -33,9 +33,9 @@ jobs:
           rm -rf docs
           mkdir docs
           source venv/bin/activate
-          pdoc html go_similarity --output-dir docs
-          mv docs/go_similarity/* docs/
-          rm -r docs/go_similarity
+          pdoc go3 --output-dir docs
+          mv docs/go3/* docs/
+          rm -r docs/go3
 
       - name: Commit updated docs to main branch
         run: |
