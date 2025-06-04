@@ -88,6 +88,15 @@ pub fn get_terms_or_error<'a>() -> PyResult<std::sync::RwLockReadGuard<'a, HashM
         .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("Failed to read GO terms"))
 }
 
+/// Gets the PyGoTerm object for the given GO Term ID.
+///
+/// # Arguments
+///
+/// * `go_id` - GO term ID.
+///
+/// # Returns
+///
+/// PyGOTerm associated with the ID. (PyGOTerm)
 #[pyfunction]
 pub fn get_term_by_id(go_id: &str) -> PyResult<Option<PyGOTerm>> {
     let terms = get_terms_or_error()?;
@@ -110,6 +119,15 @@ pub fn collect_ancestors<'a>(go_id: &'a str, terms: &'a HashMap<String, GOTerm>)
     visited
 }
 
+/// Returns the list of all ancestors in the ontology for the given GO Term.
+///
+/// # Arguments
+///
+/// * `go_id` - GO term ID.
+///
+/// # Returns
+///
+/// List of IDs of all the ancestors in the ontology (List of String)
 #[pyfunction]
 pub fn ancestors(go_id: &str) -> PyResult<Vec<String>> {
     let terms = get_terms_or_error()?;
@@ -117,6 +135,16 @@ pub fn ancestors(go_id: &str) -> PyResult<Vec<String>> {
     Ok(visited.into_iter().map(str::to_string).collect())
 }
 
+/// Returns the list of all the common ancestors in the ontology for the given GO Terms.
+///
+/// # Arguments
+///
+/// * `go_id1` - GO term ID 1.
+/// * `go_id2` - GO term ID 2.
+///
+/// # Returns
+///
+/// List of IDs of all the common ancestors in the ontology (List of String)
 #[pyfunction]
 pub fn common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Vec<String>> {
     let terms = get_terms_or_error()?;
@@ -127,6 +155,16 @@ pub fn common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Vec<String>> {
     Ok(common)
 }
 
+/// Returns the deepest common ancestor in the ontology for the given GO Terms.
+///
+/// # Arguments
+///
+/// * `go_id1` - GO term ID 1.
+/// * `go_id2` - GO term ID 2.
+///
+/// # Returns
+///
+/// ID of the deepest common ancestor in the ontology. (String)
 #[pyfunction]
 pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<String>> {
     let terms = get_terms_or_error()?;

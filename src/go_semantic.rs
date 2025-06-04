@@ -4,6 +4,16 @@ use rayon::prelude::*;
 use crate::go_loader::TermCounter;
 use crate::go_ontology::{deepest_common_ancestor, get_term_by_id};
 
+/// Compute Information Content (IC) for the given GO term using the annotations.
+///
+/// # Arguments
+///
+/// * `go_id` - GO term ID.
+/// * `counter` - TermCounter with the annotations.
+///
+/// # Returns
+///
+/// Information Content (float)
 #[pyfunction]
 pub fn term_ic(go_id: &str, counter: &TermCounter) -> f64 {
     *counter.ic.get(go_id).unwrap_or(&0.0)
@@ -36,6 +46,16 @@ pub fn resnik_similarity(id1: &str, id2: &str, counter: &TermCounter) -> f64 {
     }
 }
 
+/// Compute similarity between two GO terms using Lin.
+///
+/// # Arguments
+///
+/// * `id1` - First GO term ID
+/// * `id2` - Second GO term ID
+///
+/// # Returns
+///
+/// Lin similarity score (float)
 #[pyfunction]
 pub fn lin_similarity(id1: &str, id2: &str, counter: &TermCounter) -> f64 {
     let resnik = resnik_similarity(id1, id2, counter);
@@ -51,15 +71,26 @@ pub fn lin_similarity(id1: &str, id2: &str, counter: &TermCounter) -> f64 {
     2.0 * resnik / (ic1 + ic2)
 }
 
+/// Compute similarity between two batches of GO terms using Resnik similarity.
+/// Both lists must be of the same size.
+///
+/// # Arguments
+///
+/// * `list1` - First list of GO term ID
+/// * `list2` - Second list GO term ID
+/// * `counter` - TermCounter with the annotations.
+/// # Returns
+///
+/// List of Resnik similarity scores (float)
 #[pyfunction]
-pub fn batch_resnik(lista1: Vec<String>, lista2: Vec<String>, counter: &TermCounter) -> PyResult<Vec<f64>> {
-    if lista1.len() != lista2.len() {
+pub fn batch_resnik(list1: Vec<String>, list2: Vec<String>, counter: &TermCounter) -> PyResult<Vec<f64>> {
+    if list1.len() != list2.len() {
         return Err(PyValueError::new_err("Both lists must be the same length"));
     }
 
-    Ok(lista1
+    Ok(list1
         .par_iter()
-        .zip(lista2.par_iter())
+        .zip(list2.par_iter())
         .map(|(id1, id2)| {
             match deepest_common_ancestor(id1, id2) {
                 Ok(Some(dca)) => *counter.ic.get(&dca).unwrap_or(&0.0),
@@ -69,15 +100,26 @@ pub fn batch_resnik(lista1: Vec<String>, lista2: Vec<String>, counter: &TermCoun
         .collect())
 }
 
+/// Compute similarity between two batches of GO terms using Resnik similarity.
+/// Both lists must be of the same size.
+///
+/// # Arguments
+///
+/// * `list1` - First list of GO term ID
+/// * `list2` - Second list GO term ID
+/// * `counter` - TermCounter with the annotations.
+/// # Returns
+///
+/// List of Resnik similarity scores (float)
 #[pyfunction]
-pub fn batch_lin(lista1: Vec<String>, lista2: Vec<String>, counter: &TermCounter) -> PyResult<Vec<f64>> {
-    if lista1.len() != lista2.len() {
+pub fn batch_lin(list1: Vec<String>, list2: Vec<String>, counter: &TermCounter) -> PyResult<Vec<f64>> {
+    if list1.len() != list2.len() {
         return Err(PyValueError::new_err("Both lists must be the same length"));
     }
 
-    Ok(lista1
+    Ok(list1
         .par_iter()
-        .zip(lista2.par_iter())
+        .zip(list2.par_iter())
         .map(|(id1, id2)| {
             let resnik = match deepest_common_ancestor(id1, id2) {
                 Ok(Some(dca)) => *counter.ic.get(&dca).unwrap_or(&0.0),
