@@ -5,5 +5,5 @@ __pycache__/
 /build
 /dist
 .env
-*/goa_human.gaf
+*goa_human.gaf
 *goa_human.gaf.gz

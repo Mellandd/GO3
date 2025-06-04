@@ -1,0 +1,362 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GO3 documentation &mdash; GO3  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            GO3
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">GO3 documentation</a><ul>
+<li><a class="reference internal" href="#go3.PyGOTerm"><code class="docutils literal notranslate"><span class="pre">PyGOTerm</span></code></a><ul>
+<li><a class="reference internal" href="#go3.PyGOTerm.alt_ids"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.alt_ids</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.children"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.children</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.comment"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.comment</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.consider"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.consider</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.definition"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.definition</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.depth"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.depth</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.id"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.id</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.is_obsolete"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.is_obsolete</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.level"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.level</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.name"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.name</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.namespace"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.namespace</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.parents"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.parents</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.relationships"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.relationships</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.replaced_by"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.replaced_by</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.synonyms"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.synonyms</span></code></a></li>
+<li><a class="reference internal" href="#go3.PyGOTerm.xrefs"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.xrefs</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#go3.ancestors"><code class="docutils literal notranslate"><span class="pre">ancestors()</span></code></a></li>
+<li><a class="reference internal" href="#go3.batch_lin"><code class="docutils literal notranslate"><span class="pre">batch_lin()</span></code></a></li>
+<li><a class="reference internal" href="#go3.batch_resnik"><code class="docutils literal notranslate"><span class="pre">batch_resnik()</span></code></a></li>
+<li><a class="reference internal" href="#go3.build_term_counter"><code class="docutils literal notranslate"><span class="pre">build_term_counter()</span></code></a></li>
+<li><a class="reference internal" href="#go3.common_ancestor"><code class="docutils literal notranslate"><span class="pre">common_ancestor()</span></code></a></li>
+<li><a class="reference internal" href="#go3.deepest_common_ancestor"><code class="docutils literal notranslate"><span class="pre">deepest_common_ancestor()</span></code></a></li>
+<li><a class="reference internal" href="#go3.get_term_by_id"><code class="docutils literal notranslate"><span class="pre">get_term_by_id()</span></code></a></li>
+<li><a class="reference internal" href="#go3.lin_similarity"><code class="docutils literal notranslate"><span class="pre">lin_similarity()</span></code></a></li>
+<li><a class="reference internal" href="#go3.load_gaf"><code class="docutils literal notranslate"><span class="pre">load_gaf()</span></code></a></li>
+<li><a class="reference internal" href="#go3.load_go_terms"><code class="docutils literal notranslate"><span class="pre">load_go_terms()</span></code></a></li>
+<li><a class="reference internal" href="#go3.resnik_similarity"><code class="docutils literal notranslate"><span class="pre">resnik_similarity()</span></code></a></li>
+<li><a class="reference internal" href="#go3.term_ic"><code class="docutils literal notranslate"><span class="pre">term_ic()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">GO3</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">GO3 documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="go3-documentation">
+<h1>GO3 documentation<a class="headerlink" href="#go3-documentation" title="Link to this heading"></a></h1>
+<p>Add your content using <code class="docutils literal notranslate"><span class="pre">reStructuredText</span></code> syntax. See the
+<a class="reference external" href="https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html">reStructuredText</a>
+documentation for details.</p>
+<div class="toctree-wrapper compound">
+</div>
+<dl class="py class" id="module-go3">
+<dt class="sig sig-object py" id="go3.PyGOTerm">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">PyGOTerm</span></span><a class="headerlink" href="#go3.PyGOTerm" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.alt_ids">
+<span class="sig-name descname"><span class="pre">alt_ids</span></span><a class="headerlink" href="#go3.PyGOTerm.alt_ids" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.children">
+<span class="sig-name descname"><span class="pre">children</span></span><a class="headerlink" href="#go3.PyGOTerm.children" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.comment">
+<span class="sig-name descname"><span class="pre">comment</span></span><a class="headerlink" href="#go3.PyGOTerm.comment" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.consider">
+<span class="sig-name descname"><span class="pre">consider</span></span><a class="headerlink" href="#go3.PyGOTerm.consider" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.definition">
+<span class="sig-name descname"><span class="pre">definition</span></span><a class="headerlink" href="#go3.PyGOTerm.definition" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.depth">
+<span class="sig-name descname"><span class="pre">depth</span></span><a class="headerlink" href="#go3.PyGOTerm.depth" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.id">
+<span class="sig-name descname"><span class="pre">id</span></span><a class="headerlink" href="#go3.PyGOTerm.id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.is_obsolete">
+<span class="sig-name descname"><span class="pre">is_obsolete</span></span><a class="headerlink" href="#go3.PyGOTerm.is_obsolete" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.level">
+<span class="sig-name descname"><span class="pre">level</span></span><a class="headerlink" href="#go3.PyGOTerm.level" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.name">
+<span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#go3.PyGOTerm.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.namespace">
+<span class="sig-name descname"><span class="pre">namespace</span></span><a class="headerlink" href="#go3.PyGOTerm.namespace" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.parents">
+<span class="sig-name descname"><span class="pre">parents</span></span><a class="headerlink" href="#go3.PyGOTerm.parents" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.relationships">
+<span class="sig-name descname"><span class="pre">relationships</span></span><a class="headerlink" href="#go3.PyGOTerm.relationships" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.replaced_by">
+<span class="sig-name descname"><span class="pre">replaced_by</span></span><a class="headerlink" href="#go3.PyGOTerm.replaced_by" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.synonyms">
+<span class="sig-name descname"><span class="pre">synonyms</span></span><a class="headerlink" href="#go3.PyGOTerm.synonyms" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.xrefs">
+<span class="sig-name descname"><span class="pre">xrefs</span></span><a class="headerlink" href="#go3.PyGOTerm.xrefs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.ancestors">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">ancestors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.ancestors" title="Link to this definition"></a></dt>
+<dd><p>Returns the list of all ancestors in the ontology for the given GO Term.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>go_id</cite> - GO term ID.</p></li>
+</ul>
+<p># Returns</p>
+<p>List of IDs of all the ancestors in the ontology (List of String)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.batch_lin">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">batch_lin</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">list2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.batch_lin" title="Link to this definition"></a></dt>
+<dd><p>Compute similarity between two batches of GO terms using Resnik similarity.
+Both lists must be of the same size.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>list1</cite> - First list of GO term ID</p></li>
+<li><p><cite>list2</cite> - Second list GO term ID</p></li>
+<li><p><cite>counter</cite> - TermCounter with the annotations.</p></li>
+</ul>
+<p># Returns</p>
+<p>List of Resnik similarity scores (float)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.batch_resnik">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">batch_resnik</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">list2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.batch_resnik" title="Link to this definition"></a></dt>
+<dd><p>Compute similarity between two batches of GO terms using Resnik similarity.
+Both lists must be of the same size.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>list1</cite> - First list of GO term ID</p></li>
+<li><p><cite>list2</cite> - Second list GO term ID</p></li>
+<li><p><cite>counter</cite> - TermCounter with the annotations.</p></li>
+</ul>
+<p># Returns</p>
+<p>List of Resnik similarity scores (float)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.build_term_counter">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">build_term_counter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">annotations</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.build_term_counter" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.common_ancestor">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">common_ancestor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">go_id2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.common_ancestor" title="Link to this definition"></a></dt>
+<dd><p>Returns the list of all the common ancestors in the ontology for the given GO Terms.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>go_id1</cite> - GO term ID 1.</p></li>
+<li><p><cite>go_id2</cite> - GO term ID 2.</p></li>
+</ul>
+<p># Returns</p>
+<p>List of IDs of all the common ancestors in the ontology (List of String)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.deepest_common_ancestor">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">deepest_common_ancestor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">go_id2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.deepest_common_ancestor" title="Link to this definition"></a></dt>
+<dd><p>Returns the deepest common ancestor in the ontology for the given GO Terms.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>go_id1</cite> - GO term ID 1.</p></li>
+<li><p><cite>go_id2</cite> - GO term ID 2.</p></li>
+</ul>
+<p># Returns</p>
+<p>ID of the deepest common ancestor in the ontology. (String)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.get_term_by_id">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">get_term_by_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.get_term_by_id" title="Link to this definition"></a></dt>
+<dd><p>Gets the PyGoTerm object for the given GO Term ID.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>go_id</cite> - GO term ID.</p></li>
+</ul>
+<p># Returns</p>
+<p>PyGOTerm associated with the ID. (PyGOTerm)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.lin_similarity">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">lin_similarity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.lin_similarity" title="Link to this definition"></a></dt>
+<dd><p>Compute similarity between two GO terms using Lin.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>id1</cite> - First GO term ID</p></li>
+<li><p><cite>id2</cite> - Second GO term ID</p></li>
+</ul>
+<p># Returns</p>
+<p>Lin similarity score (float)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.load_gaf">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">load_gaf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.load_gaf" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.load_go_terms">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">load_go_terms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.load_go_terms" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.resnik_similarity">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">resnik_similarity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.resnik_similarity" title="Link to this definition"></a></dt>
+<dd><p>Compute similarity between two GO terms using Resnik.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>id1</cite> - First GO term ID</p></li>
+<li><p><cite>id2</cite> - Second GO term ID</p></li>
+</ul>
+<p># Returns</p>
+<p>Resnik similarity score (float)</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.term_ic">
+<span class="sig-prename descclassname"><span class="pre">go3.</span></span><span class="sig-name descname"><span class="pre">term_ic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.term_ic" title="Link to this definition"></a></dt>
+<dd><p>Compute Information Content (IC) for the given GO term using the annotations.</p>
+<p># Arguments</p>
+<ul class="simple">
+<li><p><cite>go_id</cite> - GO term ID.</p></li>
+<li><p><cite>counter</cite> - TermCounter with the annotations.</p></li>
+</ul>
+<p># Returns</p>
+<p>Information Content (float)</p>
+</dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Jose Luis Mellina Andreu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
