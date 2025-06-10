@@ -1,4 +1,4 @@
-/target
+/go3/target
 *.pyc
 __pycache__/
 /*.egg-info

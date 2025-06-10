@@ -27,11 +27,11 @@ pub struct GAFAnnotation {
 #[derive(Clone)]
 pub struct TermCounter {
     #[pyo3(get)]
-    pub counts: HashMap<String, usize>,
+    pub counts: HashMap<String, usize>,         // term_id -> count
     #[pyo3(get)]
-    pub total: usize,
+    pub total_by_ns: HashMap<String, usize>,    // namespace -> total annotations
     #[pyo3(get)]
-    pub ic: HashMap<String, f64>,
+    pub ic: HashMap<String, f64>,               // term_id -> IC
 }
 
 pub fn parse_obo(path: &str) -> HashMap<String, GOTerm> {
@@ -174,7 +174,7 @@ pub fn compute_levels_and_depths(terms: &mut HashMap<String, GOTerm>) {
         visiting: &mut HashSet<String>,
     ) -> usize {
         if visiting.contains(term_id) {
-            eprintln!("⚠️ Ciclo detectado en depth: {}", term_id);
+            eprintln!("Ciclo detectado en depth: {}", term_id);
             return 0;
         }
 
@@ -284,85 +284,73 @@ pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
     Ok(annotations)
 }
 
-#[pyfunction]
-pub fn build_term_counter(annotations: Vec<GAFAnnotation>) -> PyResult<TermCounter> {
-    // Load GO terms with proper error handling
-    let terms = get_terms_or_error()?;
+fn _build_term_counter(
+    annotations: &[GAFAnnotation],
+    terms: &HashMap<String, GOTerm>,
+) -> TermCounter {
+    let mut counts: HashMap<String, usize> = HashMap::new();
+    let mut total_by_ns: HashMap<String, usize> = HashMap::new();
+
+    // Agrupar por objeto (proteína, gen, etc.)
+    let mut obj_to_terms: HashMap<&str, HashSet<&str>> = HashMap::new();
+
+    for ann in annotations {
+        let go_id = ann.go_term.as_str();
+        let mut term_set = collect_ancestors(go_id, terms);
+        term_set.insert(go_id);
+        obj_to_terms
+            .entry(ann.db_object_id.as_str())
+            .or_default()
+            .extend(term_set);
+    }
+
+    for term_ids in obj_to_terms.values() {
+        let mut namespaces_seen = HashSet::new();
     
-    // Pre-compute ancestor cache for all terms
-    let ancestor_cache: HashMap<&str, HashSet<&str>> = terms
-        .keys()
-        .map(|id| id.as_str())
-        .collect::<Vec<_>>()
-        .par_iter()
-        .map(|&id| (id, collect_ancestors(id, &terms)))
-        .collect();
-
-    // Phase 1: Group annotations by gene in parallel
-    let genes_to_terms: HashMap<String, HashSet<&str>> = annotations
-        .par_iter()
-        .fold(
-            || HashMap::new(),
-            |mut acc: HashMap<String, HashSet<&str>>, annotation| {
-                acc.entry(annotation.db_object_id.clone())
-                   .or_default()
-                   .insert(annotation.go_term.as_str());
-                acc
+        for &term_id in term_ids {
+            if let Some(term) = terms.get(term_id) {
+                *counts.entry(term_id.to_string()).or_insert(0) += 1;
+                namespaces_seen.insert(term.namespace.as_str());
             }
-        )
-        .reduce(
-            || HashMap::new(),
-            |mut a, b| {
-                for (gene, terms) in b {
-                    a.entry(gene).or_default().extend(terms);
-                }
-                a
-            }
-        );
+        }
+    
+        for ns in namespaces_seen {
+            *total_by_ns.entry(ns.to_string()).or_insert(0) += 1;
+        }
+    }
 
-    let total_genes = genes_to_terms.len();
+    // Calcular IC
+    let mut ic: HashMap<String, f64> = HashMap::new();
+    for (term_id, count) in &counts {
+        if let Some(term) = terms.get(term_id) {
+            let total = total_by_ns.get(&term.namespace).copied().unwrap_or(1);
+            let freq = *count as f64 / total as f64;
+            let info_content = if freq > 0.0 { -freq.ln() } else { 0.0 };
+            ic.insert(term_id.clone(), info_content);
+        }
+    }
 
-    // Phase 2: Count term occurrences in parallel
-    let counts: HashMap<String, usize> = genes_to_terms
-        .par_iter()
-        .fold(
-            || HashMap::new(),
-            |mut acc: HashMap<String, usize>, (_, gene_terms)| {
-                let mut all_ancestors = HashSet::new();
-                for &term in gene_terms {
-                    if let Some(ancestors) = ancestor_cache.get(term) {
-                        all_ancestors.extend(ancestors.iter().copied());
-                    }
-                }
-                for &ancestor in &all_ancestors {
-                    *acc.entry(ancestor.to_string()).or_default() += 1;
-                }
-                acc
-            }
-        )
-        .reduce(
-            || HashMap::new(),
-            |mut a, b| {
-                for (term, count) in b {
-                    *a.entry(term).or_default() += count;
-                }
-                a
-            }
-        );
-
-    // Phase 3: Calculate IC in parallel
-    let ic: HashMap<String, f64> = counts
-        .par_iter()
-        .map(|(term, count)| {
-            let probability = (*count as f64) / (total_genes as f64);
-            let information_content = -probability.log2();
-            (term.clone(), information_content)
-        })
-        .collect();
-
-    Ok(TermCounter {
+    TermCounter {
         counts,
-        total: total_genes,
+        total_by_ns,
         ic,
-    })
+    }
+}
+
+#[pyfunction]
+pub fn build_term_counter(
+    py: Python<'_>,
+    py_annotations: Vec<Py<GAFAnnotation>>,
+) -> PyResult<TermCounter> {
+    // Obtener los términos GO desde el caché global
+    let terms = get_terms_or_error()?;
+
+    // Convertir las anotaciones de Py<GAFAnnotation> a GAFAnnotation (Rust)
+    let annotations: Vec<GAFAnnotation> = py_annotations
+        .into_iter()
+        .map(|py_ann| py_ann.extract(py))
+        .collect::<PyResult<_>>()?;
+
+    // Llamar a la función de conteo interna
+    Ok(_build_term_counter(&annotations, &terms))
 }

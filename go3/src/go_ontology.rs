@@ -80,6 +80,31 @@ impl PyGOTerm {
     }
 }
 
+impl From<PyGOTerm> for GOTerm {
+    fn from(py_term: PyGOTerm) -> Self {
+        Self {
+            id: py_term.id,
+            name: py_term.name,
+            namespace: py_term.namespace,
+            definition: py_term.definition,
+            parents: py_term.parents,
+            children: py_term.children,
+            depth: py_term.depth,
+            level: py_term.level,
+            is_obsolete: py_term.is_obsolete,
+            alt_ids: py_term.alt_ids,
+            replaced_by: py_term.replaced_by,
+            consider: py_term.consider,
+            synonyms: py_term.synonyms,
+            xrefs: py_term.xrefs,
+            relationships: py_term.relationships,
+            comment: py_term.comment,
+        }
+    }
+}
+
+
+
 pub fn get_terms_or_error<'a>() -> PyResult<std::sync::RwLockReadGuard<'a, HashMap<String, GOTerm>>> {
     GO_TERMS_CACHE
         .get()
