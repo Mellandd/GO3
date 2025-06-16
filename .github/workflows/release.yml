@@ -1,50 +1,67 @@
-name: Build and publish wheels to PyPI
+name: Build and Publish
 
 on:
-  release:
-    types: [published]
+  push:
+    branches:
+      - "!*"  # No ramas
+    tags:
+      - "v*"  # Solo tags que empiecen por "v"
 
 jobs:
-  build_wheels:
-    name: Build wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-
-    - name: Install cibuildwheel
-      run: pip install cibuildwheel
-
-    - name: Build wheels
-      run: |
-        cd go3 && cibuildwheel --output-dir dist
-      env:
-        CIBW_SKIP: pp*  # opcional: omitir PyPy si no lo necesitas
-
-    - uses: actions/upload-artifact@v4
-      with:
-        name: python-wheels
-        path: dist/*.whl
-
-  upload_pypi:
-    needs: build_wheels
+  build:
+    name: Build and publish release
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/download-artifact@v4
-      with:
-        name: python-wheels
-        path: dist
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ secrets.PYPI_API_TOKEN }}
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install maturin
+        run: pip install maturin
+
+      - name: Build wheels and sdist
+        id: build_package
+        run: |
+          maturin build --release --out dist
+          maturin sdist --out dist
+          echo "WHEELNAME=$(ls dist/*.whl)" >> $GITHUB_OUTPUT
+          echo "TARNAME=$(ls dist/*.tar.gz)" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref }}
+          name: Release ${{ github.ref }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload .whl to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.build_package.outputs.WHEELNAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload .tar.gz to GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ steps.build_package.outputs.TARNAME }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
