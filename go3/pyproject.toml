@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "go3"
-version = "0.1.1"
+version = "0.1.2"
 description = "Semantic similarity computations using Gene Ontology with Rust performance"
 authors = [{ name = "Jose Luis Mellina Andreu", email= "joseluis.mellinaa@um.es" }]
 license = {file = "LICENSE"}
