@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use pyo3::prelude::*;
 use pyo3::types::PyString;
-use crate::go_loader::GO_TERMS_CACHE;
+use crate::go_loader::{GO_TERMS_CACHE, GENE2GO_CACHE};
 
 #[derive(Clone)]
 pub struct GOTerm {
@@ -103,14 +103,20 @@ impl From<PyGOTerm> for GOTerm {
     }
 }
 
-
-
 pub fn get_terms_or_error<'a>() -> PyResult<std::sync::RwLockReadGuard<'a, HashMap<String, GOTerm>>> {
     GO_TERMS_CACHE
         .get()
         .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("GO terms not loaded. Call go3.load_go_terms() first."))?
         .read()
         .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("Failed to read GO terms"))
+}
+
+pub fn get_gene2go_or_error<'a>() -> PyResult<std::sync::RwLockReadGuard<'a, HashMap<String, Vec<String>>>> {
+    GENE2GO_CACHE
+        .get()
+        .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("Gene2GO mapping not loaded. Call go3.load_gene2go() first."))?
+        .read()
+        .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("Failed to read Gene2GO map"))
 }
 
 /// Gets the PyGoTerm object for the given GO Term ID.
@@ -208,4 +214,17 @@ pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<St
         }
     }
     Ok(best)
+}
+
+#[pyfunction]
+pub fn inspect_gene2go_cache(limit: Option<usize>) -> PyResult<Vec<(String, usize)>> {
+    let gene2go = get_gene2go_or_error()?;
+
+    let items = gene2go
+        .iter()
+        .take(limit.unwrap_or(20)) // por defecto mostramos 20 genes
+        .map(|(gene, terms)| (gene.clone(), terms.len()))
+        .collect();
+
+    Ok(items)
 }

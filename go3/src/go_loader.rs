@@ -11,6 +11,7 @@ use rayon::prelude::*;
 
 use crate::go_ontology::{GOTerm, PyGOTerm, collect_ancestors, get_terms_or_error};
 pub static GO_TERMS_CACHE: OnceCell<RwLock<HashMap<String, GOTerm>>> = OnceCell::new();
+pub static GENE2GO_CACHE: OnceCell<RwLock<HashMap<String, Vec<String>>>> = OnceCell::new();
 
 #[pyclass]
 #[derive(Clone)]
@@ -261,25 +262,36 @@ pub fn load_go_terms(path: Option<String>) -> PyResult<Vec<PyGOTerm>> {
 
 #[pyfunction]
 pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
-    let file = File::open(path).map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
+    let file = File::open(&path).map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
     let reader = BufReader::new(file);
 
-    let annotations = reader
-        .lines()
-        .filter_map(Result::ok)
-        .filter(|line| !line.starts_with('!'))
-        .filter_map(|line| {
-            let cols: Vec<&str> = line.split('\t').collect();
-            if cols.len() < 7 {
-                return None;
-            }
-            Some(GAFAnnotation {
-                db_object_id: cols[1].to_string(),
-                go_term: cols[4].to_string(),
-                evidence: cols[6].to_string(),
-            })
-        })
-        .collect();
+    let mut annotations: Vec<GAFAnnotation> = Vec::new();
+    let mut gene2go: HashMap<String, Vec<String>> = HashMap::new();
+
+    for line in reader.lines().filter_map(Result::ok).filter(|l| !l.starts_with('!')) {
+        let cols: Vec<&str> = line.split('\t').collect();
+        if cols.len() < 7 {
+            continue;
+        }
+
+        let db_object_id = cols[1].to_string();
+        let go_term = cols[4].to_string();
+        let evidence = cols[6].to_string();
+        let gene = cols[2].to_string();
+
+        // Añadir a la lista de anotaciones
+        annotations.push(GAFAnnotation {
+            db_object_id: db_object_id.clone(),
+            go_term: go_term.clone(),
+            evidence,
+        });
+
+        // Construir el mapping gene -> GO terms
+        gene2go.entry(gene).or_default().push(go_term);
+    }
+
+    // Guardar en la caché global
+    let _ = GENE2GO_CACHE.set(RwLock::new(gene2go));
 
     Ok(annotations)
 }
@@ -291,7 +303,6 @@ fn _build_term_counter(
     let mut counts: HashMap<String, usize> = HashMap::new();
     let mut total_by_ns: HashMap<String, usize> = HashMap::new();
 
-    // Agrupar por objeto (proteína, gen, etc.)
     let mut obj_to_terms: HashMap<&str, HashSet<&str>> = HashMap::new();
 
     for ann in annotations {

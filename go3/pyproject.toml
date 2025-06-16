@@ -8,8 +8,17 @@ version = "0.1.0"
 description = "Semantic similarity computations using Gene Ontology with Rust performance"
 authors = [{ name = "Jose Luis Mellina Andreu", email= "joseluis.mellinaa@um.es" }]
 license = {file = "LICENSE"}
-requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Rust",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
+requires-python = ">=3.7"
 
 [tool.maturin]
 bindings = "pyo3"
 module-name = "go3"
+
+[project.urls]
+Homepage = "https://github.com/Mellandd/GO3"
+Repository = "https://github.com/Mellandd/GO3"
