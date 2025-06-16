@@ -36,8 +36,6 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           pip install maturin
-          cd go3
           maturin develop
-          cd ..
           pip install pytest
           pytest tests/
