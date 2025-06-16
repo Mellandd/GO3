@@ -33,7 +33,7 @@ jobs:
       - name: Build wheels and sdist
         id: build_package
         run: |
-          maturin build --release --out dist
+          maturin build --manifest-path go3/Cargo.toml --release --out dist
           maturin sdist --out dist
           echo "WHEELNAME=$(ls dist/*.whl)" >> $GITHUB_OUTPUT
           echo "TARNAME=$(ls dist/*.tar.gz)" >> $GITHUB_OUTPUT
