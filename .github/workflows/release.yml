@@ -1,0 +1,50 @@
+name: Build and publish wheels to PyPI
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install cibuildwheel
+      run: pip install cibuildwheel
+
+    - name: Build wheels
+      run: |
+        cd go3 && cibuildwheel --output-dir dist
+      env:
+        CIBW_SKIP: pp*  # opcional: omitir PyPy si no lo necesitas
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: python-wheels
+        path: dist/*.whl
+
+  upload_pypi:
+    needs: build_wheels
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/download-artifact@v4
+      with:
+        name: python-wheels
+        path: dist
+
+    - name: Publish to PyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
