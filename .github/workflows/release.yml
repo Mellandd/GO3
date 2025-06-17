@@ -41,6 +41,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: 3.x
+
+      - name: Set CFLAGS for aarch64
+        if: matrix.platform.target == 'aarch64'
+        run: echo "CFLAGS_aarch64_unknown_linux_gnu=-D__ARM_ARCH=8" >> $GITHUB_ENV
+        
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
