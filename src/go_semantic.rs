@@ -266,7 +266,7 @@ pub fn compare_gene_pairs_batch(
                 .get(&g1)
                 .into_iter()
                 .flatten()
-                .filter(|go| terms.get(go).map_or(false, |t| t.namespace.eq_ignore_ascii_case(ns)))
+                .filter(|go| terms.get(go.as_str()).map_or(false, |t| t.namespace.eq_ignore_ascii_case(ns)))
                 .cloned()
                 .collect();
 
@@ -274,7 +274,7 @@ pub fn compare_gene_pairs_batch(
                 .get(&g2)
                 .into_iter()
                 .flatten()
-                .filter(|go| terms.get(go).map_or(false, |t| t.namespace.eq_ignore_ascii_case(ns)))
+                .filter(|go| terms.get(go.as_str()).map_or(false, |t| t.namespace.eq_ignore_ascii_case(ns)))
                 .cloned()
                 .collect();
 
