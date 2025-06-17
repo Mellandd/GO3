@@ -229,7 +229,6 @@ pub fn compare_genes(
     Ok(score)
 }
 
-
 #[pyfunction]
 #[pyo3(signature = (pairs, ontology, method, combine, counter))]
 pub fn compare_gene_pairs_batch(
@@ -241,6 +240,7 @@ pub fn compare_gene_pairs_batch(
 ) -> PyResult<Vec<f64>> {
     let gene2go = get_gene2go_or_error()?;
     let terms = get_terms_or_error()?;
+
     let ns = match ontology.as_str() {
         "BP" => "biological_process",
         "MF" => "molecular_function",
@@ -252,47 +252,43 @@ pub fn compare_gene_pairs_batch(
             )))
         }
     };
-    let scores: Vec<f64> = pairs
-        .into_iter()
-        .map(|(g1, g2)| {
-            let set1 = gene2go.get(&g1).cloned().unwrap_or_default();
-            let set2 = gene2go.get(&g2).cloned().unwrap_or_default();
 
-            let go1: Vec<String> = set1
+    let sim_fn = match method.as_str() {
+        "resnik" => resnik_similarity,
+        "lin" => lin_similarity,
+        _ => return Ok(vec![0.0; pairs.len()]), // más rápido que return en cada iter
+    };
+
+    let scores: Vec<f64> = pairs
+        .into_par_iter()
+        .map(|(g1, g2)| {
+            let go1: Vec<_> = gene2go
+                .get(&g1)
                 .into_iter()
-                .filter(|go| terms.get(go).map_or(false, |t| t.namespace.to_ascii_lowercase() == ns))
+                .flatten()
+                .filter(|go| terms.get(go).map_or(false, |t| t.namespace.eq_ignore_ascii_case(ns)))
+                .cloned()
                 .collect();
 
-            let go2: Vec<String> = set2
+            let go2: Vec<_> = gene2go
+                .get(&g2)
                 .into_iter()
-                .filter(|go| terms.get(go).map_or(false, |t| t.namespace.to_ascii_lowercase() == ns))
+                .flatten()
+                .filter(|go| terms.get(go).map_or(false, |t| t.namespace.eq_ignore_ascii_case(ns)))
+                .cloned()
                 .collect();
 
             if go1.is_empty() || go2.is_empty() {
                 return 0.0;
             }
 
-            let sim_fn = match method.as_str() {
-                "resnik" => resnik_similarity,
-                "lin" => lin_similarity,
-                _ => return 0.0,
-            };
-
-            let mut matrix = vec![vec![0.0; go2.len()]; go1.len()];
-            for (i, id1) in go1.iter().enumerate() {
-                for (j, id2) in go2.iter().enumerate() {
-                    matrix[i][j] = sim_fn(id1, id2, counter);
-                }
-            }
-
             match combine.as_str() {
-                "max" => {
-                    go1.iter()
-                        .flat_map(|id1| go2.iter().map(move |id2| sim_fn(id1, id2, counter)))
-                        .fold(0.0, f64::max)
-                }
+                "max" => go1.iter()
+                    .flat_map(|id1| go2.iter().map(move |id2| sim_fn(id1, id2, counter)))
+                    .fold(0.0, f64::max),
+
                 "bma" => {
-                    let sem1: Vec<f64> = go1.iter()
+                    let sem1: Vec<_> = go1.par_iter()
                         .map(|id1| {
                             go2.iter()
                                 .map(|id2| sim_fn(id1, id2, counter))
@@ -300,7 +296,7 @@ pub fn compare_gene_pairs_batch(
                         })
                         .collect();
 
-                    let sem2: Vec<f64> = go2.iter()
+                    let sem2: Vec<_> = go2.par_iter()
                         .map(|id2| {
                             go1.iter()
                                 .map(|id1| sim_fn(id1, id2, counter))
@@ -315,6 +311,7 @@ pub fn compare_gene_pairs_batch(
                         (sem1.iter().sum::<f64>() + sem2.iter().sum::<f64>()) / total as f64
                     }
                 }
+
                 _ => 0.0,
             }
         })
@@ -322,3 +319,96 @@ pub fn compare_gene_pairs_batch(
 
     Ok(scores)
 }
+
+// #[pyfunction]
+// #[pyo3(signature = (pairs, ontology, method, combine, counter))]
+// pub fn compare_gene_pairs_batch(
+//     pairs: Vec<(String, String)>,
+//     ontology: String,
+//     method: String,
+//     combine: String,
+//     counter: &TermCounter,
+// ) -> PyResult<Vec<f64>> {
+//     let gene2go = get_gene2go_or_error()?;
+//     let terms = get_terms_or_error()?;
+//     let ns = match ontology.as_str() {
+//         "BP" => "biological_process",
+//         "MF" => "molecular_function",
+//         "CC" => "cellular_component",
+//         _ => {
+//             return Err(PyValueError::new_err(format!(
+//                 "Invalid ontology '{}'. Must be 'BP', 'MF', or 'CC'",
+//                 ontology
+//             )))
+//         }
+//     };
+//     let scores: Vec<f64> = pairs
+//         .into_iter()
+//         .map(|(g1, g2)| {
+//             let set1 = gene2go.get(&g1).cloned().unwrap_or_default();
+//             let set2 = gene2go.get(&g2).cloned().unwrap_or_default();
+
+//             let go1: Vec<String> = set1
+//                 .into_iter()
+//                 .filter(|go| terms.get(go).map_or(false, |t| t.namespace.to_ascii_lowercase() == ns))
+//                 .collect();
+
+//             let go2: Vec<String> = set2
+//                 .into_iter()
+//                 .filter(|go| terms.get(go).map_or(false, |t| t.namespace.to_ascii_lowercase() == ns))
+//                 .collect();
+
+//             if go1.is_empty() || go2.is_empty() {
+//                 return 0.0;
+//             }
+
+//             let sim_fn = match method.as_str() {
+//                 "resnik" => resnik_similarity,
+//                 "lin" => lin_similarity,
+//                 _ => return 0.0,
+//             };
+
+//             let mut matrix = vec![vec![0.0; go2.len()]; go1.len()];
+//             for (i, id1) in go1.iter().enumerate() {
+//                 for (j, id2) in go2.iter().enumerate() {
+//                     matrix[i][j] = sim_fn(id1, id2, counter);
+//                 }
+//             }
+
+//             match combine.as_str() {
+//                 "max" => {
+//                     go1.iter()
+//                         .flat_map(|id1| go2.iter().map(move |id2| sim_fn(id1, id2, counter)))
+//                         .fold(0.0, f64::max)
+//                 }
+//                 "bma" => {
+//                     let sem1: Vec<f64> = go1.iter()
+//                         .map(|id1| {
+//                             go2.iter()
+//                                 .map(|id2| sim_fn(id1, id2, counter))
+//                                 .fold(0.0, f64::max)
+//                         })
+//                         .collect();
+
+//                     let sem2: Vec<f64> = go2.iter()
+//                         .map(|id2| {
+//                             go1.iter()
+//                                 .map(|id1| sim_fn(id1, id2, counter))
+//                                 .fold(0.0, f64::max)
+//                         })
+//                         .collect();
+
+//                     let total = sem1.len() + sem2.len();
+//                     if total == 0 {
+//                         0.0
+//                     } else {
+//                         (sem1.iter().sum::<f64>() + sem2.iter().sum::<f64>()) / total as f64
+//                     }
+//                 }
+//                 _ => 0.0,
+//             }
+//         })
+//         .collect();
+
+//     Ok(scores)
+// }
