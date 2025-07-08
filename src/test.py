@@ -7,7 +7,7 @@ terms = go3.load_go_terms()
 print(f"✔️ Se cargaron {len(terms)} términos GO")
 
 # # Elegimos un término para probar (asegúrate de que existe)
-go_id = "GO:0090728"  # biological_process
+go_id = "GO:0031966"  # biological_process
 
 print(f"\n📘 Probando funciones con el término {go_id}...\n")
 
@@ -58,5 +58,7 @@ for ann in annotations[:5]:
 counter = go3.build_term_counter(annotations)
 
 print("IC GO:0006397 =", go3.term_ic("GO:0006397", counter))
-print("Resnik:", go3.resnik_similarity("GO:0006397", "GO:0008380", counter))
-print("Lin:", go3.lin_similarity("GO:0006397", "GO:0008380", counter))
+print("Resnik:", go3.semantic_similarity("GO:0006397", "GO:0008380", 'resnik', counter))
+print("Lin:", go3.semantic_similarity("GO:0006397", "GO:0008380", 'lin', counter))
+print("GraphIC:", go3.semantic_similarity("GO:0006397", "GO:0008380", 'graphic', counter))
+print("Wang:", go3.semantic_similarity("GO:0006397", "GO:0008380", 'wang', counter))

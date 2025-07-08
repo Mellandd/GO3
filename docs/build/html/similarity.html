@@ -1,0 +1,241 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Semantic Similarity Functions &mdash; GO3  documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=80d5e7a1" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=5929fcd5"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Annotations" href="annotations.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            GO3
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Introduction:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializating-the-ontology">Initializating the Ontology</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializating-the-annotations">Initializating the annotations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">📄 API documentation:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology</a></li>
+<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Semantic Similarity Functions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#introduction">Introduction</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#similarity-measures">Similarity Measures</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#resnik-similarity">Resnik Similarity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#lin-similarity">Lin Similarity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#jiang-conrath-similarity">Jiang-Conrath Similarity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#simrel-similarity">SimRel Similarity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#information-coefficient">Information Coefficient</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#graphic-similarity">GraphIC Similarity</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#wang-similarity">Wang Similarity</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#batch-computation">Batch Computation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bibliography">Bibliography</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">GO3</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Semantic Similarity Functions</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/similarity.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="semantic-similarity-functions">
+<h1>Semantic Similarity Functions<a class="headerlink" href="#semantic-similarity-functions" title="Link to this heading"></a></h1>
+<section id="introduction">
+<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading"></a></h2>
+<p>The <cite>go3</cite> library provides several semantic similarity functions for comparing Gene Ontology (GO) terms. These measures rely on two main principles:</p>
+<ul class="simple">
+<li><p>Information Content (IC) derived from GO annotations.</p></li>
+<li><p>Graph-based topological relationships in the GO hierarchy.</p></li>
+</ul>
+<p>In this section, we summarize the main similarity measures provided, along with their theoretical definitions and bibliographic references.</p>
+</section>
+<section id="similarity-measures">
+<h2>Similarity Measures<a class="headerlink" href="#similarity-measures" title="Link to this heading"></a></h2>
+<section id="resnik-similarity">
+<h3>Resnik Similarity<a class="headerlink" href="#resnik-similarity" title="Link to this heading"></a></h3>
+<p>The Resnik similarity <span id="id1">[<a class="reference internal" href="#id8" title="P. Resnik. Using information content to evaluate semantic similarity in a taxonomy. In Proceedings of the 14th International Joint Conference on Artificial Intelligence (IJCAI), 448–453. 1995.">1</a>]</span> measures the similarity between two GO terms as the information content (IC) of their Most Informative Common Ancestor (MICA):</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{Sim}_{Resnik}(t_1, t_2) = IC(\mathrm{MICA}(t_1, t_2))\]</div>
+</section>
+<section id="lin-similarity">
+<h3>Lin Similarity<a class="headerlink" href="#lin-similarity" title="Link to this heading"></a></h3>
+<p>Lin’s similarity <span id="id2">[<a class="reference internal" href="#id9" title="D. Lin. An information-theoretic definition of similarity. In Proceedings of the 15th International Conference on Machine Learning (ICML), 296–304. 1998.">2</a>]</span> normalizes Resnik’s similarity by the sum of the ICs of both terms:</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{Sim}_{Lin}(t_1, t_2) = \frac{2 \times IC(\mathrm{MICA}(t_1, t_2))}{IC(t_1) + IC(t_2)}\]</div>
+</section>
+<section id="jiang-conrath-similarity">
+<h3>Jiang-Conrath Similarity<a class="headerlink" href="#jiang-conrath-similarity" title="Link to this heading"></a></h3>
+<p>Jiang and Conrath define a distance between two GO terms based on IC <span id="id3">[<a class="reference internal" href="#id10" title="J. J. Jiang and D. W. Conrath. Semantic similarity based on corpus statistics and lexical taxonomy. In Proceedings of the International Conference on Research in Computational Linguistics (ROCLING), 19–33. 1997.">3</a>]</span>:</p>
+<div class="math notranslate nohighlight">
+\[d_{JC} = IC(t_1) + IC(t_2) - 2 \times IC(\mathrm{MICA})\]</div>
+<p>Similarity is then calculated as:</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{Sim}_{JC} = \frac{1}{d_{JC}}\]</div>
+</section>
+<section id="simrel-similarity">
+<h3>SimRel Similarity<a class="headerlink" href="#simrel-similarity" title="Link to this heading"></a></h3>
+<p>The SimRel measure <span id="id4">[<a class="reference internal" href="#id11" title="A. Schlicker, F. S. Domingues, J. Rahnenfuhrer, and T. Lengauer. A new measure for functional similarity of gene products based on gene ontology. BMC Bioinformatics, 7(1):302, 2006.">4</a>]</span> combines Lin’s similarity with an exponential relevance factor:</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{Sim}_{Rel} = \left( \frac{2 \times IC(\mathrm{MICA})}{IC(t_1) + IC(t_2)} \right) \times \left(1 - e^{-IC(\mathrm{MICA})}\right)\]</div>
+</section>
+<section id="information-coefficient">
+<h3>Information Coefficient<a class="headerlink" href="#information-coefficient" title="Link to this heading"></a></h3>
+<p>Li et al. <span id="id5">[<a class="reference internal" href="#id12" title="B. Li, J. Z. Wang, F. A. Feltus, J. Zhou, and F. Luo. Effectively integrating information content and structural relationship to improve the go-based similarity measure. Journal of Biomedical Informatics, 43(5):752–760, 2010.">5</a>]</span> propose a normalization using the minimum IC of the two terms:</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{IC\_coef} = \frac{IC(\mathrm{MICA})}{\min(IC(t_1), IC(t_2))}\]</div>
+</section>
+<section id="graphic-similarity">
+<h3>GraphIC Similarity<a class="headerlink" href="#graphic-similarity" title="Link to this heading"></a></h3>
+<p>The GraphIC measure uses the maximum graph depth of the two terms to scale the similarity:</p>
+<div class="math notranslate nohighlight">
+\[\mathrm{GraphIC} = \frac{IC(\mathrm{MICA})}{\max(\mathrm{depth}(t_1), \mathrm{depth}(t_2)) + 1}\]</div>
+</section>
+<section id="wang-similarity">
+<h3>Wang Similarity<a class="headerlink" href="#wang-similarity" title="Link to this heading"></a></h3>
+<p>The Wang similarity <span id="id6">[<a class="reference internal" href="#id13" title="J. Z. Wang, Z. Du, R. Payattakool, S. Y. Philip, and C. F. Chen. A new method to measure the semantic similarity of go terms. Bioinformatics, 23(10):1274–1281, 2007.">6</a>]</span> considers the graph structure of GO by propagating weights from each term through its ancestors:</p>
+<ul class="simple">
+<li><p>Each ancestor node receives a weight based on the decay factor (usually <span class="math notranslate nohighlight">\(w = 0.8\)</span>).</p></li>
+<li><p>The similarity is computed as:</p></li>
+</ul>
+<div class="math notranslate nohighlight">
+\[\text{Sim}_{Wang}(t_1, t_2) = \frac{\sum_{x \in A(t_1) \cap A(t_2)} (S_{t_1}(x) + S_{t_2}(x))}{SV(t_1) + SV(t_2)}\]</div>
+<dl class="simple">
+<dt>Where:</dt><dd><ul class="simple">
+<li><p>:math:A(t) is the set of ancestors of term :math:t (including itself).</p></li>
+<li><p>:math:S_t(x) is the semantic contribution of ancestor :math:x to term :math:t.</p></li>
+<li><p>:math:SV(t) is the total semantic value of term :math:t.</p></li>
+</ul>
+</dd>
+</dl>
+<p>The key idea is that ancestors that are closer to the term contribute more to its meaning than distant ancestors, capturing the hierarchical semantics of the ontology without relying on external annotation statistics.</p>
+</section>
+</section>
+<section id="batch-computation">
+<h2>Batch Computation<a class="headerlink" href="#batch-computation" title="Link to this heading"></a></h2>
+<p>All these similarity measures are available in efficient batch versions in the <cite>go3</cite> library, taking full advantage of Rust’s parallelism.</p>
+</section>
+<section id="bibliography">
+<h2>Bibliography<a class="headerlink" href="#bibliography" title="Link to this heading"></a></h2>
+<div class="docutils container" id="id7">
+<div role="list" class="citation-list">
+<div class="citation" id="id8" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">1</a><span class="fn-bracket">]</span></span>
+<p>P. Resnik. Using information content to evaluate semantic similarity in a taxonomy. In <em>Proceedings of the 14th International Joint Conference on Artificial Intelligence (IJCAI)</em>, 448–453. 1995.</p>
+</div>
+<div class="citation" id="id9" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id2">2</a><span class="fn-bracket">]</span></span>
+<p>D. Lin. An information-theoretic definition of similarity. In <em>Proceedings of the 15th International Conference on Machine Learning (ICML)</em>, 296–304. 1998.</p>
+</div>
+<div class="citation" id="id10" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id3">3</a><span class="fn-bracket">]</span></span>
+<p>J. J. Jiang and D. W. Conrath. Semantic similarity based on corpus statistics and lexical taxonomy. In <em>Proceedings of the International Conference on Research in Computational Linguistics (ROCLING)</em>, 19–33. 1997.</p>
+</div>
+<div class="citation" id="id11" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id4">4</a><span class="fn-bracket">]</span></span>
+<p>A. Schlicker, F. S. Domingues, J. Rahnenfuhrer, and T. Lengauer. A new measure for functional similarity of gene products based on gene ontology. <em>BMC Bioinformatics</em>, 7(1):302, 2006.</p>
+</div>
+<div class="citation" id="id12" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id5">5</a><span class="fn-bracket">]</span></span>
+<p>B. Li, J. Z. Wang, F. A. Feltus, J. Zhou, and F. Luo. Effectively integrating information content and structural relationship to improve the go-based similarity measure. <em>Journal of Biomedical Informatics</em>, 43(5):752–760, 2010.</p>
+</div>
+<div class="citation" id="id13" role="doc-biblioentry">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id6">6</a><span class="fn-bracket">]</span></span>
+<p>J. Z. Wang, Z. Du, R. Payattakool, S. Y. Philip, and C. F. Chen. A new method to measure the semantic similarity of go terms. <em>Bioinformatics</em>, 23(10):1274–1281, 2007.</p>
+</div>
+</div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="annotations.html" class="btn btn-neutral float-left" title="Annotations" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Jose Luis Mellina Andreu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,15 @@
+import go3
+go3.load_go_terms()
+annots = go3.load_gaf("goa_human.gaf")
+tc = go3.build_term_counter(annots)
+t1 = go3.get_term_by_id("GO:0006397")
+t2 = go3.get_term_by_id("GO:0012563")
+term2 = "GO:0012563"
+print(t1)
+print(t2)
+print(go3.semantic_similarity("GO:0006397", term2, 'resnik',tc))
+print(go3.semantic_similarity("GO:0006397", term2, 'lin',tc))
+print(go3.semantic_similarity("GO:0006397", term2, 'jc',tc))
+print(go3.semantic_similarity("GO:0006397", term2, 'graphic',tc))
+print(go3.semantic_similarity("GO:0006397", term2, 'simrel',tc))
+print(go3.semantic_similarity("GO:0006397", term2, 'iccoef',tc))

@@ -215,16 +215,3 @@ pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<St
     }
     Ok(best)
 }
-
-#[pyfunction]
-pub fn inspect_gene2go_cache(limit: Option<usize>) -> PyResult<Vec<(String, usize)>> {
-    let gene2go = get_gene2go_or_error()?;
-
-    let items = gene2go
-        .iter()
-        .take(limit.unwrap_or(20)) // por defecto mostramos 20 genes
-        .map(|(gene, terms)| (gene.clone(), terms.len()))
-        .collect();
-
-    Ok(items)
-}
