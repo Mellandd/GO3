@@ -59,6 +59,7 @@ print(f"Gene similarity (Lin, BMA): {score:.4f}")
 | GraphIC         | Hybrid      | Li et al., 2010                                                           |
 | IC Coefficient  | Hybrid      | Li et al., 2010                                                           |
 | Wang            | Topology    | Wang et al., 2007                                                         |
+| TopoICSim       | Hybrid      | Ehsani et al., 2016                                                       |
 
 For the theoretical details behind each measure, see the [Similarity Measures Documentation](https://go3.readthedocs.io/en/latest/similarity.html).
 
@@ -68,19 +69,35 @@ GO3 natively supports efficient parallel batch computations for both term and ge
 
 ### Batch GO Term Similarity
 
-\```python
+```python
 pairs = [("GO:0008150", "GO:0009987"), ("GO:0008150", "GO:0003674")]
-scores = go3.batch_resnik([a for a, _ in pairs], [b for _, b in pairs], counter)
-\```
+scores = go3.batch_similarity([a for a, _ in pairs], [b for _, b in pairs], "resnik", counter)
+```
 
 ### Batch Gene Similarity
 
-\```python
+```python
 gene_pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1")]
 scores = go3.compare_gene_pairs_batch(gene_pairs, "BP", "resnik", "bma", counter)
-\```
+```
 
 Both `resnik` and `lin` (and all other similarity methods) are fully supported in batch mode.
+
+## Benchmark
+
+This library is built as fast, scalable and memory-efficient as possible. Comparing with Goatools, which is the de facto library for manipulating GO in Python
+
+We compare the time and peak memory consumption of go3 vs goatools while loading the ontology and the annotation (.GAF) file, and building the TermCounter.
+
+![Loading time & memory](src/benchmark_loading_time_memory.png)
+
+We also compare the speed of the libraries calculating the similarities between batches of GO Terms of different sizes.
+
+![Batch similarity speed](src/benchmark_batch_similarity.png)
+
+Finally, we compare the gene similarity calculation times. Goatools does not implement natively the groupwise algorithms to compare genes, so we built it for a fair comparison in top of the GO term semantic similarities of the library. 
+
+![Gene similarity speed](src/benchmark_gene_batch_similarity.png)
 
 ## Contributing
 
@@ -90,14 +107,14 @@ Steps to contribute:
 
 1. Fork the repository.
 2. Create a feature branch:  
-   \```bash
+   ```bash
    git checkout -b feature/my-feature
-   \```
+   ```
 3. Implement your changes with tests.
 4. Run tests:  
-   \```bash
+   ```bash
    pytest tests/
-   \```
+   ```
 5. Submit a Pull Request.
 
 

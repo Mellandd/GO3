@@ -56,12 +56,11 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Ontology</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#go3.ancestors"><code class="docutils literal notranslate"><span class="pre">ancestors()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#go3.batch_similarity"><code class="docutils literal notranslate"><span class="pre">batch_similarity()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#go3.common_ancestor"><code class="docutils literal notranslate"><span class="pre">common_ancestor()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#go3.deepest_common_ancestor"><code class="docutils literal notranslate"><span class="pre">deepest_common_ancestor()</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#go3.get_term_by_id"><code class="docutils literal notranslate"><span class="pre">get_term_by_id()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#go3.semantic_similarity"><code class="docutils literal notranslate"><span class="pre">semantic_similarity()</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#go3.term_ic"><code class="docutils literal notranslate"><span class="pre">term_ic()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#go3.load_go_terms"><code class="docutils literal notranslate"><span class="pre">load_go_terms()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ontology-functions">Ontology Functions</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm</a></li>
@@ -99,35 +98,15 @@
 <dt class="sig sig-object py" id="go3.ancestors">
 <span class="sig-name descname"><span class="pre">ancestors</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.ancestors" title="Link to this definition"></a></dt>
 <dd><p>Returns the list of all ancestors in the ontology for the given GO Term.</p>
-<p># Arguments</p>
-<ul class="simple">
-<li><p><cite>go_id</cite> - GO term ID.</p></li>
-</ul>
-<p># Returns</p>
-<p>List of IDs of all the ancestors in the ontology (List of String)</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="go3.batch_similarity">
-<span class="sig-name descname"><span class="pre">batch_similarity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">list2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.batch_similarity" title="Link to this definition"></a></dt>
-<dd><p>Compute pairwise semantic similarity in batch using a selected method.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>list1</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – First list of GO term IDs.</p></li>
-<li><p><strong>list2</strong> (<em>List</em><em>[</em><em>str</em><em>]</em>) – Second list of GO term IDs.</p></li>
-<li><p><strong>method</strong> (<em>str</em>) – Name of the similarity method. Options: <cite>“resnik”</cite>, <cite>“lin”</cite>.</p></li>
-<li><p><strong>counter</strong> (<em>TermCounter</em>) – Precomputed IC values.</p></li>
-</ul>
+<dd class="field-odd"><p><strong>go_id</strong> (<em>str</em>) – GO term ID.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>List of similarity scores.</p>
+<dd class="field-even"><p>List of IDs of all the ancestors in the ontology.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>List[float]</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>ValueError</strong> – If input lists differ in length or method is unknown.</p>
+<dd class="field-odd"><p>list of str</p>
 </dd>
 </dl>
 </dd></dl>
@@ -136,86 +115,92 @@
 <dt class="sig sig-object py" id="go3.common_ancestor">
 <span class="sig-name descname"><span class="pre">common_ancestor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">go_id2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.common_ancestor" title="Link to this definition"></a></dt>
 <dd><p>Returns the list of all the common ancestors in the ontology for the given GO Terms.</p>
-<p># Arguments</p>
-<ul class="simple">
-<li><p><cite>go_id1</cite> - GO term ID 1.</p></li>
-<li><p><cite>go_id2</cite> - GO term ID 2.</p></li>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>go_id1</strong> (<em>str</em>) – GO term ID 1.</p></li>
+<li><p><strong>go_id2</strong> (<em>str</em>) – GO term ID 2.</p></li>
 </ul>
-<p># Returns</p>
-<p>List of IDs of all the common ancestors in the ontology (List of String)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of IDs of all the common ancestors in the ontology.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of str</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="go3.deepest_common_ancestor">
 <span class="sig-name descname"><span class="pre">deepest_common_ancestor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">go_id2</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.deepest_common_ancestor" title="Link to this definition"></a></dt>
 <dd><p>Returns the deepest common ancestor in the ontology for the given GO Terms.</p>
-<p># Arguments</p>
-<ul class="simple">
-<li><p><cite>go_id1</cite> - GO term ID 1.</p></li>
-<li><p><cite>go_id2</cite> - GO term ID 2.</p></li>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>go_id1</strong> (<em>str</em>) – GO term ID 1.</p></li>
+<li><p><strong>go_id2</strong> (<em>str</em>) – GO term ID 2.</p></li>
 </ul>
-<p># Returns</p>
-<p>ID of the deepest common ancestor in the ontology. (String)</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>ID of the deepest common ancestor in the ontology.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Option&lt;String&gt;</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="go3.get_term_by_id">
 <span class="sig-name descname"><span class="pre">get_term_by_id</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.get_term_by_id" title="Link to this definition"></a></dt>
-<dd><p>Gets the PyGoTerm object for the given GO Term ID.</p>
-<p># Arguments</p>
+<dd><p>Get the PyGOTerm object for a given GO term ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>go_id</strong> (<em>str</em>) – GO term ID.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The GO term as a Python object, or None if not found.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Option&lt;PyGOTerm&gt;</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="go3.load_go_terms">
+<span class="sig-name descname"><span class="pre">load_go_terms</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.load_go_terms" title="Link to this definition"></a></dt>
+<dd><p>Load GO terms from an OBO file and cache them globally.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>path</strong> (<em>Optional</em><em>[</em><em>str</em><em>]</em>) – Optional path to the OBO file.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of GO terms as Python objects.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list of <a class="reference internal" href="goterm.html#go3.PyGOTerm" title="go3.PyGOTerm">PyGOTerm</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<section id="ontology-functions">
+<h2>Ontology Functions<a class="headerlink" href="#ontology-functions" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
+<span class="n">term</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">get_term_by_id</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+</pre></div>
+</div>
 <ul class="simple">
-<li><p><cite>go_id</cite> - GO term ID.</p></li>
+<li><p><strong>load_go_terms</strong>: Loads the GO ontology from an OBO file (downloads if not present).</p></li>
+<li><p><strong>get_term_by_id</strong>: Retrieve a GO term by its ID.</p></li>
+<li><p><strong>ancestors</strong>: List all ancestors of a GO term.</p></li>
+<li><p><strong>common_ancestor</strong>: List all common ancestors of two terms.</p></li>
+<li><p><strong>deepest_common_ancestor</strong>: Find the deepest common ancestor (MICA) of two terms.</p></li>
 </ul>
-<p># Returns</p>
-<p>PyGOTerm associated with the ID. (PyGOTerm)</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="go3.semantic_similarity">
-<span class="sig-name descname"><span class="pre">semantic_similarity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">id1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">id2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.semantic_similarity" title="Link to this definition"></a></dt>
-<dd><p>Compute semantic similarity between two GO terms using a selected method.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>id1</strong> (<em>str</em>) – First GO term ID.</p></li>
-<li><p><strong>id2</strong> (<em>str</em>) – Second GO term ID.</p></li>
-<li><p><strong>method</strong> (<em>str</em>) – Name of the similarity method. Options: <cite>“resnik”</cite>, <cite>“lin”</cite>.</p></li>
-<li><p><strong>counter</strong> (<em>TermCounter</em>) – Precomputed IC values.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>Similarity score.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-<dt class="field-even">Raises<span class="colon">:</span></dt>
-<dd class="field-even"><p><strong>ValueError</strong> – If the method is unknown.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="go3.term_ic">
-<span class="sig-name descname"><span class="pre">term_ic</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">go_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.term_ic" title="Link to this definition"></a></dt>
-<dd><p>Compute the Information Content (IC) of a GO term.
-Returns the Information Content (IC) value of a given GO term.</p>
-<dl class="field-list simple">
-<dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>go_id</strong> (<em>str</em>) – GO term identifier.</p></li>
-<li><p><strong>counter</strong> (<em>TermCounter</em>) – Precomputed term counter with IC values.</p></li>
-</ul>
-</dd>
-<dt class="field-even">Returns<span class="colon">:</span></dt>
-<dd class="field-even"><p>The IC of the GO term.</p>
-</dd>
-<dt class="field-odd">Return type<span class="colon">:</span></dt>
-<dd class="field-odd"><p>float</p>
-</dd>
-</dl>
-</dd></dl>
-
+</section>
 </section>
 
 

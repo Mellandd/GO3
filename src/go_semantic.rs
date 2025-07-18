@@ -2,77 +2,29 @@ use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use crate::go_loader::TermCounter;
-use std::collections::{HashSet, HashMap};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::go_ontology::{deepest_common_ancestor, get_term_by_id, get_terms_or_error, get_gene2go_or_error};
+use dashmap::DashMap;
 
 /// Compute the Information Content (IC) of a GO term.
+///
+/// Arguments
+/// ---------
+/// go_id : str
+///   GO term identifier.
+/// counter : TermCounter
+///   Precomputed term counter with IC values.
+///
+/// Returns
+/// -------
+/// float
+///   The IC of the GO term.
 #[pyfunction]
 #[pyo3(text_signature = "(go_id, counter)")]
-/// Returns the Information Content (IC) value of a given GO term.
-///
-/// Parameters:
-///     go_id (str): GO term identifier.
-///     counter (TermCounter): Precomputed term counter with IC values.
-///
-/// Returns:
-///     float: The IC of the GO term.
 pub fn term_ic(go_id: &str, counter: &TermCounter) -> f64 {
     *counter.ic.get(go_id).unwrap_or(&0.0)
 }
 
-/// Compute the Resnik similarity between two GO terms.
-#[pyfunction]
-#[pyo3(text_signature = "(id1, id2, counter)")]
-/// Returns the Resnik similarity between two GO terms.
-///
-/// Parameters:
-///     id1 (str): First GO term ID.
-///     id2 (str): Second GO term ID.
-///     counter (TermCounter): Precomputed term counter with IC values.
-///
-/// Returns:
-///     float: Resnik similarity value.
-pub fn resnik_similarity(id1: &str, id2: &str, counter: &TermCounter) -> f64 {
-    let (t1, t2) = match (get_term_by_id(id1).ok().flatten(), get_term_by_id(id2).ok().flatten()) {
-        (Some(t1), Some(t2)) => (t1, t2),
-        _ => return 0.0,
-    };
-
-    if t1.namespace != t2.namespace {
-        return 0.0;
-    }
-
-    match deepest_common_ancestor(id1, id2).ok().flatten() {
-        Some(dca) => term_ic(&dca, counter),
-        None => 0.0,
-    }
-}
-
-/// Compute the Lin similarity between two GO terms.
-#[pyfunction]
-#[pyo3(text_signature = "(id1, id2, counter)")]
-/// Returns the Lin similarity between two GO terms.
-///
-/// Parameters:
-///     id1 (str): First GO term ID.
-///     id2 (str): Second GO term ID.
-///     counter (TermCounter): Precomputed term counter with IC values.
-///
-/// Returns:
-///     float: Lin similarity value.
-pub fn lin_similarity(id1: &str, id2: &str, counter: &TermCounter) -> f64 {
-    let resnik = resnik_similarity(id1, id2, counter);
-    if resnik == 0.0 {
-        return 0.0;
-    }
-
-    let (ic1, ic2) = (term_ic(id1, counter), term_ic(id2, counter));
-    if ic1 == 0.0 || ic2 == 0.0 {
-        return 0.0;
-    }
-
-    2.0 * resnik / (ic1 + ic2)
-}
 
 #[derive(Debug)]
 enum SimilarityMethod {
@@ -83,6 +35,7 @@ enum SimilarityMethod {
     ICCoef,
     GraphIC,
     Wang,
+    TopoICSim,
 }
 
 impl SimilarityMethod {
@@ -95,6 +48,7 @@ impl SimilarityMethod {
             "iccoef" => Some(SimilarityMethod::ICCoef),
             "graphic" => Some(SimilarityMethod::GraphIC),
             "wang" => Some(SimilarityMethod::Wang),
+            "topoicsim" => Some(SimilarityMethod::TopoICSim),
             _ => None,
         }
     }
@@ -146,7 +100,11 @@ impl SimilarityMethod {
                 if distance <= 0.0 {
                     return f64::INFINITY;  // Máxima similitud
                 }
-                distance
+                if distance.is_infinite() {
+                    0.0
+                } else {
+                    1.0 / (1.0 + distance)
+                }
             }
             SimilarityMethod::SimRel => {
                 let (t1, t2) = match (get_term_by_id(id1).ok().flatten(), get_term_by_id(id2).ok().flatten()) {
@@ -223,15 +181,12 @@ impl SimilarityMethod {
                 dca_ic / max_depth
             }
             SimilarityMethod::Wang => {
-                let terms_guard = match crate::go_loader::GO_TERMS_CACHE.get() {
-                    Some(lock) => match lock.read() {
-                        Ok(terms) => terms,
-                        Err(_) => return 0.0,
-                    },
+                let terms = match crate::go_loader::GO_TERMS_CACHE.get() {
+                    Some(lock) => lock.read(),
                     None => return 0.0,
                 };
             
-                let terms = &*terms_guard;
+                let terms = &*terms;
             
                 let t1 = match terms.get(id1) {
                     Some(t) => t,
@@ -270,23 +225,91 @@ impl SimilarityMethod {
                     numerator / ((sum_a + sum_b) / 2.0)
                 }
             }
+            SimilarityMethod::TopoICSim => {
+                // Get terms and check namespace
+                let terms = match crate::go_loader::GO_TERMS_CACHE.get() {
+                    Some(lock) => lock.read(),
+                    None => return 0.0,
+                };
+                let t1 = match terms.get(id1) {
+                    Some(t) => t,
+                    None => return 0.0,
+                };
+                let t2 = match terms.get(id2) {
+                    Some(t) => t,
+                    None => return 0.0,
+                };
+                if t1.namespace != t2.namespace {
+                    return 0.0;
+                }
+                // Disjunctive common ancestors
+                let dca_set = disjunctive_common_ancestors(id1, id2, &terms);
+                if dca_set.is_empty() {
+                    return 0.0;
+                }
+                // Find all roots
+                let roots = find_roots(&terms);
+                if roots.is_empty() {
+                    return 0.0;
+                }
+                let mut min_d = f64::INFINITY;
+                for x in dca_set {
+                    // Weighted shortest path from t1 to x and t2 to x
+                    let wsp1 = weighted_shortest_path_iic(id1, &x, &terms, counter);
+                    let wsp2 = weighted_shortest_path_iic(id2, &x, &terms, counter);
+                    if wsp1.is_none() || wsp2.is_none() {
+                        continue;
+                    }
+                    let wsp = wsp1.unwrap() + wsp2.unwrap();
+                    // Weighted longest path from x to any root (take the max over all roots)
+                    let mut max_wlp = None;
+                    for root in &roots {
+                        if let Some(wlp) = weighted_longest_path_iic(&x, root, &terms, counter) {
+                            max_wlp = Some(max_wlp.map_or(wlp, |m: f64| m.max(wlp)));
+                        }
+                    }
+                    let wlp = match max_wlp {
+                        Some(val) if val > 0.0 => val,
+                        _ => continue,
+                    };
+                    let d = wsp / wlp;
+                    if d < min_d {
+                        min_d = d;
+                    }
+                }
+                if !min_d.is_finite() {
+                    return 0.0;
+                }
+                // Similarity formula: 1 - (arctan(D) / (pi/2))
+                let sim = 1.0 - (min_d.atan() / (std::f64::consts::FRAC_PI_2));
+                if sim.is_finite() && sim > 0.0 { sim } else { 0.0 }
+            }
         }
     }
 }
 
 /// Compute semantic similarity between two GO terms using a selected method.
 ///
-/// Args:
-///     id1 (str): First GO term ID.
-///     id2 (str): Second GO term ID.
-///     method (str): Name of the similarity method. Options: `"resnik"`, `"lin"`.
-///     counter (TermCounter): Precomputed IC values.
+/// Arguments
+/// ---------
+/// id1 : str
+///   First GO term ID.
+/// id2 : str
+///   Second GO term ID.
+/// method : str
+///   Name of the similarity method. Options: "resnik", "lin", etc.
+/// counter : TermCounter
+///   Precomputed IC values.
 ///
-/// Returns:
-///     float: Similarity score.
+/// Returns
+/// -------
+/// float
+///   Similarity score.
 ///
-/// Raises:
-///     ValueError: If the method is unknown.
+/// Raises
+/// ------
+/// ValueError
+///   If the method is unknown.
 #[pyfunction]
 pub fn semantic_similarity(
     id1: &str,
@@ -302,17 +325,26 @@ pub fn semantic_similarity(
 
 /// Compute pairwise semantic similarity in batch using a selected method.
 ///
-/// Args:
-///     list1 (List[str]): First list of GO term IDs.
-///     list2 (List[str]): Second list of GO term IDs.
-///     method (str): Name of the similarity method. Options: `"resnik"`, `"lin"`.
-///     counter (TermCounter): Precomputed IC values.
+/// Arguments
+/// ---------
+/// list1 : list of str
+///   First list of GO term IDs.
+/// list2 : list of str
+///   Second list of GO term IDs.
+/// method : str
+///   Name of the similarity method.
+/// counter : TermCounter
+///   Precomputed IC values.
 ///
-/// Returns:
-///     List[float]: List of similarity scores.
+/// Returns
+/// -------
+/// list of float
+///   List of similarity scores.
 ///
-/// Raises:
-///     ValueError: If input lists differ in length or method is unknown.
+/// Raises
+/// ------
+/// ValueError
+///   If input lists differ in length or method is unknown.
 #[pyfunction]
 pub fn batch_similarity(
     list1: Vec<String>,
@@ -327,29 +359,64 @@ pub fn batch_similarity(
     let method_enum = SimilarityMethod::from_str(method)
         .ok_or_else(|| PyValueError::new_err(format!("Unknown similarity method: {}", method)))?;
 
-    Ok(list1
+    // 1. Collect all unique pairs (order them to avoid (a,b) vs (b,a) duplicates)
+    let unique_pairs: HashSet<(String, String)> = list1.iter().zip(list2.iter())
+        .map(|(a, b)| {
+            if a <= b {
+                (a.clone(), b.clone())
+            } else {
+                (b.clone(), a.clone())
+            }
+        })
+        .collect();
+
+    // 2. Compute similarity for each unique pair in parallel
+    let sim_map: HashMap<(String, String), f64> = unique_pairs
         .par_iter()
-        .zip(list2.par_iter())
-        .map(|(id1, id2)| method_enum.compute(id1, id2, counter))
-        .collect())
+        .map(|(a, b)| {
+            let sim = method_enum.compute(a, b, counter);
+            ((a.clone(), b.clone()), sim)
+        })
+        .collect();
+
+    // 3. For each original pair, look up the result (parallelized)
+    let result: Vec<f64> = list1.par_iter().zip(list2.par_iter())
+        .map(|(a, b)| {
+            let key = if a <= b { (a.clone(), b.clone()) } else { (b.clone(), a.clone()) };
+            *sim_map.get(&key).unwrap_or(&0.0)
+        })
+        .collect();
+
+    Ok(result)
 }
 
 
 /// Compute semantic similarity between genes.
 ///
-/// Args:
-///     gene1 (str): Gene symbol of the first gene.
-///     gene2 (str): Gene symbol of the second gene.
-///     ontology (str): Name of the subontology of GO to use: BP, MF or CC.
-///     similarity (str): Name of the similarity method. Options: `"resnik"`, `"lin"`, `"jc"`, `"simrel"`, `"graphic"`, `"iccoef"`.
-///     groupwise (str): Combination method to generate the similarities between genes. Options: `"bma"`, `"max"`.
-///     counter (TermCounter): Precomputed IC values.
+/// Arguments
+/// ---------
+/// gene1 : str
+///   Gene symbol of the first gene.
+/// gene2 : str
+///   Gene symbol of the second gene.
+/// ontology : str
+///   Name of the subontology of GO to use: BP, MF or CC.
+/// similarity : str
+///   Name of the similarity method.
+/// groupwise : str
+///   Combination method to generate the similarities between genes. Options: "bma", "max".
+/// counter : TermCounter
+///   Precomputed IC values.
 ///
-/// Returns:
-///     List[float]: List of similarity scores.
+/// Returns
+/// -------
+/// float
+///   Similarity score.
 ///
-/// Raises:
-///     ValueError: If method or combine are unknown.
+/// Raises
+/// ------
+/// ValueError
+///   If method or combine are unknown.
 #[pyfunction]
 pub fn compare_genes(
     gene1: &str,
@@ -400,27 +467,28 @@ pub fn compare_genes(
 
     let score = match groupwise.as_str() {
         "max" => {
-            f1.iter()
-                .flat_map(|id1| {
-                    f2.iter()
+            f1.par_iter()
+                .map(|id1| {
+                    f2.par_iter()
                         .map(|id2| sim_fn.compute(id1, id2, counter))
+                        .reduce(|| 0.0, f64::max)
                 })
-                .fold(0.0, f64::max)
+                .reduce(|| 0.0, f64::max)
         }
         "bma" => {
-            let sem1: Vec<f64> = f1.iter()
+            let sem1: Vec<f64> = f1.par_iter()
                 .map(|id1| {
-                    f2.iter()
+                    f2.par_iter()
                         .map(|id2| sim_fn.compute(id1, id2, counter))
-                        .fold(0.0, f64::max)
+                        .reduce(|| 0.0, f64::max)
                 })
                 .collect();
 
-            let sem2: Vec<f64> = f2.iter()
+            let sem2: Vec<f64> = f2.par_iter()
                 .map(|id2| {
-                    f1.iter()
+                    f1.par_iter()
                         .map(|id1| sim_fn.compute(id1, id2, counter))
-                        .fold(0.0, f64::max)
+                        .reduce(|| 0.0, f64::max)
                 })
                 .collect();
 
@@ -439,18 +507,28 @@ pub fn compare_genes(
 
 /// Compute semantic similarity between genes in batches.
 ///
-/// Args:
-///     pairs (List[(str, str)]): List of pairs of genes to calculate the semantic similarity
-///     ontology (str): Name of the subontology of GO to use: BP, MF or CC.
-///     similarity (str): Name of the similarity method. Options: `"resnik"`, `"lin"`, `"jc"`, `"simrel"`, `"graphic"`, `"iccoef"`.
-///     groupwise (str): Combination method to generate the similarities between genes. Options: `"bma"`, `"max"`.
-///     counter (TermCounter): Precomputed IC values.
+/// Arguments
+/// ---------
+/// pairs : list of (str, str)
+///   List of pairs of genes to calculate the semantic similarity
+/// ontology : str
+///   Name of the subontology of GO to use: BP, MF or CC.
+/// similarity : str
+///   Name of the similarity method.
+/// groupwise : str
+///   Combination method to generate the similarities between genes. Options: "bma", "max".
+/// counter : TermCounter
+///   Precomputed IC values.
 ///
-/// Returns:
-///     List[float]: List of similarity scores.
+/// Returns
+/// -------
+/// list of float
+///   List of similarity scores.
 ///
-/// Raises:
-///     ValueError: If method or combine are unknown.
+/// Raises
+/// ------
+/// ValueError
+///   If method or combine are unknown.
 #[pyfunction]
 #[pyo3(signature = (pairs, ontology, similarity, groupwise, counter))]
 pub fn compare_gene_pairs_batch(
@@ -502,27 +580,16 @@ pub fn compare_gene_pairs_batch(
             }
 
             match groupwise.as_str() {
-                "max" => go1.iter()
-                    .flat_map(|id1| go2.iter().map( |id2| sim_fn.compute(id1, id2, counter)))
-                    .fold(0.0, f64::max),
-
+                "max" => go1.par_iter()
+                    .map(|id1| go2.par_iter().map(|id2| sim_fn.compute(id1, id2, counter)).reduce(|| 0.0, f64::max))
+                    .reduce(|| 0.0, f64::max),
                 "bma" => {
                     let sem1: Vec<_> = go1.par_iter()
-                        .map(|id1| {
-                            go2.iter()
-                                .map(|id2| sim_fn.compute(id1, id2, counter))
-                                .fold(0.0, f64::max)
-                        })
+                        .map(|id1| go2.par_iter().map(|id2| sim_fn.compute(id1, id2, counter)).reduce(|| 0.0, f64::max))
                         .collect();
-
                     let sem2: Vec<_> = go2.par_iter()
-                        .map(|id2| {
-                            go1.iter()
-                                .map(|id1| sim_fn.compute(id1, id2, counter))
-                                .fold(0.0, f64::max)
-                        })
+                        .map(|id2| go1.par_iter().map(|id1| sim_fn.compute(id1, id2, counter)).reduce(|| 0.0, f64::max))
                         .collect();
-
                     let total = sem1.len() + sem2.len();
                     if total == 0 {
                         0.0
@@ -530,7 +597,6 @@ pub fn compare_gene_pairs_batch(
                         (sem1.iter().sum::<f64>() + sem2.iter().sum::<f64>()) / total as f64
                     }
                 }
-
                 _ => 0.0,
             }
         })
@@ -539,11 +605,19 @@ pub fn compare_gene_pairs_batch(
     Ok(scores)
 }
 
-fn semantic_contributions<'a>(
-    go_id: &'a str,
-    terms: &'a HashMap<String, crate::go_ontology::GOTerm>,
-) -> HashMap<&'a str, f64> {
-    let mut contributions = HashMap::new();
+fn semantic_contributions(
+    go_id: &str,
+    terms: &HashMap<String, crate::go_ontology::GOTerm>,
+) -> HashMap<String, f64> {
+    // Static cache for memoization
+    static SEMANTIC_CONTRIB_CACHE: once_cell::sync::Lazy<DashMap<String, HashMap<String, f64>>> = once_cell::sync::Lazy::new(|| DashMap::new());
+
+    // Check cache first
+    if let Some(cached) = SEMANTIC_CONTRIB_CACHE.get(go_id) {
+        return cached.clone();
+    }
+
+    let mut contributions = HashMap::default();
     let mut to_visit = vec![(go_id, 1.0)];
 
     while let Some((current_id, weight)) = to_visit.pop() {
@@ -551,7 +625,7 @@ fn semantic_contributions<'a>(
             continue;
         }
 
-        contributions.insert(current_id, weight);
+        contributions.insert(current_id.to_string(), weight);
 
         if let Some(term) = terms.get(current_id) {
             // is_a → 0.8
@@ -569,5 +643,226 @@ fn semantic_contributions<'a>(
         }
     }
 
+    // Store in cache as HashMap<String, f64>
+    SEMANTIC_CONTRIB_CACHE.insert(go_id.to_string(), contributions.clone());
     contributions
+}
+
+// --- TopoICSim and helper functions ---
+
+/// Compute the Inverse Information Content (IIC) for a term.
+///
+/// Arguments
+/// ---------
+/// go_id : str
+///   GO term ID.
+/// counter : TermCounter
+///   Precomputed term counter with IC values.
+///
+/// Returns
+/// -------
+/// float
+///   The IIC value for the term.
+fn iic(go_id: &str, counter: &TermCounter) -> f64 {
+    let ic = *counter.ic.get(go_id).unwrap_or(&0.0);
+    if ic > 0.0 {
+        1.0 / ic
+    } else {
+        // If IC is zero, treat as very large (effectively infinite path weight)
+        1e12
+    }
+}
+
+/// Compute the weighted shortest path (sum of IICs) from source to target (ancestor) in the GO DAG.
+///
+/// Arguments
+/// ---------
+/// source : str
+///   Source GO term ID.
+/// target : str
+///   Target GO term ID (ancestor).
+/// terms : dict
+///   Map of GO terms.
+/// counter : TermCounter
+///   Precomputed term counter with IC values.
+///
+/// Returns
+/// -------
+/// Option<float>
+///   Minimum sum of IICs along any path from source to target, or None if not connected.
+fn weighted_shortest_path_iic(
+    source: &str,
+    target: &str,
+    terms: &HashMap<String, crate::go_ontology::GOTerm>,
+    counter: &TermCounter,
+) -> Option<f64> {
+    use std::collections::{BinaryHeap, HashMap};
+    use std::cmp::Ordering;
+    #[derive(Copy, Clone, PartialEq)]
+    struct State {
+        cost: f64,
+        node: usize,
+    }
+    impl Eq for State {}
+    impl Ord for State {
+        fn cmp(&self, other: &Self) -> Ordering {
+            // Reverse order for min-heap
+            other.cost.partial_cmp(&self.cost).unwrap_or(Ordering::Equal)
+        }
+    }
+    impl PartialOrd for State {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+    // Map node ids to indices for fast lookup
+    let mut id2idx = HashMap::new();
+    let mut idx2id = Vec::new();
+    for (i, id) in terms.keys().enumerate() {
+        id2idx.insert(id.as_str(), i);
+        idx2id.push(id.as_str());
+    }
+    let src = match id2idx.get(source) {
+        Some(&i) => i,
+        None => return None,
+    };
+    let tgt = match id2idx.get(target) {
+        Some(&i) => i,
+        None => return None,
+    };
+    let mut dist = vec![f64::INFINITY; idx2id.len()];
+    dist[src] = iic(source, counter);
+    let mut heap = BinaryHeap::new();
+    heap.push(State { cost: dist[src], node: src });
+    while let Some(State { cost, node }) = heap.pop() {
+        let node_id = idx2id[node];
+        if node == tgt {
+            return Some(cost);
+        }
+        if cost > dist[node] {
+            continue;
+        }
+        if let Some(term) = terms.get(node_id) {
+            for parent in &term.parents {
+                if let Some(&parent_idx) = id2idx.get(parent.as_str()) {
+                    let next = cost + iic(parent, counter);
+                    if next < dist[parent_idx] {
+                        dist[parent_idx] = next;
+                        heap.push(State { cost: next, node: parent_idx });
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Compute the weighted longest path (sum of IICs) from source to target (ancestor) in the GO DAG.
+///
+/// Arguments
+/// ---------
+/// source : str
+///   Source GO term ID.
+/// target : str
+///   Target GO term ID (ancestor).
+/// terms : dict
+///   Map of GO terms.
+/// counter : TermCounter
+///   Precomputed term counter with IC values.
+///
+/// Returns
+/// -------
+/// Option<float>
+///   Maximum sum of IICs along any path from source to target, or None if not connected.
+fn weighted_longest_path_iic(
+    source: &str,
+    target: &str,
+    terms: &HashMap<String, crate::go_ontology::GOTerm>,
+    counter: &TermCounter,
+) -> Option<f64> {
+    // Memoization
+    use std::collections::HashMap as StdHashMap;
+    fn dfs(
+        node: &str,
+        target: &str,
+        terms: &HashMap<String, crate::go_ontology::GOTerm>,
+        counter: &TermCounter,
+        memo: &mut StdHashMap<String, Option<f64>>,
+    ) -> Option<f64> {
+        if node == target {
+            return Some(iic(node, counter));
+        }
+        if let Some(&val) = memo.get(node) {
+            return val;
+        }
+        let mut max_path = None;
+        if let Some(term) = terms.get(node) {
+            for parent in &term.parents {
+                if let Some(sub) = dfs(parent, target, terms, counter, memo) {
+                    let total = iic(node, counter) + sub;
+                    max_path = Some(max_path.map_or(total, |m: f64| m.max(total)));
+                }
+            }
+        }
+        memo.insert(node.to_string(), max_path);
+        max_path
+    }
+    let mut memo = StdHashMap::new();
+    dfs(source, target, terms, counter, &mut memo)
+}
+
+/// Compute the Disjunctive Common Ancestor set for two terms (as per TopoICSim paper).
+///
+/// Arguments
+/// ---------
+/// id1 : str
+///   First GO term ID.
+/// id2 : str
+///   Second GO term ID.
+/// terms : dict
+///   Map of GO terms.
+///
+/// Returns
+/// -------
+/// list of str
+///   List of disjunctive common ancestor GO term IDs.
+fn disjunctive_common_ancestors(
+    id1: &str,
+    id2: &str,
+    terms: &HashMap<String, crate::go_ontology::GOTerm>,
+) -> Vec<String> {
+    use std::collections::HashSet;
+    // 1. Get all common ancestors
+    let ancestors1 = crate::go_ontology::collect_ancestors(id1, terms);
+    let ancestors2 = crate::go_ontology::collect_ancestors(id2, terms);
+    let common: HashSet<_> = ancestors1.intersection(&ancestors2).cloned().collect();
+    // 2. For each x in common, check if no child of x is also in common
+    let mut dca = Vec::new();
+    for x in &common {
+        let is_disjunctive = terms.get(x).map_or(false, |term| {
+            term.children.iter().all(|c| !common.contains(c))
+        });
+        if is_disjunctive {
+            dca.push(x.clone());
+        }
+    }
+    dca
+}
+
+/// Find all root terms (terms with no parents) in the ontology.
+///
+/// Arguments
+/// ---------
+/// terms : dict
+///   Map of GO terms.
+///
+/// Returns
+/// -------
+/// list of str
+///   List of root GO term IDs.
+fn find_roots(terms: &HashMap<String, crate::go_ontology::GOTerm>) -> Vec<String> {
+    terms.iter()
+        .filter(|(_, term)| term.parents.is_empty())
+        .map(|(id, _)| id.clone())
+        .collect()
 }

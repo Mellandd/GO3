@@ -50,7 +50,13 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Examples:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Examples</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Examples</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#basic-term-similarity">Basic Term Similarity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#batch-similarity">Batch Similarity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gene-to-gene-similarity">Gene-to-Gene Similarity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#error-handling">Error Handling</a></li>
+</ul>
+</li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">📄 API documentation:</span></p>
 <ul>
@@ -86,6 +92,42 @@
              
   <section id="examples">
 <h1>Examples<a class="headerlink" href="#examples" title="Link to this heading"></a></h1>
+<section id="basic-term-similarity">
+<h2>Basic Term Similarity<a class="headerlink" href="#basic-term-similarity" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
+<span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
+<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;resnik&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Resnik similarity:&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="batch-similarity">
+<h2>Batch Similarity<a class="headerlink" href="#batch-similarity" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">list1</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">]</span>
+<span class="n">list2</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0006397&quot;</span><span class="p">]</span>
+<span class="n">sims</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">batch_similarity</span><span class="p">(</span><span class="n">list1</span><span class="p">,</span> <span class="n">list2</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sims</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="gene-to-gene-similarity">
+<h2>Gene-to-Gene Similarity<a class="headerlink" href="#gene-to-gene-similarity" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">compare_genes</span><span class="p">(</span><span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;CASP8&quot;</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;topoicsim&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;TopoICSim gene similarity:&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="error-handling">
+<h2>Error Handling<a class="headerlink" href="#error-handling" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="p">:</span>
+    <span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">compare_genes</span><span class="p">(</span><span class="s2">&quot;FAKEGENE&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;resnik&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error:&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
 </section>
 
 

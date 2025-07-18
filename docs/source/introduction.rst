@@ -12,7 +12,7 @@ Initializating the Ontology
 
 **go3** does not ship with any prebuilt GO Ontology by default. If you don't provide any .obo, when you try to load the ontology into memory it automatically downloads the last version of go-basic.obo.
 
-.. code-block:: Python
+.. code-block:: python
 
    import go3
 
@@ -43,6 +43,7 @@ The Gene Ontology contains annotations for almost any organism. Depending on you
 `Website to download the annotations <https://current.geneontology.org/products/pages/downloads.html>`_
 
 .. code-block:: python
+    
     import go3
     # Initialize the ontology
     go3.load_go_terms()

@@ -55,7 +55,28 @@
 <p class="caption" role="heading"><span class="caption-text">📄 API documentation:</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">GOTerm</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">GOTerm</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#go3.PyGOTerm"><code class="docutils literal notranslate"><span class="pre">PyGOTerm</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.alt_ids"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.alt_ids</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.children"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.children</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.comment"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.comment</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.consider"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.consider</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.definition"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.definition</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.depth"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.depth</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.id"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.id</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.is_obsolete"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.is_obsolete</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.level"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.level</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.name"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.name</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.namespace"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.namespace</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.parents"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.parents</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.relationships"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.relationships</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.replaced_by"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.replaced_by</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.synonyms"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.synonyms</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="#go3.PyGOTerm.xrefs"><code class="docutils literal notranslate"><span class="pre">PyGOTerm.xrefs</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations</a></li>
 <li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity Functions</a></li>
 </ul>
@@ -86,6 +107,213 @@
              
   <section id="goterm">
 <h1>GOTerm<a class="headerlink" href="#goterm" title="Link to this heading"></a></h1>
+<p>A <cite>GOTerm</cite> object represents a single term in the Gene Ontology.</p>
+<p><strong>Fields:</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Field</p></th>
+<th class="head"><p>Type</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>id</p></td>
+<td><p>str</p></td>
+<td><p>GO term identifier (e.g., <code class="docutils literal notranslate"><span class="pre">GO:0006397</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>name</p></td>
+<td><p>str</p></td>
+<td><p>Human-readable name (e.g., <code class="docutils literal notranslate"><span class="pre">mRNA</span> <span class="pre">processing</span></code>)</p></td>
+</tr>
+<tr class="row-even"><td><p>namespace</p></td>
+<td><p>str</p></td>
+<td><p>Ontology namespace (<code class="docutils literal notranslate"><span class="pre">biological_process</span></code>, <code class="docutils literal notranslate"><span class="pre">molecular_function</span></code>, or <code class="docutils literal notranslate"><span class="pre">cellular_component</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>definition</p></td>
+<td><p>str</p></td>
+<td><p>Textual definition of the term</p></td>
+</tr>
+<tr class="row-even"><td><p>parents</p></td>
+<td><p>list[str]</p></td>
+<td><p>List of parent GO term IDs (is_a relationships)</p></td>
+</tr>
+<tr class="row-odd"><td><p>children</p></td>
+<td><p>list[str]</p></td>
+<td><p>List of child GO term IDs (is_a relationships)</p></td>
+</tr>
+<tr class="row-even"><td><p>depth</p></td>
+<td><p>int or None</p></td>
+<td><p>Maximum distance to a root term (None if not computed)</p></td>
+</tr>
+<tr class="row-odd"><td><p>level</p></td>
+<td><p>int or None</p></td>
+<td><p>Minimum distance to a root term (None if not computed)</p></td>
+</tr>
+<tr class="row-even"><td><p>is_obsolete</p></td>
+<td><p>bool</p></td>
+<td><p>True if the term is obsolete</p></td>
+</tr>
+<tr class="row-odd"><td><p>alt_ids</p></td>
+<td><p>list[str]</p></td>
+<td><p>Alternative GO IDs for this term</p></td>
+</tr>
+<tr class="row-even"><td><p>replaced_by</p></td>
+<td><p>str or None</p></td>
+<td><p>If obsolete, the term that replaces this one</p></td>
+</tr>
+<tr class="row-odd"><td><p>consider</p></td>
+<td><p>list[str]</p></td>
+<td><p>Suggested replacement terms if obsolete</p></td>
+</tr>
+<tr class="row-even"><td><p>synonyms</p></td>
+<td><p>list[str]</p></td>
+<td><p>List of synonyms</p></td>
+</tr>
+<tr class="row-odd"><td><p>xrefs</p></td>
+<td><p>list[str]</p></td>
+<td><p>Cross-references to other databases</p></td>
+</tr>
+<tr class="row-even"><td><p>relationships</p></td>
+<td><p>list[(str, str)]</p></td>
+<td><p>Other relationships (e.g., <code class="docutils literal notranslate"><span class="pre">part_of</span></code>)</p></td>
+</tr>
+<tr class="row-odd"><td><p>comment</p></td>
+<td><p>str or None</p></td>
+<td><p>Additional comments</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="py class">
+<dt class="sig sig-object py" id="go3.PyGOTerm">
+<em class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">PyGOTerm</span></span><a class="headerlink" href="#go3.PyGOTerm" title="Link to this definition"></a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>Python-exposed struct representing a GO term (for use in the Python API).</p>
+<section id="fields">
+<h2>Fields<a class="headerlink" href="#fields" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt>id<span class="classifier">str</span></dt><dd><p>GO term identifier.</p>
+</dd>
+<dt>name<span class="classifier">str</span></dt><dd><p>Human-readable name of the term.</p>
+</dd>
+<dt>namespace<span class="classifier">str</span></dt><dd><p>Ontology namespace.</p>
+</dd>
+<dt>definition<span class="classifier">str</span></dt><dd><p>Textual definition of the term.</p>
+</dd>
+<dt>parents<span class="classifier">list of str</span></dt><dd><p>List of parent GO term IDs.</p>
+</dd>
+<dt>children<span class="classifier">list of str</span></dt><dd><p>List of child GO term IDs.</p>
+</dd>
+<dt>depth<span class="classifier">Optional[int]</span></dt><dd><p>Maximum distance to a root term.</p>
+</dd>
+<dt>level<span class="classifier">Optional[int]</span></dt><dd><p>Minimum distance to a root term.</p>
+</dd>
+<dt>is_obsolete<span class="classifier">bool</span></dt><dd><p>True if the term is obsolete.</p>
+</dd>
+<dt>alt_ids<span class="classifier">list of str</span></dt><dd><p>Alternative GO IDs for this term.</p>
+</dd>
+<dt>replaced_by<span class="classifier">Optional[str]</span></dt><dd><p>If obsolete, the term that replaces this one.</p>
+</dd>
+<dt>consider<span class="classifier">list of str</span></dt><dd><p>Suggested replacement terms if obsolete.</p>
+</dd>
+<dt>synonyms<span class="classifier">list of str</span></dt><dd><p>List of synonyms.</p>
+</dd>
+<dt>xrefs<span class="classifier">list of str</span></dt><dd><p>Cross-references to other databases.</p>
+</dd>
+<dt>relationships<span class="classifier">list of (str, str)</span></dt><dd><p>Other relationships (e.g., part_of).</p>
+</dd>
+<dt>comment<span class="classifier">Optional[str]</span></dt><dd><p>Additional comments.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.alt_ids">
+<span class="sig-name descname"><span class="pre">alt_ids</span></span><a class="headerlink" href="#go3.PyGOTerm.alt_ids" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.children">
+<span class="sig-name descname"><span class="pre">children</span></span><a class="headerlink" href="#go3.PyGOTerm.children" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.comment">
+<span class="sig-name descname"><span class="pre">comment</span></span><a class="headerlink" href="#go3.PyGOTerm.comment" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.consider">
+<span class="sig-name descname"><span class="pre">consider</span></span><a class="headerlink" href="#go3.PyGOTerm.consider" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.definition">
+<span class="sig-name descname"><span class="pre">definition</span></span><a class="headerlink" href="#go3.PyGOTerm.definition" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.depth">
+<span class="sig-name descname"><span class="pre">depth</span></span><a class="headerlink" href="#go3.PyGOTerm.depth" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.id">
+<span class="sig-name descname"><span class="pre">id</span></span><a class="headerlink" href="#go3.PyGOTerm.id" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.is_obsolete">
+<span class="sig-name descname"><span class="pre">is_obsolete</span></span><a class="headerlink" href="#go3.PyGOTerm.is_obsolete" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.level">
+<span class="sig-name descname"><span class="pre">level</span></span><a class="headerlink" href="#go3.PyGOTerm.level" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.name">
+<span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#go3.PyGOTerm.name" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.namespace">
+<span class="sig-name descname"><span class="pre">namespace</span></span><a class="headerlink" href="#go3.PyGOTerm.namespace" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.parents">
+<span class="sig-name descname"><span class="pre">parents</span></span><a class="headerlink" href="#go3.PyGOTerm.parents" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.relationships">
+<span class="sig-name descname"><span class="pre">relationships</span></span><a class="headerlink" href="#go3.PyGOTerm.relationships" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.replaced_by">
+<span class="sig-name descname"><span class="pre">replaced_by</span></span><a class="headerlink" href="#go3.PyGOTerm.replaced_by" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.synonyms">
+<span class="sig-name descname"><span class="pre">synonyms</span></span><a class="headerlink" href="#go3.PyGOTerm.synonyms" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="go3.PyGOTerm.xrefs">
+<span class="sig-name descname"><span class="pre">xrefs</span></span><a class="headerlink" href="#go3.PyGOTerm.xrefs" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+</dd></dl>
+
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
+<span class="n">term</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">get_term_by_id</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">term</span><span class="o">.</span><span class="n">parents</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 
 

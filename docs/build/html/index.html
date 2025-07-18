@@ -115,23 +115,40 @@ It also can calculate similarities between genes directly with the associated GO
 </div>
 <p><strong>go3</strong> does not ship with any prebuilt GO Ontology by default. If you don’t provide any .obo, when you try to load the ontology into memory it automatically downloads the last version of go-basic.obo.</p>
 </section>
-<section id="examples">
-<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading"></a></h2>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
-
-<span class="c1"># Initialize the ontology</span>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
 <span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
-
-<span class="c1"># Load an specific GO Term</span>
-<span class="n">term_1</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">get_term_by_id</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">term_1</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-<span class="c1">#&gt; mRNA processing</span>
+<span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
+<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;resnik&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Resnik similarity:&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="examples-in-batch-computing">
-<h2>Examples in batch computing<a class="headerlink" href="#examples-in-batch-computing" title="Link to this heading"></a></h2>
+<section id="id1">
+<h2>Main Features<a class="headerlink" href="#id1" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>Ontology loading</strong>: Download or load any GO OBO file.</p></li>
+<li><p><strong>Annotation parsing</strong>: Read GAF files for any organism.</p></li>
+<li><p><strong>Term and gene similarity</strong>: Compute Resnik, Lin, Wang, TopoICSim, and more.</p></li>
+<li><p><strong>Batch and parallel computation</strong>: Fast, scalable, and memory-efficient.</p></li>
+<li><p><strong>Rich Python API</strong>: All results are Python objects, easy to inspect and use.</p></li>
+</ul>
+<p>See the <a class="reference internal" href="examples.html"><span class="doc">Examples</span></a> for more!</p>
+</section>
+<section id="benchmark">
+<h2>Benchmark<a class="headerlink" href="#benchmark" title="Link to this heading"></a></h2>
+<p>This library is built as fast, scalable and memory-efficient as possible. Comparing with Goatools, which is the de facto library for manipulating GO in Python</p>
+<p>We compare the time and peak memory consumption of go3 vs goatools while loading the ontology and the annotation (.GAF) file, and building the TermCounter.</p>
+<a class="reference internal image-reference" href="_images/benchmark_loading_time_memory.png"><img alt="Benchmark gene batch similarity" src="_images/benchmark_loading_time_memory.png" style="width: 600px;" />
+</a>
+<p>We also compare the speed of the libraries calculating the similarities between batches of GO Terms of different sizes.</p>
+<a class="reference internal image-reference" href="_images/benchmark_batch_similarity.png"><img alt="Benchmark batch similarity" src="_images/benchmark_batch_similarity.png" style="width: 600px;" />
+</a>
+<p>Finally, we compare the gene similarity calculation times. Goatools does not implement natively the groupwise algorithms to compare genes, so we built it for a fair comparison in top of the GO term semantic similarities of the library.</p>
+<a class="reference internal image-reference" href="_images/benchmark_gene_batch_similarity.png"><img alt="Benchmark gene batch similarity" src="_images/benchmark_gene_batch_similarity.png" style="width: 600px;" />
+</a>
 </section>
 </section>
 

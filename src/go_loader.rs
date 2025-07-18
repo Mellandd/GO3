@@ -1,9 +1,9 @@
 use pyo3::prelude::*;
 use once_cell::sync::OnceCell;
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::io::{BufReader, BufRead};
 use std::fs::File;
-use std::sync::RwLock;
+use parking_lot::RwLock;
 use std::path::Path;
 use std::fs;
 use reqwest::blocking::get;
@@ -12,18 +12,40 @@ use rayon::prelude::*;
 use crate::go_ontology::{GOTerm, PyGOTerm, collect_ancestors, get_terms_or_error};
 pub static GO_TERMS_CACHE: OnceCell<RwLock<HashMap<String, GOTerm>>> = OnceCell::new();
 pub static GENE2GO_CACHE: OnceCell<RwLock<HashMap<String, Vec<String>>>> = OnceCell::new();
+pub static ANCESTORS_CACHE: OnceCell<RwLock<HashMap<String, HashSet<String>>>> = OnceCell::new();
+pub static DCA_CACHE: OnceCell<RwLock<HashMap<(String, String), String>>> = OnceCell::new();
 
+/// Struct representing a single annotation from a GAF file.
+///
+/// Fields
+/// ------
+/// db_object_id : str
+///   The gene product identifier (e.g., UniProt ID).
+/// go_term : str
+///   The GO term ID (e.g., GO:0008150).
+/// evidence : str
+///   The evidence code for the annotation (e.g., IEA).
 #[pyclass]
 #[derive(Clone)]
 pub struct GAFAnnotation {
     #[pyo3(get)]
-    pub db_object_id: String,  // por ejemplo P12345
+    pub db_object_id: String,
     #[pyo3(get)]
-    pub go_term: String,       // por ejemplo GO:0008150
+    pub go_term: String,
     #[pyo3(get)]
-    pub evidence: String,      // por ejemplo IEA
+    pub evidence: String,
 }
 
+/// Struct holding annotation counts and information content (IC) for GO terms.
+///
+/// Fields
+/// ------
+/// counts : dict
+///   Mapping from GO term ID to annotation count.
+/// total_by_ns : dict
+///   Mapping from namespace to total annotation count.
+/// ic : dict
+///   Mapping from GO term ID to information content (IC).
 #[pyclass]
 #[derive(Clone)]
 pub struct TermCounter {
@@ -35,6 +57,17 @@ pub struct TermCounter {
     pub ic: HashMap<String, f64>,               // term_id -> IC
 }
 
+/// Parse a GO OBO file and return a map of GO term IDs to GOTerm structs.
+///
+/// Arguments
+/// ---------
+/// path : str
+///   Path to the OBO file.
+///
+/// Returns
+/// -------
+/// dict
+///   Map of GO term IDs to term structs.
 pub fn parse_obo(path: &str) -> HashMap<String, GOTerm> {
     let contents = fs::read_to_string(path).expect("Can't open OBO file");
     let chunks = contents.split("[Term]");
@@ -42,17 +75,45 @@ pub fn parse_obo(path: &str) -> HashMap<String, GOTerm> {
     let terms: Vec<GOTerm> = chunks
         .par_bridge() // menos overhead si no es necesario `.par_iter()`
         .filter_map(parse_term_chunk)
+        .filter(|term| !term.is_obsolete) // <-- filter out obsolete terms
         .collect();
 
-    let mut term_map = HashMap::with_capacity(terms.len());
+    let mut term_map = HashMap::with_capacity_and_hasher(terms.len(), Default::default());
     for term in terms {
         term_map.insert(term.id.clone(), term);
     }
 
     compute_levels_and_depths(&mut term_map);
+
+    // Precompute all ancestors for each term and store in ANCESTORS_CACHE
+    let ancestors_map: HashMap<String, HashSet<String>> = term_map
+        .par_iter()
+        .map(|(id, _)| {
+            let ancestors = crate::go_ontology::collect_ancestors(id, &term_map)
+                .into_iter()
+                .map(|s| s.to_string())
+                .collect();
+            (id.clone(), ancestors)
+        })
+        .collect();
+    let _ = ANCESTORS_CACHE.set(RwLock::new(ancestors_map));
+
+    // Initialize DCA_CACHE as empty
+    let _ = DCA_CACHE.set(RwLock::new(HashMap::default()));
     term_map
 }
 
+/// Parse a chunk of text representing a single GO term from an OBO file.
+///
+/// Arguments
+/// ---------
+/// chunk : str
+///   Text chunk for a single term.
+///
+/// Returns
+/// -------
+/// Option[GOTerm]
+///   Parsed term or None if invalid/obsolete.
 fn parse_term_chunk(chunk: &str) -> Option<GOTerm> {
     let mut term = GOTerm {
         id: String::new(),
@@ -118,9 +179,20 @@ fn parse_term_chunk(chunk: &str) -> Option<GOTerm> {
     }
 }
 
+/// Compute the level and depth for each GO term in the ontology.
+///
+/// Arguments
+/// ---------
+/// terms : dict
+///   Mutable map of GO terms.
+///
+/// Returns
+/// -------
+/// None
+///   Updates the `level` and `depth` fields of each term in-place.
 pub fn compute_levels_and_depths(terms: &mut HashMap<String, GOTerm>) {
     // Paso 1: construir mapa de hijos
-    let mut child_map: HashMap<String, Vec<String>> = HashMap::new();
+    let mut child_map: HashMap<String, Vec<String>> = HashMap::default();
     for (id, term) in terms.iter() {
         for parent in &term.parents {
             child_map.entry(parent.clone()).or_default().push(id.clone());
@@ -211,10 +283,10 @@ pub fn compute_levels_and_depths(terms: &mut HashMap<String, GOTerm>) {
     // Paso 4: recorrer todos los términos y calcular level + depth
     let ids: Vec<String> = terms.keys().cloned().collect();
     for id in &ids {
-        let mut visiting = HashSet::new();
+        let mut visiting = HashSet::default();
         init_level(id, terms, &mut visiting);
 
-        let mut visiting = HashSet::new();
+        let mut visiting = HashSet::default();
         init_depth(id, terms, &mut visiting);
     }
 
@@ -226,6 +298,16 @@ pub fn compute_levels_and_depths(terms: &mut HashMap<String, GOTerm>) {
     }
 }
 
+/// Download the latest GO OBO file if not present locally.
+///
+/// Arguments
+/// ---------
+/// None
+///
+/// Returns
+/// -------
+/// str
+///   Path to the downloaded or existing OBO file.
 pub fn download_obo() -> Result<String, String> {
     let obo_path = "go-basic.obo";
     if Path::new(obo_path).exists() {
@@ -242,6 +324,17 @@ pub fn download_obo() -> Result<String, String> {
     Ok(obo_path.to_string())
 }
 
+/// Load GO terms from an OBO file and cache them globally.
+///
+/// Arguments
+/// ---------
+/// path : Optional[str]
+///   Optional path to the OBO file.
+///
+/// Returns
+/// -------
+/// list of PyGOTerm
+///   List of GO terms as Python objects.
 #[pyfunction]
 #[pyo3(signature = (path=None))]
 pub fn load_go_terms(path: Option<String>) -> PyResult<Vec<PyGOTerm>> {
@@ -260,13 +353,30 @@ pub fn load_go_terms(path: Option<String>) -> PyResult<Vec<PyGOTerm>> {
     Ok(terms_vec)
 }
 
+/// Load a GAF annotation file and cache the gene-to-GO mapping.
+///
+/// Arguments
+/// ---------
+/// path : str
+///   Path to the GAF file.
+///
+/// Returns
+/// -------
+/// list of GAFAnnotation
+///   List of parsed GAF annotations.
 #[pyfunction]
 pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
     let file = File::open(&path).map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
     let reader = BufReader::new(file);
 
+    // Get the loaded GO terms to check for obsolete terms
+    let terms = match crate::go_ontology::get_terms_or_error() {
+        Ok(t) => t,
+        Err(e) => return Err(e),
+    };
+
     let mut annotations: Vec<GAFAnnotation> = Vec::new();
-    let mut gene2go: HashMap<String, Vec<String>> = HashMap::new();
+    let mut gene2go: HashMap<String, Vec<String>> = HashMap::default();
 
     for line in reader.lines().filter_map(Result::ok).filter(|l| !l.starts_with('!')) {
         let cols: Vec<&str> = line.split('\t').collect();
@@ -278,6 +388,15 @@ pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
         let go_term = cols[4].to_string();
         let evidence = cols[6].to_string();
         let gene = cols[2].to_string();
+
+        // Filter out obsolete terms
+        if let Some(term) = terms.get(&go_term) {
+            if term.is_obsolete {
+                continue;
+            }
+        } else {
+            continue;
+        }
 
         // Añadir a la lista de anotaciones
         annotations.push(GAFAnnotation {
@@ -296,58 +415,17 @@ pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
     Ok(annotations)
 }
 
-fn _build_term_counter(
-    annotations: &[GAFAnnotation],
-    terms: &HashMap<String, GOTerm>,
-) -> TermCounter {
-    let mut counts: HashMap<String, usize> = HashMap::new();
-    let mut total_by_ns: HashMap<String, usize> = HashMap::new();
-
-    let mut obj_to_terms: HashMap<&str, HashSet<&str>> = HashMap::new();
-
-    for ann in annotations {
-        let go_id = ann.go_term.as_str();
-        let mut term_set = collect_ancestors(go_id, terms);
-        term_set.insert(go_id);
-        obj_to_terms
-            .entry(ann.db_object_id.as_str())
-            .or_default()
-            .extend(term_set);
-    }
-
-    for term_ids in obj_to_terms.values() {
-        let mut namespaces_seen = HashSet::new();
-    
-        for &term_id in term_ids {
-            if let Some(term) = terms.get(term_id) {
-                *counts.entry(term_id.to_string()).or_insert(0) += 1;
-                namespaces_seen.insert(term.namespace.as_str());
-            }
-        }
-    
-        for ns in namespaces_seen {
-            *total_by_ns.entry(ns.to_string()).or_insert(0) += 1;
-        }
-    }
-
-    // Calcular IC
-    let mut ic: HashMap<String, f64> = HashMap::new();
-    for (term_id, count) in &counts {
-        if let Some(term) = terms.get(term_id) {
-            let total = total_by_ns.get(&term.namespace).copied().unwrap_or(1);
-            let freq = *count as f64 / total as f64;
-            let info_content = if freq > 0.0 { -freq.ln() } else { 0.0 };
-            ic.insert(term_id.clone(), info_content);
-        }
-    }
-
-    TermCounter {
-        counts,
-        total_by_ns,
-        ic,
-    }
-}
-
+/// Build a term counter (counts, IC) from GAF annotations.
+///
+/// Arguments
+/// ---------
+/// py_annotations : list of GAFAnnotation
+///   List of GAFAnnotation Python objects.
+///
+/// Returns
+/// -------
+/// TermCounter
+///   Struct with counts and IC values.
 #[pyfunction]
 pub fn build_term_counter(
     py: Python<'_>,
@@ -364,4 +442,78 @@ pub fn build_term_counter(
 
     // Llamar a la función de conteo interna
     Ok(_build_term_counter(&annotations, &terms))
+}
+
+/// Internal: Build a term counter from Rust GAFAnnotation and GOTerm.
+///
+/// Arguments
+/// ---------
+/// annotations : list of GAFAnnotation
+///   List of GAFAnnotation structs.
+/// terms : dict
+///   Map of GO terms.
+///
+/// Returns
+/// -------
+/// TermCounter
+///   Struct with counts and IC values.
+fn _build_term_counter(
+    annotations: &[GAFAnnotation],
+    terms: &HashMap<String, GOTerm>,
+) -> TermCounter {
+    use rayon::prelude::*;
+    use std::sync::Mutex;
+
+    // Parallel: build obj_to_terms
+    let obj_to_terms: HashMap<&str, HashSet<String>> = {
+        let obj_to_terms_mutex: Mutex<HashMap<&str, HashSet<String>>> = Mutex::new(HashMap::default());
+        annotations.par_iter().for_each(|ann| {
+            let go_id = ann.go_term.as_str();
+            let mut term_set: HashSet<String> = collect_ancestors(go_id, terms);
+            term_set.insert(go_id.to_string());
+            let mut map = obj_to_terms_mutex.lock().unwrap();
+            map.entry(ann.db_object_id.as_str())
+                .or_default()
+                .extend(term_set);
+        });
+        obj_to_terms_mutex.into_inner().unwrap()
+    };
+
+    // Parallel: build counts and total_by_ns
+    let (counts, total_by_ns) = {
+        let counts_mutex: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::default());
+        let total_by_ns_mutex: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::default());
+        obj_to_terms.values().collect::<Vec<_>>().par_iter().for_each(|term_ids| {
+            let mut namespaces_seen = HashSet::default();
+            for term_id in *term_ids {
+                if let Some(term) = terms.get(term_id.as_str()) {
+                    let mut counts = counts_mutex.lock().unwrap();
+                    *counts.entry(term_id.to_string()).or_insert(0) += 1;
+                    namespaces_seen.insert(term.namespace.as_str());
+                }
+            }
+            for ns in namespaces_seen {
+                let mut total_by_ns = total_by_ns_mutex.lock().unwrap();
+                *total_by_ns.entry(ns.to_string()).or_insert(0) += 1;
+            }
+        });
+        (counts_mutex.into_inner().unwrap(), total_by_ns_mutex.into_inner().unwrap())
+    };
+
+    // Calcular IC (secuencial, as it's fast)
+    let mut ic: HashMap<String, f64> = HashMap::default();
+    for (term_id, count) in &counts {
+        if let Some(term) = terms.get(term_id.as_str()) {
+            let total = total_by_ns.get(&term.namespace).copied().unwrap_or(1);
+            let freq = *count as f64 / total as f64;
+            let info_content = if freq > 0.0 { -freq.ln() } else { 0.0 };
+            ic.insert(term_id.clone(), info_content);
+        }
+    }
+
+    TermCounter {
+        counts,
+        total_by_ns,
+        ic,
+    }
 }

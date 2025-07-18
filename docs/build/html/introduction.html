@@ -94,7 +94,7 @@
 <section id="initializating-the-ontology">
 <h1>Initializating the Ontology<a class="headerlink" href="#initializating-the-ontology" title="Link to this heading"></a></h1>
 <p><strong>go3</strong> does not ship with any prebuilt GO Ontology by default. If you don’t provide any .obo, when you try to load the ontology into memory it automatically downloads the last version of go-basic.obo.</p>
-<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
 
 <span class="c1"># Initialize the ontology. Downloads the last go-basic.obo version of the oficial website</span>
 <span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
@@ -120,6 +120,19 @@
 </ul>
 <p>The Gene Ontology contains annotations for almost any organism. Depending on your choice, you must download the corresponding GAF file from the oficial website to use it in this library:
 <a class="reference external" href="https://current.geneontology.org/products/pages/downloads.html">Website to download the annotations</a></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
+<span class="c1"># Initialize the ontology</span>
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
+
+<span class="c1"># Initialize the annotations from the downloaded gaf file.</span>
+<span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
+
+<span class="c1"># Build the Term Counter that counts the annotations for every GO Term.</span>
+<span class="c1"># Needed to calculate the Information Content (IC) of a GO Term, and to calculate similarities</span>
+<span class="c1"># using Resnik, Lin or any other measure between the terms.</span>
+<span class="n">term_counts</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 
 

@@ -22,16 +22,14 @@ fn go3(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(deepest_common_ancestor, m)?)?;
 
     m.add_function(wrap_pyfunction!(term_ic, m)?)?;
-    // m.add_function(wrap_pyfunction!(resnik_similarity, m)?)?;
-    // m.add_function(wrap_pyfunction!(lin_similarity, m)?)?;
-    // m.add_function(wrap_pyfunction!(batch_resnik, m)?)?;
-    // m.add_function(wrap_pyfunction!(batch_lin, m)?)?;
     m.add_function(wrap_pyfunction!(semantic_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(batch_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(compare_genes, m)?)?;
     m.add_function(wrap_pyfunction!(compare_gene_pairs_batch, m)?)?;
 
     m.add_class::<go_ontology::PyGOTerm>()?;
+    m.add_class::<go_loader::GAFAnnotation>()?;
+    m.add_class::<go_loader::TermCounter>()?;
 
     Ok(())
 }

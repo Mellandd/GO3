@@ -1,8 +1,43 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 use crate::go_loader::{GO_TERMS_CACHE, GENE2GO_CACHE};
-
+/// Struct representing a Gene Ontology (GO) term.
+///
+/// Fields
+/// ------
+/// id : str
+///   GO term identifier (e.g., GO:0006397).
+/// name : str
+///   Human-readable name of the term.
+/// namespace : str
+///   Ontology namespace (e.g., biological_process).
+/// definition : str
+///   Textual definition of the term.
+/// parents : list of str
+///   List of parent GO term IDs (is_a relationships).
+/// children : list of str
+///   List of child GO term IDs (is_a relationships).
+/// depth : Optional[int]
+///   Maximum distance to a root term (None if not computed).
+/// level : Optional[int]
+///   Minimum distance to a root term (None if not computed).
+/// is_obsolete : bool
+///   True if the term is obsolete.
+/// alt_ids : list of str
+///   Alternative GO IDs for this term.
+/// replaced_by : Optional[str]
+///   If obsolete, the term that replaces this one.
+/// consider : list of str
+///   Suggested replacement terms if obsolete.
+/// synonyms : list of str
+///   List of synonyms.
+/// xrefs : list of str
+///   Cross-references to other databases.
+/// relationships : list of (str, str)
+///   Other relationships (e.g., part_of).
+/// comment : Optional[str]
+///   Additional comments.
 #[derive(Clone)]
 pub struct GOTerm {
     pub id: String,
@@ -23,6 +58,42 @@ pub struct GOTerm {
     pub comment: Option<String>,
 }
 
+/// Python-exposed struct representing a GO term (for use in the Python API).
+///
+/// Fields
+/// ------
+/// id : str
+///   GO term identifier.
+/// name : str
+///   Human-readable name of the term.
+/// namespace : str
+///   Ontology namespace.
+/// definition : str
+///   Textual definition of the term.
+/// parents : list of str
+///   List of parent GO term IDs.
+/// children : list of str
+///   List of child GO term IDs.
+/// depth : Optional[int]
+///   Maximum distance to a root term.
+/// level : Optional[int]
+///   Minimum distance to a root term.
+/// is_obsolete : bool
+///   True if the term is obsolete.
+/// alt_ids : list of str
+///   Alternative GO IDs for this term.
+/// replaced_by : Optional[str]
+///   If obsolete, the term that replaces this one.
+/// consider : list of str
+///   Suggested replacement terms if obsolete.
+/// synonyms : list of str
+///   List of synonyms.
+/// xrefs : list of str
+///   Cross-references to other databases.
+/// relationships : list of (str, str)
+///   Other relationships (e.g., part_of).
+/// comment : Optional[str]
+///   Additional comments.
 #[pyclass]
 #[derive(Clone)]
 pub struct PyGOTerm {
@@ -103,42 +174,87 @@ impl From<PyGOTerm> for GOTerm {
     }
 }
 
-pub fn get_terms_or_error<'a>() -> PyResult<std::sync::RwLockReadGuard<'a, HashMap<String, GOTerm>>> {
-    GO_TERMS_CACHE
-        .get()
-        .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("GO terms not loaded. Call go3.load_go_terms() first."))?
-        .read()
-        .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("Failed to read GO terms"))
+/// Get a read lock on the global GO terms map, or error if not loaded.
+///
+/// Arguments
+/// ---------
+/// None
+///
+/// Returns
+/// -------
+/// RwLockReadGuard<HashMap<String, GOTerm>>
+///   Read guard for the GO terms map.
+pub fn get_terms_or_error<'a>() -> PyResult<parking_lot::RwLockReadGuard<'a, HashMap<String, GOTerm>>> {
+    Ok(
+        GO_TERMS_CACHE
+            .get()
+            .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("GO terms not loaded. Call go3.load_go_terms() first."))?
+            .read()
+    )
 }
 
-pub fn get_gene2go_or_error<'a>() -> PyResult<std::sync::RwLockReadGuard<'a, HashMap<String, Vec<String>>>> {
-    GENE2GO_CACHE
-        .get()
-        .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("Gene2GO mapping not loaded. Call go3.load_gene2go() first."))?
-        .read()
-        .map_err(|_| pyo3::exceptions::PyRuntimeError::new_err("Failed to read Gene2GO map"))
+/// Get a read lock on the global gene-to-GO mapping, or error if not loaded.
+///
+/// Arguments
+/// ---------
+/// None
+///
+/// Returns
+/// -------
+/// RwLockReadGuard<HashMap<String, Vec<String>>>
+///   Read guard for the gene2go map.
+pub fn get_gene2go_or_error<'a>() -> PyResult<parking_lot::RwLockReadGuard<'a, HashMap<String, Vec<String>>>> {
+    Ok(
+        GENE2GO_CACHE
+            .get()
+            .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("Gene2GO mapping not loaded. Call go3.load_gene2go() first."))?
+            .read()
+    )
 }
 
-/// Gets the PyGoTerm object for the given GO Term ID.
+/// Get the PyGOTerm object for a given GO term ID.
 ///
-/// # Arguments
+/// Arguments
+/// ---------
+/// go_id : str
+///   GO term ID.
 ///
-/// * `go_id` - GO term ID.
-///
-/// # Returns
-///
-/// PyGOTerm associated with the ID. (PyGOTerm)
+/// Returns
+/// -------
+/// Option<PyGOTerm>
+///   The GO term as a Python object, or None if not found.
 #[pyfunction]
 pub fn get_term_by_id(go_id: &str) -> PyResult<Option<PyGOTerm>> {
     let terms = get_terms_or_error()?;
     Ok(terms.get(go_id).map(PyGOTerm::from))
 }
 
-pub fn collect_ancestors<'a>(go_id: &'a str, terms: &'a HashMap<String, GOTerm>) -> HashSet<&'a str> {
-    let mut visited = HashSet::new();
+/// Collect all ancestors of a GO term (recursively via is_a).
+///
+/// Arguments
+/// ---------
+/// go_id : str
+///   GO term ID.
+/// terms : dict
+///   Map of GO terms.
+///
+/// Returns
+/// -------
+/// HashSet<String>
+///   Set of ancestor GO term IDs.
+pub fn collect_ancestors(go_id: &str, terms: &HashMap<String, GOTerm>) -> HashSet<String> {
+    // Try to use the precomputed cache if available
+    if let Some(lock) = crate::go_loader::ANCESTORS_CACHE.get() {
+        let cache = lock.read();
+        if let Some(ancestors) = cache.get(go_id) {
+            return ancestors.clone();
+        }
+    }
+    // Fallback: original computation
+    let mut visited = HashSet::default();
     let mut stack = vec![go_id];
     while let Some(current) = stack.pop() {
-        if visited.insert(current) {
+        if visited.insert(current.to_string()) {
             if let Some(term) = terms.get(current) {
                 for parent in &term.parents {
                     stack.push(parent);
@@ -152,30 +268,35 @@ pub fn collect_ancestors<'a>(go_id: &'a str, terms: &'a HashMap<String, GOTerm>)
 
 /// Returns the list of all ancestors in the ontology for the given GO Term.
 ///
-/// # Arguments
+/// Arguments
+/// ---------
+/// go_id : str
+///   GO term ID.
 ///
-/// * `go_id` - GO term ID.
-///
-/// # Returns
-///
-/// List of IDs of all the ancestors in the ontology (List of String)
+/// Returns
+/// -------
+/// list of str
+///   List of IDs of all the ancestors in the ontology.
 #[pyfunction]
 pub fn ancestors(go_id: &str) -> PyResult<Vec<String>> {
     let terms = get_terms_or_error()?;
     let visited = collect_ancestors(go_id, &terms);
-    Ok(visited.into_iter().map(str::to_string).collect())
+    Ok(visited.into_iter().collect())
 }
 
 /// Returns the list of all the common ancestors in the ontology for the given GO Terms.
 ///
-/// # Arguments
+/// Arguments
+/// ---------
+/// go_id1 : str
+///   GO term ID 1.
+/// go_id2 : str
+///   GO term ID 2.
 ///
-/// * `go_id1` - GO term ID 1.
-/// * `go_id2` - GO term ID 2.
-///
-/// # Returns
-///
-/// List of IDs of all the common ancestors in the ontology (List of String)
+/// Returns
+/// -------
+/// list of str
+///   List of IDs of all the common ancestors in the ontology.
 #[pyfunction]
 pub fn common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Vec<String>> {
     let terms = get_terms_or_error()?;
@@ -188,22 +309,39 @@ pub fn common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Vec<String>> {
 
 /// Returns the deepest common ancestor in the ontology for the given GO Terms.
 ///
-/// # Arguments
+/// Arguments
+/// ---------
+/// go_id1 : str
+///   GO term ID 1.
+/// go_id2 : str
+///   GO term ID 2.
 ///
-/// * `go_id1` - GO term ID 1.
-/// * `go_id2` - GO term ID 2.
-///
-/// # Returns
-///
-/// ID of the deepest common ancestor in the ontology. (String)
+/// Returns
+/// -------
+/// Option<String>
+///   ID of the deepest common ancestor in the ontology.
 #[pyfunction]
 pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<String>> {
     let terms = get_terms_or_error()?;
-    let set1 = collect_ancestors(go_id1, &terms);
-    let set2 = collect_ancestors(go_id2, &terms);
+    let (id_a, id_b) = if go_id1 <= go_id2 {
+        (go_id1, go_id2)
+    } else {
+        (go_id2, go_id1)
+    };
+
+    // Try to use the DCA cache if available
+    if let Some(lock) = crate::go_loader::DCA_CACHE.get() {
+        let cache = lock.write();
+        if let Some(result) = cache.get(&(id_a.to_string(), id_b.to_string())) {
+            return Ok(Some(result.clone()));
+        }
+    }
+
+    let set1 = collect_ancestors(id_a, &terms);
+    let set2 = collect_ancestors(id_b, &terms);
     let mut best = None;
     let mut max_depth = 0;
-    for &term_id in set1.intersection(&set2) {
+    for term_id in set1.intersection(&set2) {
         if let Some(term) = terms.get(term_id) {
             if let Some(depth) = term.depth {
                 if depth >= max_depth {
@@ -213,5 +351,14 @@ pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<St
             }
         }
     }
+
+    // Store the result in the cache if available
+    if let Some(lock) = crate::go_loader::DCA_CACHE.get() {
+        let mut cache = lock.write();
+        if let Some(ref dca) = best {
+            cache.insert((id_a.to_string(), id_b.to_string()), dca.clone());
+        }
+    }
+
     Ok(best)
 }

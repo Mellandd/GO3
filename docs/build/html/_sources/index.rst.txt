@@ -47,7 +47,6 @@ It also can calculate similarities between genes directly with the associated GO
 Main features
 =============
 
-
 Installation
 =============
 
@@ -59,22 +58,49 @@ Installation
 
 **go3** does not ship with any prebuilt GO Ontology by default. If you don't provide any .obo, when you try to load the ontology into memory it automatically downloads the last version of go-basic.obo.
 
-Examples
-=============
+Quick Start
+===========
 
-.. code-block:: Python
+.. code-block:: python
 
    import go3
-
-   # Initialize the ontology
    go3.load_go_terms()
+   annots = go3.load_gaf("goa_human.gaf")
+   counter = go3.build_term_counter(annots)
+   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "resnik", counter)
+   print("Resnik similarity:", sim)
 
-   # Load an specific GO Term
-   term_1 = go3.get_term_by_id("GO:0006397")
+Main Features
+=============
 
-   print(term_1.name)
-   #> mRNA processing
+- **Ontology loading**: Download or load any GO OBO file.
+- **Annotation parsing**: Read GAF files for any organism.
+- **Term and gene similarity**: Compute Resnik, Lin, Wang, TopoICSim, and more.
+- **Batch and parallel computation**: Fast, scalable, and memory-efficient.
+- **Rich Python API**: All results are Python objects, easy to inspect and use.
 
+See the :doc:`examples` for more!
 
-Examples in batch computing
-===============================
+Benchmark
+===========
+
+This library is built as fast, scalable and memory-efficient as possible. Comparing with Goatools, which is the de facto library for manipulating GO in Python
+
+We compare the time and peak memory consumption of go3 vs goatools while loading the ontology and the annotation (.GAF) file, and building the TermCounter.
+
+.. image:: ../../src/benchmark_loading_time_memory.png
+  :width: 600
+  :alt: Benchmark gene batch similarity
+
+We also compare the speed of the libraries calculating the similarities between batches of GO Terms of different sizes.
+
+.. image:: ../../src/benchmark_batch_similarity.png
+  :width: 600
+  :alt: Benchmark batch similarity
+
+Finally, we compare the gene similarity calculation times. Goatools does not implement natively the groupwise algorithms to compare genes, so we built it for a fair comparison in top of the GO term semantic similarities of the library. 
+
+.. image:: ../../src/benchmark_gene_batch_similarity.png
+  :width: 600
+  :alt: Benchmark gene batch similarity
+
