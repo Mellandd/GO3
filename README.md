@@ -6,6 +6,7 @@
 [![License](https://img.shields.io/github/license/Mellandd/go3)](LICENSE)
 
 🚀 GO3 is a high-performance Rust library with Python bindings for calculating semantic similarity between Gene Ontology (GO) terms and gene products. Designed to be significantly faster and more memory-efficient than traditional Python libraries like `goatools`, GO3 provides state-of-the-art similarity measures including Resnik, Lin, Jiang-Conrath, SimRel, GraphIC, Information Coefficient, and Wang.
+The preprint for this library is: https://www.biorxiv.org/content/10.1101/2025.09.04.669468v1
 
 ## Features
 
@@ -125,3 +126,27 @@ MIT License © Jose Luis Mellina Andreu, 2025
 📄 Full documentation: https://go3.readthedocs.io
 
 🐞 Report issues: https://github.com/Mellandd/go3/issues
+
+## Citation
+
+```
+go3: A Fast and Lightweight Library for Semantic Similarity of GO Terms and Genes
+Jose L. Mellina-Andreu, Alejandro Cisterna-Garcia, Juan A. Botia
+bioRxiv 2025.09.04.669468; doi: https://doi.org/10.1101/2025.09.04.669468
+```
+
+### BibTex
+
+```
+@article {go3,
+	author = {Mellina-Andreu, Jose L. and Cisterna-Garcia, Alejandro and Botia, Juan A.},
+	title = {go3: A Fast and Lightweight Library for Semantic Similarity of GO Terms and Genes},
+	elocation-id = {2025.09.04.669468},
+	year = {2025},
+	doi = {10.1101/2025.09.04.669468},
+	publisher = {Cold Spring Harbor Laboratory},
+	URL = {https://www.biorxiv.org/content/early/2025/09/04/2025.09.04.669468},
+	eprint = {https://www.biorxiv.org/content/early/2025/09/04/2025.09.04.669468.full.pdf},
+	journal = {bioRxiv}
+}
+```
