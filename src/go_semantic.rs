@@ -6,6 +6,27 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::go_ontology::{deepest_common_ancestor, get_term_by_id, get_terms_or_error, get_gene2go_or_error};
 use dashmap::DashMap;
 
+use rayon::ThreadPoolBuilder;
+
+/// Configure the maximum number of threads rayon will use.
+///
+/// Args:
+///     n_threads (int): Number of threads to use. If 0, uses all available cores.
+#[pyfunction]
+pub fn set_num_threads(n_threads: usize) -> PyResult<()> {
+    if n_threads == 0 {
+        ThreadPoolBuilder::new()
+            .build_global()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    } else {
+        ThreadPoolBuilder::new()
+            .num_threads(n_threads)
+            .build_global()
+            .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e.to_string()))?;
+    }
+    Ok(())
+}
+
 /// Compute the Information Content (IC) of a GO term.
 ///
 /// Arguments

@@ -72,20 +72,33 @@ pub fn parse_obo(path: &str) -> HashMap<String, GOTerm> {
     let contents = fs::read_to_string(path).expect("Can't open OBO file");
     let chunks = contents.split("[Term]");
 
-    let terms: Vec<GOTerm> = chunks
-        .par_bridge() // menos overhead si no es necesario `.par_iter()`
+    let canonical_terms: Vec<GOTerm> = chunks
+        .par_bridge()
         .filter_map(parse_term_chunk)
-        .filter(|term| !term.is_obsolete) // <-- filter out obsolete terms
+        .filter(|term| !term.is_obsolete)
         .collect();
 
-    let mut term_map = HashMap::with_capacity_and_hasher(terms.len(), Default::default());
-    for term in terms {
-        term_map.insert(term.id.clone(), term);
+    let mut term_map: HashMap<String, GOTerm> =
+        HashMap::with_capacity_and_hasher(canonical_terms.len() * 2, Default::default());
+
+    for term in canonical_terms.into_iter() {
+        // Collect the "synonym group": canonical + alts
+        let mut all_ids = term.alt_ids.clone();
+        all_ids.push(term.id.clone());
+
+        // Build GOTerm copies for each ID
+        for id in &all_ids {
+            let mut clone = term.clone();
+            clone.id = id.clone();
+            clone.alt_ids = all_ids.clone(); // all point to the same group
+            term_map.insert(id.clone(), clone);
+        }
     }
 
+    // Compute children, levels, depths, etc.
     compute_levels_and_depths(&mut term_map);
 
-    // Precompute all ancestors for each term and store in ANCESTORS_CACHE
+    // Precompute ancestors for caching
     let ancestors_map: HashMap<String, HashSet<String>> = term_map
         .par_iter()
         .map(|(id, _)| {
@@ -98,8 +111,9 @@ pub fn parse_obo(path: &str) -> HashMap<String, GOTerm> {
         .collect();
     let _ = ANCESTORS_CACHE.set(RwLock::new(ancestors_map));
 
-    // Initialize DCA_CACHE as empty
+    // Initialize DCA_CACHE
     let _ = DCA_CACHE.set(RwLock::new(HashMap::default()));
+
     term_map
 }
 
@@ -134,7 +148,17 @@ fn parse_term_chunk(chunk: &str) -> Option<GOTerm> {
         depth: None,
     };
 
-    let lines = chunk.lines().map(str::trim);
+    let chunk = chunk.split("[Typedef]").next().unwrap_or(chunk);
+
+    let lines: Vec<&str> = chunk
+        .lines()
+        .map(|l| l.trim()) // eliminamos espacios a izquierda y derecha
+        .filter(|l| !l.is_empty()) // quitamos líneas vacías
+        .collect();
+
+    if lines.is_empty() {
+        return None;
+    }
     let mut valid = false;
 
     for line in lines {
@@ -148,10 +172,18 @@ fn parse_term_chunk(chunk: &str) -> Option<GOTerm> {
         } else if line.starts_with("def: ") {
             term.definition = line["def: ".len()..].to_string();
         } else if line.starts_with("is_a: ") {
-            let parent = line["is_a: ".len()..].split_whitespace().next().unwrap_or("").to_string();
-            term.parents.push(parent);
+            let parent = line["is_a: ".len()..]
+                .split_whitespace()
+                .next()
+                .unwrap_or("")
+                .to_string();
+            if !parent.is_empty() {
+                term.parents.push(parent);
+            }
         } else if line.starts_with("alt_id: ") {
             term.alt_ids.push(line["alt_id: ".len()..].to_string());
+        } else if line.starts_with("is_obsolete: true") {
+            term.is_obsolete = true;
         } else if line.starts_with("replaced_by: ") {
             term.replaced_by = Some(line["replaced_by: ".len()..].to_string());
         } else if line.starts_with("consider: ") {
@@ -161,18 +193,15 @@ fn parse_term_chunk(chunk: &str) -> Option<GOTerm> {
         } else if line.starts_with("xref: ") {
             term.xrefs.push(line["xref: ".len()..].to_string());
         } else if line.starts_with("relationship: ") {
-            let mut parts = line["relationship: ".len()..].split_whitespace();
-            if let (Some(rel_type), Some(target)) = (parts.next(), parts.next()) {
-                term.relationships.push((rel_type.to_string(), target.to_string()));
+            let rel_def = &line["relationship: ".len()..];
+            let mut parts = rel_def.split_whitespace();
+            if let (Some(rel), Some(target)) = (parts.next(), parts.next()) {
+                term.relationships.push((rel.to_string(), target.to_string()));
             }
-        } else if line.starts_with("comment: ") {
-            term.comment = Some(line["comment: ".len()..].to_string());
-        } else if line.starts_with("is_obsolete: true") {
-            term.is_obsolete = true;
         }
     }
 
-    if valid && !term.id.is_empty() && term.id.starts_with("GO:") {
+    if valid {
         Some(term)
     } else {
         None
