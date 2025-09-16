@@ -39,4 +39,5 @@ jobs:
           pip install maturin
           maturin develop
           pip install pytest
+          pip install goatools
           pytest tests/
