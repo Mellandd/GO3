@@ -395,7 +395,8 @@ pub fn load_go_terms(path: Option<String>) -> PyResult<Vec<PyGOTerm>> {
 ///   List of parsed GAF annotations.
 #[pyfunction]
 pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
-    let file = File::open(&path).map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
+    let file = File::open(&path)
+        .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
     let reader = BufReader::new(file);
 
     // Get the loaded GO terms to check for obsolete terms
@@ -414,36 +415,50 @@ pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
         }
 
         let db_object_id = cols[1].to_string();
-        let go_term = cols[4].to_string();
+        let mut go_term = cols[4].to_string();
         let evidence = cols[6].to_string();
         let gene = cols[2].to_string();
 
-        // Filter out obsolete terms
-        if let Some(term) = terms.get(&go_term) {
-            if term.is_obsolete {
-                continue;
-            }
-        } else {
+        // Filter out ND annotations
+        if evidence == "ND" {
             continue;
         }
 
-        // Añadir a la lista de anotaciones
+        // Resolve obsolete terms
+        if let Some(term) = terms.get(&go_term) {
+            if term.is_obsolete {
+                if let Some(ref replacement) = term.replaced_by {
+                    // Use the replacement term instead
+                    go_term = replacement.clone();
+                } else if !term.consider.is_empty() {
+                    // If there are "consider" terms, choose the first one
+                    go_term = term.consider[0].clone();
+                } else {
+                    // If no replacement, drop the annotation
+                    continue;
+                }
+            }
+        } else {
+            // GO term not found at all
+            continue;
+        }
+
+        // Add annotation
         annotations.push(GAFAnnotation {
             db_object_id: db_object_id.clone(),
             go_term: go_term.clone(),
             evidence,
         });
 
-        // Construir el mapping gene -> GO terms
+        // Update gene -> GO mapping
         gene2go.entry(gene).or_default().push(go_term);
     }
 
-    // Guardar en la caché global
+    // Save in global cache
     let _ = GENE2GO_CACHE.set(RwLock::new(gene2go));
 
     Ok(annotations)
 }
-
 /// Build a term counter (counts, IC) from GAF annotations.
 ///
 /// Arguments

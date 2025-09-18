@@ -84,6 +84,9 @@ impl SimilarityMethod {
                 *counter.ic.get(&dca).unwrap_or(&0.0)
             }
             SimilarityMethod::Lin => {
+                if id1 == id2 {
+                    return 1.0
+                }
                 let dca = match deepest_common_ancestor(id1, id2).ok().flatten() {
                     Some(dca) => dca,
                     None => return 0.0,

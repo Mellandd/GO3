@@ -262,7 +262,7 @@ pub fn collect_ancestors(go_id: &str, terms: &HashMap<String, GOTerm>) -> HashSe
             }
         }
     }
-    visited.remove(go_id);
+//    visited.remove(go_id);
     visited
 }
 
