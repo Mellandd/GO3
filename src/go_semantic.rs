@@ -84,13 +84,13 @@ impl SimilarityMethod {
                 *counter.ic.get(&dca).unwrap_or(&0.0)
             }
             SimilarityMethod::Lin => {
-                if id1 == id2 {
-                    return 1.0
-                }
                 let dca = match deepest_common_ancestor(id1, id2).ok().flatten() {
                     Some(dca) => dca,
                     None => return 0.0,
                 };
+                if id1 == id2 {
+                    return 1.0
+                }
                 let resnik = *counter.ic.get(&dca).unwrap_or(&0.0);
                 if resnik == 0.0 {
                     return 0.0;
@@ -103,7 +103,7 @@ impl SimilarityMethod {
                 2.0 * resnik / (ic1 + ic2)
             }
             SimilarityMethod::JC => {
-                let (t1, t2) = match (get_term_by_id(id1).ok().flatten(), get_term_by_id(id2).ok().flatten()) {
+                let (t1, t2) = match (get_term_by_id(id1).ok(), get_term_by_id(id2).ok()) {
                     (Some(t1), Some(t2)) => (t1, t2),
                     _ => return 0.0,
                 };
@@ -131,7 +131,7 @@ impl SimilarityMethod {
                 }
             }
             SimilarityMethod::SimRel => {
-                let (t1, t2) = match (get_term_by_id(id1).ok().flatten(), get_term_by_id(id2).ok().flatten()) {
+                let (t1, t2) = match (get_term_by_id(id1).ok(), get_term_by_id(id2).ok()) {
                     (Some(t1), Some(t2)) => (t1, t2),
                     _ => return 0.0,
                 };
@@ -160,7 +160,7 @@ impl SimilarityMethod {
                 lin * (1.0 - (-dca_ic).exp())
             }
             SimilarityMethod::ICCoef => {
-                let (t1, t2) = match (get_term_by_id(id1).ok().flatten(), get_term_by_id(id2).ok().flatten()) {
+                let (t1, t2) = match (get_term_by_id(id1).ok(), get_term_by_id(id2).ok()) {
                     (Some(t1), Some(t2)) => (t1, t2),
                     _ => return 0.0,
                 };
@@ -184,7 +184,7 @@ impl SimilarityMethod {
                 dca_ic / ic1.min(ic2)
             }
             SimilarityMethod::GraphIC => {
-                let (t1, t2) = match (get_term_by_id(id1).ok().flatten(), get_term_by_id(id2).ok().flatten()) {
+                let (t1, t2) = match (get_term_by_id(id1).ok(), get_term_by_id(id2).ok()) {
                     (Some(t1), Some(t2)) => (t1, t2),
                     _ => return 0.0,
                 };
@@ -341,6 +341,7 @@ pub fn semantic_similarity(
     method: &str,
     counter: &TermCounter,
 ) -> PyResult<f64> {
+
     let method_enum = SimilarityMethod::from_str(method)
         .ok_or_else(|| PyValueError::new_err(format!("Unknown similarity method: {}", method)))?;
 

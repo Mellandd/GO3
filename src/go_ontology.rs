@@ -2,6 +2,8 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 use crate::go_loader::{GO_TERMS_CACHE, GENE2GO_CACHE};
+use pyo3::exceptions::PyValueError;
+
 /// Struct representing a Gene Ontology (GO) term.
 ///
 /// Fields
@@ -212,21 +214,21 @@ pub fn get_gene2go_or_error<'a>() -> PyResult<parking_lot::RwLockReadGuard<'a, H
     )
 }
 
+
 /// Get the PyGOTerm object for a given GO term ID.
 ///
-/// Arguments
-/// ---------
-/// go_id : str
-///   GO term ID.
-///
-/// Returns
-/// -------
-/// Option<PyGOTerm>
-///   The GO term as a Python object, or None if not found.
+/// Raises:
+///     ValueError: If the GO term does not exist in the ontology.
 #[pyfunction]
-pub fn get_term_by_id(go_id: &str) -> PyResult<Option<PyGOTerm>> {
+pub fn get_term_by_id(go_id: &str) -> PyResult<PyGOTerm> {
     let terms = get_terms_or_error()?;
-    Ok(terms.get(go_id).map(PyGOTerm::from))
+    match terms.get(go_id) {
+        Some(term) => Ok(PyGOTerm::from(term)),
+        None => Err(PyValueError::new_err(format!(
+            "GO term '{}' not found in ontology",
+            go_id
+        ))),
+    }
 }
 
 /// Collect all ancestors of a GO term (recursively via is_a).
@@ -323,6 +325,20 @@ pub fn common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Vec<String>> {
 #[pyfunction]
 pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<String>> {
     let terms = get_terms_or_error()?;
+
+    if !terms.contains_key(go_id1) {
+        return Err(PyValueError::new_err(format!(
+            "GO term '{}' not found in ontology",
+            go_id1
+        )));
+    }
+    if !terms.contains_key(go_id2) {
+        return Err(PyValueError::new_err(format!(
+            "GO term '{}' not found in ontology",
+            go_id2
+        )));
+    }
+
     let (id_a, id_b) = if go_id1 <= go_id2 {
         (go_id1, go_id2)
     } else {
