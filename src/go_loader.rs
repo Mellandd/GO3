@@ -415,12 +415,18 @@ pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
         }
 
         let db_object_id = cols[1].to_string();
+        let qualifier = cols[3].to_string();
         let mut go_term = cols[4].to_string();
         let evidence = cols[6].to_string();
         let gene = cols[2].to_string();
 
         // Filter out ND annotations
         if evidence == "ND" {
+            continue;
+        }
+
+                // Skip NOT annotations
+        if qualifier.contains("NOT") {
             continue;
         }
 
