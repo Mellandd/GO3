@@ -85,6 +85,24 @@ scores = go3.compare_gene_pairs_batch(gene_pairs, "BP", "resnik", "bma", counter
 
 Both `resnik` and `lin` (and all other similarity methods) are fully supported in batch mode.
 
+## Term Set Similarity
+
+GO3 allows counting the similarity between two sets of GO terms directly.
+
+```python
+# Compute similarity between two sets of terms
+t1 = ["GO:0006397"]
+t2 = ["GO:0008380"]
+sim = go3.termset_similarity(t1, t2, term_similarity="lin", groupwise="bma", counter=counter)
+```
+
+Supported groupwise methods:
+- `bma`: Best-Match Average (default)
+- `max`: Maximum similarity
+- `avg`: Average of all pairwise similarities
+- `hausdorff`: Hausdorff similarity
+- `simgic`: Graph Information Content (Jaccard index of weighted ancestors)
+
 ## Benchmark
 
 This library is built as fast, scalable and memory-efficient as possible. Comparing with Goatools, which is the de facto library for manipulating GO in Python

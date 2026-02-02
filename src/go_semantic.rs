@@ -3,7 +3,7 @@ use pyo3::prelude::*;
 use rayon::prelude::*;
 use crate::go_loader::TermCounter;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use crate::go_ontology::{deepest_common_ancestor, get_term_by_id, get_terms_or_error, get_gene2go_or_error};
+use crate::go_ontology::{deepest_common_ancestor, get_term_by_id, get_terms_or_error, get_gene2go_or_error, collect_ancestors, GOTerm};
 use dashmap::DashMap;
 
 use rayon::ThreadPoolBuilder;
@@ -415,6 +415,179 @@ pub fn batch_similarity(
     Ok(result)
 }
 
+/// Internal helper to compute similarity between two sets of GO terms.
+fn termset_similarity_internal(
+    terms1: &[String],
+    terms2: &[String],
+    similarity: &str,
+    groupwise: &str,
+    counter: &TermCounter,
+    ontology_terms: &HashMap<String, GOTerm>,
+) -> PyResult<f64> {
+    if terms1.is_empty() || terms2.is_empty() {
+        return Ok(0.0);
+    }
+
+    if groupwise == "simgic" {
+        // Collect all ancestors for each set
+        let mut ancestors1: HashSet<String> = HashSet::default();
+        for t in terms1 {
+            let ancs = collect_ancestors(t, ontology_terms);
+            for a in ancs {
+                ancestors1.insert(a);
+            }
+        }
+        let mut ancestors2: HashSet<String> = HashSet::default();
+        for t in terms2 {
+            let ancs = collect_ancestors(t, ontology_terms);
+            for a in ancs {
+                ancestors2.insert(a);
+            }
+        }
+        
+        // Compute Jaccard Index weighted by IC
+        let mut intersection_ic = 0.0;
+        let mut union_ic = 0.0;
+        
+        let all_ancestors: HashSet<&String> = ancestors1.union(&ancestors2).collect();
+
+        for term in all_ancestors {
+            let ic = term_ic(term, counter);
+            let in_1 = ancestors1.contains(term);
+            let in_2 = ancestors2.contains(term);
+            
+            if in_1 && in_2 {
+                intersection_ic += ic;
+            }
+            if in_1 || in_2 {
+                union_ic += ic;
+            }
+        }
+        
+        if union_ic == 0.0 {
+            return Ok(0.0);
+        }
+        return Ok(intersection_ic / union_ic);
+    }
+    
+    // For other methods, we need the pairwise similarity function
+    let sim_fn = SimilarityMethod::from_str(similarity)
+            .ok_or_else(|| PyValueError::new_err(format!("Unknown similarity method: {}", similarity)))?;
+
+    match groupwise {
+        "max" => {
+            let max_val = terms1.par_iter()
+                .map(|id1| {
+                    terms2.par_iter()
+                        .map(|id2| sim_fn.compute(id1, id2, counter))
+                        .reduce(|| 0.0, f64::max)
+                })
+                .reduce(|| 0.0, f64::max);
+            Ok(max_val)
+        }
+        "bma" => {
+            let sem1: Vec<f64> = terms1.par_iter()
+                .map(|id1| {
+                    terms2.par_iter()
+                        .map(|id2| sim_fn.compute(id1, id2, counter))
+                        .reduce(|| 0.0, f64::max)
+                })
+                .collect();
+
+            let sem2: Vec<f64> = terms2.par_iter()
+                .map(|id2| {
+                    terms1.par_iter()
+                        .map(|id1| sim_fn.compute(id1, id2, counter))
+                        .reduce(|| 0.0, f64::max)
+                })
+                .collect();
+
+            let total = sem1.len() + sem2.len();
+            if total == 0 {
+                Ok(0.0)
+            } else {
+                Ok((sem1.iter().sum::<f64>() + sem2.iter().sum::<f64>()) / total as f64)
+            }
+        }
+        "avg" => {
+             let count = (terms1.len() * terms2.len()) as f64;
+             if count == 0.0 {
+                 return Ok(0.0);
+             }
+             // sum( sim(t1, t2) ) / (N*M)
+             let total_sim: f64 = terms1.par_iter()
+                 .map(|id1| {
+                     terms2.par_iter()
+                        .map(|id2| sim_fn.compute(id1, id2, counter))
+                        .sum::<f64>()
+                 })
+                 .sum();
+                 
+             Ok(total_sim / count)
+        }
+        "hausdorff" => {
+            // min( min_a max_b sim(a, b), min_b max_a sim(b, a) )
+            
+            let min_max_1: f64 = terms1.par_iter()
+                .map(|id1| {
+                     terms2.par_iter()
+                        .map(|id2| sim_fn.compute(id1, id2, counter))
+                        .reduce(|| 0.0, f64::max)
+                })
+                .reduce(|| f64::INFINITY, f64::min);
+                
+            let min_max_2: f64 = terms2.par_iter()
+                .map(|id2| {
+                     terms1.par_iter()
+                        .map(|id1| sim_fn.compute(id1, id2, counter))
+                        .reduce(|| 0.0, f64::max)
+                })
+                .reduce(|| f64::INFINITY, f64::min);
+                
+             if min_max_1.is_infinite() || min_max_2.is_infinite() {
+                 Ok(0.0)
+             } else {
+                 Ok(min_max_1.min(min_max_2))
+             }
+        }
+        _ => Err(pyo3::exceptions::PyValueError::new_err(format!("Unknown groupwise strategy: {}", groupwise))),
+    }
+}
+
+
+/// Compute semantic similarity between two sets of GO terms.
+///
+/// Arguments
+/// ---------
+/// terms1 : list of str
+///   First list of GO term IDs.
+/// terms2 : list of str
+///   Second list of GO term IDs.
+/// term_similarity : str
+///   Name of the pairwise similarity method.
+/// groupwise : str
+///   Groupwise combination method. Options: "bma", "max", "avg", "hausdorff", "simgic".
+/// counter : TermCounter
+///   Precomputed IC values.
+///
+/// Returns
+/// -------
+/// float
+///   Similarity score.
+#[pyfunction]
+#[pyo3(signature = (terms1, terms2, term_similarity="lin", groupwise="bma", counter=None))]
+pub fn termset_similarity(
+    terms1: Vec<String>,
+    terms2: Vec<String>,
+    term_similarity: &str,
+    groupwise: &str,
+    counter: Option<&TermCounter>,
+) -> PyResult<f64> {
+     let c = counter.ok_or_else(|| PyValueError::new_err("counter argument is required"))?;
+     let terms_lock = get_terms_or_error()?;
+     termset_similarity_internal(&terms1, &terms2, term_similarity, groupwise, c, &terms_lock)
+}
+
 
 /// Compute semantic similarity between genes.
 ///
@@ -429,7 +602,7 @@ pub fn batch_similarity(
 /// similarity : str
 ///   Name of the similarity method.
 /// groupwise : str
-///   Combination method to generate the similarities between genes. Options: "bma", "max".
+///   Combination method to generate the similarities between genes. Options: "bma", "max", "avg", "hausdorff", "simgic".
 /// counter : TermCounter
 ///   Precomputed IC values.
 ///
@@ -481,53 +654,12 @@ pub fn compare_genes(
         .filter(|id| terms.get(*id).map_or(false, |t| t.namespace.to_ascii_lowercase() == ns))
         .cloned()
         .collect();
-    print!("{:?}", f1);
-    print!("{:?}", f2);
+
     if f1.is_empty() || f2.is_empty() {
         return Ok(0.0);
     }
-
-    let sim_fn = SimilarityMethod::from_str(similarity)
-        .ok_or_else(|| PyValueError::new_err(format!("Unknown similarity method: {}", similarity)))?;
-
-    let score = match groupwise.as_str() {
-        "max" => {
-            f1.par_iter()
-                .map(|id1| {
-                    f2.par_iter()
-                        .map(|id2| sim_fn.compute(id1, id2, counter))
-                        .reduce(|| 0.0, f64::max)
-                })
-                .reduce(|| 0.0, f64::max)
-        }
-        "bma" => {
-            let sem1: Vec<f64> = f1.par_iter()
-                .map(|id1| {
-                    f2.par_iter()
-                        .map(|id2| sim_fn.compute(id1, id2, counter))
-                        .reduce(|| 0.0, f64::max)
-                })
-                .collect();
-
-            let sem2: Vec<f64> = f2.par_iter()
-                .map(|id2| {
-                    f1.par_iter()
-                        .map(|id1| sim_fn.compute(id1, id2, counter))
-                        .reduce(|| 0.0, f64::max)
-                })
-                .collect();
-
-            let total = sem1.len() + sem2.len();
-            if total == 0 {
-                0.0
-            } else {
-                (sem1.iter().sum::<f64>() + sem2.iter().sum::<f64>()) / total as f64
-            }
-        }
-        _ => return Err(pyo3::exceptions::PyValueError::new_err("Unknown groupwise strategy")),
-    };
-
-    Ok(score)
+ 
+    termset_similarity_internal(&f1, &f2, similarity, &groupwise, counter, &terms)
 }
 
 /// Compute semantic similarity between genes in batches.
@@ -541,7 +673,7 @@ pub fn compare_genes(
 /// similarity : str
 ///   Name of the similarity method.
 /// groupwise : str
-///   Combination method to generate the similarities between genes. Options: "bma", "max".
+///   Combination method to generate the similarities between genes. Options: "bma", "max", "avg", "hausdorff", "simgic".
 /// counter : TermCounter
 ///   Precomputed IC values.
 ///
@@ -578,14 +710,11 @@ pub fn compare_gene_pairs_batch(
         }
     };
 
-    let sim_fn = SimilarityMethod::from_str(similarity)
-        .ok_or_else(|| PyValueError::new_err(format!("Unknown similarity method: {}", similarity)))?;
-
     let scores: Vec<f64> = pairs
-        .into_par_iter()
+        .par_iter()
         .map(|(g1, g2)| {
             let go1: Vec<_> = gene2go
-                .get(&g1)
+                .get(g1)
                 .into_iter()
                 .flatten()
                 .filter(|go| terms.get(go.as_str()).map_or(false, |t| t.namespace.eq_ignore_ascii_case(ns)))
@@ -593,37 +722,18 @@ pub fn compare_gene_pairs_batch(
                 .collect();
 
             let go2: Vec<_> = gene2go
-                .get(&g2)
+                .get(g2)
                 .into_iter()
                 .flatten()
                 .filter(|go| terms.get(go.as_str()).map_or(false, |t| t.namespace.eq_ignore_ascii_case(ns)))
                 .cloned()
                 .collect();
 
-            if go1.is_empty() || go2.is_empty() {
-                return 0.0;
-            }
-
-            match groupwise.as_str() {
-                "max" => go1.par_iter()
-                    .map(|id1| go2.par_iter().map(|id2| sim_fn.compute(id1, id2, counter)).reduce(|| 0.0, f64::max))
-                    .reduce(|| 0.0, f64::max),
-                "bma" => {
-                    let sem1: Vec<_> = go1.par_iter()
-                        .map(|id1| go2.par_iter().map(|id2| sim_fn.compute(id1, id2, counter)).reduce(|| 0.0, f64::max))
-                        .collect();
-                    let sem2: Vec<_> = go2.par_iter()
-                        .map(|id2| go1.par_iter().map(|id1| sim_fn.compute(id1, id2, counter)).reduce(|| 0.0, f64::max))
-                        .collect();
-                    let total = sem1.len() + sem2.len();
-                    if total == 0 {
-                        0.0
-                    } else {
-                        (sem1.iter().sum::<f64>() + sem2.iter().sum::<f64>()) / total as f64
-                    }
-                }
-                _ => 0.0,
-            }
+             if go1.is_empty() || go2.is_empty() {
+                 return 0.0;
+             }
+             
+             termset_similarity_internal(&go1, &go2, similarity, &groupwise, counter, &terms).unwrap_or(0.0)
         })
         .collect();
 
@@ -780,6 +890,7 @@ fn weighted_shortest_path_iic(
         }
     }
     None
+
 }
 
 /// Compute the weighted longest path (sum of IICs) from source to target (ancestor) in the GO DAG.

@@ -154,6 +154,41 @@ where
 
 This measure captures both the specificity of the common ancestors and the topological distance between terms, providing a robust similarity score.
 
+Groupwise Similarity Measures
+-----------------------------
+
+When comparing sets of terms (e.g., genes annotated with multiple GO terms), specific strategies are needed to combine pairwise similarities or compute set-level similarity.
+
+Best-Match Average (BMA)
+~~~~~~~~~~~~~~~~~~~~~~~~
+Calculates the average of the best matches for each term in both sets.
+
+Maximum (MAX)
+~~~~~~~~~~~~~
+Takes the maximum similarity score found between any pair of terms from the two sets.
+
+Average (AVG)
+~~~~~~~~~~~~~
+Computes the average of all pairwise similarity scores between the two sets.
+
+Hausdorff Similarity
+~~~~~~~~~~~~~~~~~~~~
+Computes the "worst" of the best matches, ensuring that every term in one set has a reasonably good match in the other. 
+
+.. math::
+
+    \mathrm{Sim}_{Hausdorff}(A, B) = \min \left( \min_{a \in A} \max_{b \in B} \mathrm{Sim}(a, b), \min_{b \in B} \max_{a \in A} \mathrm{Sim}(a, b) \right)
+
+SimGIC
+~~~~~~
+A graph-based Jaccard Index weighted by Information Content (IC). It is defined directly on the sets of terms (ancestors) rather than combining pairwise scores.
+
+.. math::
+
+    \mathrm{Sim}_{SimGIC}(A, B) = \frac{\sum_{t \in Anc(A) \cap Anc(B)} IC(t)}{\sum_{t \in Anc(A) \cup Anc(B)} IC(t)}
+
+where :math:`Anc(A)` is the union of ancestors of all terms in set :math:`A`.
+
 Batch Computation
 -----------------
 
@@ -166,6 +201,6 @@ Bibliography
    :style: unsrt
 
 .. automodule:: go3
-   :members: term_ic, semantic_similarity, batch_similarity, compare_genes, compare_gene_pairs_batch
+   :members: term_ic, semantic_similarity, batch_similarity, termset_similarity, compare_genes, compare_gene_pairs_batch
    :undoc-members:
    :show-inheritance:
