@@ -159,3 +159,20 @@ def test_groupwise_strategies():
             sim = go3.compare_genes(gene1, gene2, "BP", method, groupwise, counter)
             assert isinstance(sim, float)
             assert sim >= 0.0
+
+
+def test_gene_distance_matrix():
+    _ = go3.load_go_terms()
+    gaf = go3.load_gaf("tests/goa_human.gaf")
+    counter = go3.build_term_counter(gaf)
+    genes = ["BRCA1", "CASP8", "GSDME"]
+    out_genes, dist = go3.gene_distance_matrix(genes, "BP", "lin", "bma", counter)
+    assert out_genes == genes
+    n = len(genes)
+    assert len(dist) == n
+    assert all(len(row) == n for row in dist)
+    for i in range(n):
+        assert dist[i][i] == 0.0
+        for j in range(n):
+            assert dist[i][j] >= 0.0
+            assert abs(dist[i][j] - dist[j][i]) < 1e-9

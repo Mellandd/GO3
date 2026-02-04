@@ -1,0 +1,9 @@
+mod embedding;
+mod gene;
+mod similarity;
+mod termset;
+
+pub use embedding::{plot_embedding, plot_tsne_genes, plot_umap_genes, tsne_genes, umap_genes};
+pub use gene::{compare_gene_pairs_batch, compare_genes, gene_distance_matrix};
+pub use similarity::{batch_similarity, semantic_similarity, set_num_threads, term_ic};
+pub use termset::termset_similarity;

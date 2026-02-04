@@ -8,7 +8,21 @@ pub mod go_semantic;
 
 use go_loader::{load_go_terms, load_gaf, build_term_counter};
 use go_ontology::{get_term_by_id, ancestors, common_ancestor, deepest_common_ancestor};
-use go_semantic::{term_ic, semantic_similarity, termset_similarity, batch_similarity, compare_genes, compare_gene_pairs_batch, set_num_threads};
+use go_semantic::{
+    term_ic,
+    semantic_similarity,
+    termset_similarity,
+    batch_similarity,
+    compare_genes,
+    compare_gene_pairs_batch,
+    gene_distance_matrix,
+    tsne_genes,
+    umap_genes,
+    plot_embedding,
+    plot_tsne_genes,
+    plot_umap_genes,
+    set_num_threads,
+};
 
 #[pymodule]
 fn go3(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
@@ -28,6 +42,12 @@ fn go3(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(batch_similarity, m)?)?;
     m.add_function(wrap_pyfunction!(compare_genes, m)?)?;
     m.add_function(wrap_pyfunction!(compare_gene_pairs_batch, m)?)?;
+    m.add_function(wrap_pyfunction!(gene_distance_matrix, m)?)?;
+    m.add_function(wrap_pyfunction!(tsne_genes, m)?)?;
+    m.add_function(wrap_pyfunction!(umap_genes, m)?)?;
+    m.add_function(wrap_pyfunction!(plot_embedding, m)?)?;
+    m.add_function(wrap_pyfunction!(plot_tsne_genes, m)?)?;
+    m.add_function(wrap_pyfunction!(plot_umap_genes, m)?)?;
 
     m.add_class::<go_ontology::PyGOTerm>()?;
     m.add_class::<go_loader::GAFAnnotation>()?;

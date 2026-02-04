@@ -15,6 +15,14 @@ pub static GENE2GO_CACHE: OnceCell<RwLock<HashMap<String, Vec<String>>>> = OnceC
 pub static ANCESTORS_CACHE: OnceCell<RwLock<HashMap<String, HashSet<String>>>> = OnceCell::new();
 pub static DCA_CACHE: OnceCell<RwLock<HashMap<(String, String), String>>> = OnceCell::new();
 
+fn set_or_replace_cache<T>(cell: &OnceCell<RwLock<T>>, value: T) {
+    if let Some(lock) = cell.get() {
+        *lock.write() = value;
+    } else {
+        let _ = cell.set(RwLock::new(value));
+    }
+}
+
 /// Struct representing a single annotation from a GAF file.
 ///
 /// Fields
@@ -98,21 +106,33 @@ pub fn parse_obo(path: &str) -> HashMap<String, GOTerm> {
     // Compute children, levels, depths, etc.
     compute_levels_and_depths(&mut term_map);
 
+    fn collect_ancestors_uncached(go_id: &str, terms: &HashMap<String, GOTerm>) -> HashSet<String> {
+        let mut visited = HashSet::default();
+        let mut stack = vec![go_id];
+        while let Some(current) = stack.pop() {
+            if visited.insert(current.to_string()) {
+                if let Some(term) = terms.get(current) {
+                    for parent in &term.parents {
+                        stack.push(parent);
+                    }
+                }
+            }
+        }
+        visited
+    }
+
     // Precompute ancestors for caching
     let ancestors_map: HashMap<String, HashSet<String>> = term_map
         .par_iter()
         .map(|(id, _)| {
-            let ancestors = crate::go_ontology::collect_ancestors(id, &term_map)
-                .into_iter()
-                .map(|s| s.to_string())
-                .collect();
+            let ancestors = collect_ancestors_uncached(id, &term_map);
             (id.clone(), ancestors)
         })
         .collect();
-    let _ = ANCESTORS_CACHE.set(RwLock::new(ancestors_map));
+    set_or_replace_cache(&ANCESTORS_CACHE, ancestors_map);
 
-    // Initialize DCA_CACHE
-    let _ = DCA_CACHE.set(RwLock::new(HashMap::default()));
+    // Initialize (or reset) DCA_CACHE
+    set_or_replace_cache(&DCA_CACHE, HashMap::default());
 
     term_map
 }
@@ -343,9 +363,11 @@ pub fn download_obo() -> Result<String, String> {
         return Ok(obo_path.to_string());
     }
 
-    let url = "http://purl.obolibrary.org/obo/go/go-basic.obo";
+    let url = "https://purl.obolibrary.org/obo/go/go-basic.obo";
     println!("Descargando ontología desde: {}", url);
-    let response = get(url).map_err(|e| e.to_string())?;
+    let response = get(url)
+        .and_then(|r| r.error_for_status())
+        .map_err(|e| e.to_string())?;
 
     let content = response.text().map_err(|e| e.to_string())?;
     fs::write(obo_path, content).map_err(|e| e.to_string())?;
@@ -367,11 +389,21 @@ pub fn download_obo() -> Result<String, String> {
 #[pyfunction]
 #[pyo3(signature = (path=None))]
 pub fn load_go_terms(path: Option<String>) -> PyResult<Vec<PyGOTerm>> {
-    let path = path.unwrap_or_else(|| download_obo().unwrap());
+    let path = match path {
+        Some(p) => p,
+        None => download_obo()
+            .map_err(|e| pyo3::exceptions::PyIOError::new_err(e))?,
+    };
+    if !Path::new(&path).exists() {
+        return Err(pyo3::exceptions::PyIOError::new_err(format!(
+            "OBO file not found: {}",
+            path
+        )));
+    }
     let terms_map = parse_obo(&path);
 
     // Guardar en la caché global
-    let _ = GO_TERMS_CACHE.set(RwLock::new(terms_map.clone()));
+    set_or_replace_cache(&GO_TERMS_CACHE, terms_map.clone());
 
     // Devolver lista de PyGOTerm
     let terms_vec = terms_map
@@ -425,7 +457,7 @@ pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
             continue;
         }
 
-                // Skip NOT annotations
+        // Skip NOT annotations
         if qualifier.contains("NOT") {
             continue;
         }
@@ -461,7 +493,7 @@ pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
     }
 
     // Save in global cache
-    let _ = GENE2GO_CACHE.set(RwLock::new(gene2go));
+    set_or_replace_cache(&GENE2GO_CACHE, gene2go);
 
     Ok(annotations)
 }
@@ -511,44 +543,62 @@ fn _build_term_counter(
     annotations: &[GAFAnnotation],
     terms: &HashMap<String, GOTerm>,
 ) -> TermCounter {
-    use rayon::prelude::*;
-    use std::sync::Mutex;
-
-    // Parallel: build obj_to_terms
-    let obj_to_terms: HashMap<&str, HashSet<String>> = {
-        let obj_to_terms_mutex: Mutex<HashMap<&str, HashSet<String>>> = Mutex::new(HashMap::default());
-        annotations.par_iter().for_each(|ann| {
+    // Parallel: build obj_to_terms without global locking
+    let obj_to_terms: HashMap<&str, HashSet<String>> = annotations
+        .par_iter()
+        .fold(HashMap::<&str, HashSet<String>>::default, |mut acc, ann| {
             let go_id = ann.go_term.as_str();
             let mut term_set: HashSet<String> = collect_ancestors(go_id, terms);
             term_set.insert(go_id.to_string());
-            let mut map = obj_to_terms_mutex.lock().unwrap();
-            map.entry(ann.db_object_id.as_str())
+            acc.entry(ann.db_object_id.as_str())
                 .or_default()
                 .extend(term_set);
+            acc
+        })
+        .reduce(HashMap::<&str, HashSet<String>>::default, |mut acc, map| {
+            for (k, v) in map {
+                acc.entry(k).or_default().extend(v);
+            }
+            acc
         });
-        obj_to_terms_mutex.into_inner().unwrap()
-    };
 
-    // Parallel: build counts and total_by_ns
-    let (counts, total_by_ns) = {
-        let counts_mutex: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::default());
-        let total_by_ns_mutex: Mutex<HashMap<String, usize>> = Mutex::new(HashMap::default());
-        obj_to_terms.values().collect::<Vec<_>>().par_iter().for_each(|term_ids| {
-            let mut namespaces_seen = HashSet::default();
-            for term_id in *term_ids {
-                if let Some(term) = terms.get(term_id.as_str()) {
-                    let mut counts = counts_mutex.lock().unwrap();
-                    *counts.entry(term_id.to_string()).or_insert(0) += 1;
-                    namespaces_seen.insert(term.namespace.as_str());
+    // Parallel: build counts and total_by_ns without per-term locks
+    let (counts, total_by_ns) = obj_to_terms
+        .par_iter()
+        .fold(
+            || (
+                HashMap::<String, usize>::default(),
+                HashMap::<String, usize>::default(),
+            ),
+            |(mut counts, mut total_by_ns), (_gene, term_ids)| {
+                let mut namespaces_seen: HashSet<&str> = HashSet::default();
+                for term_id in term_ids {
+                    if let Some(term) = terms.get(term_id.as_str()) {
+                        *counts.entry(term_id.clone()).or_insert(0) += 1;
+                        namespaces_seen.insert(term.namespace.as_str());
+                    }
                 }
-            }
-            for ns in namespaces_seen {
-                let mut total_by_ns = total_by_ns_mutex.lock().unwrap();
-                *total_by_ns.entry(ns.to_string()).or_insert(0) += 1;
-            }
-        });
-        (counts_mutex.into_inner().unwrap(), total_by_ns_mutex.into_inner().unwrap())
-    };
+                for ns in namespaces_seen {
+                    *total_by_ns.entry(ns.to_string()).or_insert(0) += 1;
+                }
+                (counts, total_by_ns)
+            },
+        )
+        .reduce(
+            || (
+                HashMap::<String, usize>::default(),
+                HashMap::<String, usize>::default(),
+            ),
+            |(mut counts_a, mut total_a), (counts_b, total_b)| {
+                for (k, v) in counts_b {
+                    *counts_a.entry(k).or_insert(0) += v;
+                }
+                for (k, v) in total_b {
+                    *total_a.entry(k).or_insert(0) += v;
+                }
+                (counts_a, total_a)
+            },
+        );
 
     // Calcular IC (secuencial, as it's fast)
     let mut ic: HashMap<String, f64> = HashMap::default();

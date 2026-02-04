@@ -22,3 +22,10 @@ module-name = "go3"
 [project.urls]
 Homepage = "https://github.com/Mellandd/GO3"
 Repository = "https://github.com/Mellandd/GO3"
+
+[project.optional-dependencies]
+viz = [
+    "scikit-learn>=1.2",
+    "umap-learn>=0.5",
+    "matplotlib>=3.7",
+]

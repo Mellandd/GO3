@@ -85,6 +85,41 @@ scores = go3.compare_gene_pairs_batch(gene_pairs, "BP", "resnik", "bma", counter
 
 Both `resnik` and `lin` (and all other similarity methods) are fully supported in batch mode.
 
+## Visualization (t-SNE / UMAP)
+
+GO3 can build a gene-to-gene distance matrix and optionally compute t-SNE or UMAP embeddings
+using precomputed distances (requires `scikit-learn` for t-SNE and `umap-learn` for UMAP).
+You can install visualization extras with:
+
+```bash
+pip install go3[viz]
+```
+
+```python
+import go3
+
+go3.load_go_terms()
+annots = go3.load_gaf("goa_human.gaf")
+counter = go3.build_term_counter(annots)
+
+genes = ["TP53", "BRCA1", "EGFR", "AKT1"]  # or use genes=None for all annotated genes
+genes, dist = go3.gene_distance_matrix(genes, "BP", "lin", "bma", counter)
+
+# t-SNE (precomputed distances)
+genes, emb_tsne = go3.tsne_genes(genes, "BP", "lin", "bma", counter, perplexity=30, random_state=42)
+
+# UMAP (precomputed distances)
+genes, emb_umap = go3.umap_genes(genes, "BP", "lin", "bma", counter, n_neighbors=15, random_state=42)
+
+# Quick matplotlib plot
+genes, emb, fig, ax = go3.plot_tsne_genes(
+    genes, "BP", "lin", "bma", counter, perplexity=30, random_state=42, annotate="auto"
+)
+fig.show()
+```
+
+`distance_transform` supports `"auto"` (default), `"one_minus"`, `"max_minus"`, and `"reciprocal"`.
+
 ## Term Set Similarity
 
 GO3 allows counting the similarity between two sets of GO terms directly.

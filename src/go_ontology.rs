@@ -209,7 +209,7 @@ pub fn get_gene2go_or_error<'a>() -> PyResult<parking_lot::RwLockReadGuard<'a, H
     Ok(
         GENE2GO_CACHE
             .get()
-            .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("Gene2GO mapping not loaded. Call go3.load_gene2go() first."))?
+            .ok_or_else(|| pyo3::exceptions::PyRuntimeError::new_err("Gene2GO mapping not loaded. Call go3.load_gaf() first."))?
             .read()
     )
 }
@@ -346,9 +346,10 @@ pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<St
     };
 
     // Try to use the DCA cache if available
+    let cache_key = (id_a.to_string(), id_b.to_string());
     if let Some(lock) = crate::go_loader::DCA_CACHE.get() {
-        let cache = lock.write();
-        if let Some(result) = cache.get(&(id_a.to_string(), id_b.to_string())) {
+        let cache = lock.read();
+        if let Some(result) = cache.get(&cache_key) {
             return Ok(Some(result.clone()));
         }
     }
@@ -369,11 +370,9 @@ pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<St
     }
 
     // Store the result in the cache if available
-    if let Some(lock) = crate::go_loader::DCA_CACHE.get() {
+    if let (Some(lock), Some(dca)) = (crate::go_loader::DCA_CACHE.get(), best.as_ref()) {
         let mut cache = lock.write();
-        if let Some(ref dca) = best {
-            cache.insert((id_a.to_string(), id_b.to_string()), dca.clone());
-        }
+        cache.insert(cache_key, dca.clone());
     }
 
     Ok(best)

@@ -31,6 +31,29 @@ Gene-to-Gene Similarity
    sim = go3.compare_genes("BRCA1", "CASP8", "BP", "topoicsim", "bma", counter)
    print("TopoICSim gene similarity:", sim)
 
+Gene Distance Matrix and t-SNE
+------------------------------
+
+.. code-block:: python
+
+   genes = ["TP53", "BRCA1", "EGFR", "AKT1"]
+   genes, dist = go3.gene_distance_matrix(genes, "BP", "lin", "bma", counter)
+   genes, emb = go3.tsne_genes(genes, "BP", "lin", "bma", counter, perplexity=30, random_state=42)
+   # Or UMAP:
+   # genes, emb = go3.umap_genes(genes, "BP", "lin", "bma", counter, n_neighbors=15, random_state=42)
+
+   # Plot (optional)
+   import matplotlib.pyplot as plt
+   plt.scatter(emb[:, 0], emb[:, 1])
+   for (x, y), g in zip(emb, genes):
+       plt.text(x, y, g, fontsize=8)
+   plt.show()
+
+   # Or use the integrated plot helper
+   genes, emb, fig, ax = go3.plot_tsne_genes(
+       genes, "BP", "lin", "bma", counter, perplexity=30, random_state=42, annotate="auto"
+   )
+
 Error Handling
 --------------
 
