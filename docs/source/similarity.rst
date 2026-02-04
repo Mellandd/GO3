@@ -50,6 +50,31 @@ You can use these strings as the ``method`` parameter in all `go3` similarity fu
    sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
    sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "topoicsim", counter)
 
+Common workflows
+----------------
+
+.. code-block:: python
+
+   import go3
+   go3.load_go_terms()
+   annots = go3.load_gaf("goa_human.gaf")
+   counter = go3.build_term_counter(annots)
+
+   # Term-to-term similarity
+   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
+
+   # Term set similarity (groupwise)
+   sim_set = go3.termset_similarity(
+       ["GO:0006397"], ["GO:0008380"], term_similarity="lin", groupwise="bma", counter=counter
+   )
+
+   # Information Content (IC) of a term
+   ic = go3.term_ic("GO:0006397", counter)
+
+   # Batch gene similarity
+   pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1")]
+   scores = go3.compare_gene_pairs_batch(pairs, "BP", "lin", "bma", counter)
+
 Similarity Measures
 --------------------
 

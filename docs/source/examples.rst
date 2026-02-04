@@ -23,6 +23,16 @@ Batch Similarity
    sims = go3.batch_similarity(list1, list2, "lin", counter)
    print(sims)
 
+Term Set Similarity
+-------------------
+
+.. code-block:: python
+
+   terms1 = ["GO:0006397"]
+   terms2 = ["GO:0008380"]
+   sim = go3.termset_similarity(terms1, terms2, term_similarity="lin", groupwise="bma", counter=counter)
+   print(sim)
+
 Gene-to-Gene Similarity
 -----------------------
 
@@ -30,6 +40,15 @@ Gene-to-Gene Similarity
 
    sim = go3.compare_genes("BRCA1", "CASP8", "BP", "topoicsim", "bma", counter)
    print("TopoICSim gene similarity:", sim)
+
+Batch Gene Similarity
+---------------------
+
+.. code-block:: python
+
+   pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1")]
+   scores = go3.compare_gene_pairs_batch(pairs, "BP", "lin", "bma", counter)
+   print(scores)
 
 Gene Distance Matrix and t-SNE
 ------------------------------
@@ -53,6 +72,14 @@ Gene Distance Matrix and t-SNE
    genes, emb, fig, ax = go3.plot_tsne_genes(
        genes, "BP", "lin", "bma", counter, perplexity=30, random_state=42, annotate="auto"
    )
+
+Threading
+---------
+
+.. code-block:: python
+
+   # Limit the maximum number of threads used internally
+   go3.set_num_threads(8)
 
 Error Handling
 --------------

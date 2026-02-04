@@ -5,6 +5,7 @@ Ontology
    :members: load_go_terms, get_term_by_id, ancestors, common_ancestor, deepest_common_ancestor
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 Ontology Functions
 ------------------

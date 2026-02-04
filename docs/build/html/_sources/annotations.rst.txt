@@ -5,6 +5,7 @@ Annotations
    :members: load_gaf, build_term_counter, GAFAnnotation, TermCounter
    :undoc-members:
    :show-inheritance:
+   :no-index:
 
 Annotation Functions
 --------------------

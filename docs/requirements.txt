@@ -1,3 +1,6 @@
+furo
+myst-parser
+sphinx-copybutton
 sphinxcontrib-bibtex
-sphinx-rtd-theme
 go3
+sphinx_copybutton
