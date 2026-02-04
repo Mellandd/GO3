@@ -144,15 +144,15 @@ This library is built as fast, scalable and memory-efficient as possible. Compar
 
 We compare the time and peak memory consumption of go3 vs goatools while loading the ontology and the annotation (.GAF) file, and building the TermCounter.
 
-![Loading time & memory](src/benchmark_loading_time_memory.png)
+![Loading time & memory](imgs/benchmark_loading_time_memory.png)
 
 We also compare the speed of the libraries calculating the similarities between batches of GO Terms of different sizes.
 
-![Batch similarity speed](src/benchmark_batch_similarity.png)
+![Batch similarity speed](imgs/benchmark_batch_similarity.png)
 
 Finally, we compare the gene similarity calculation times. Goatools does not implement natively the groupwise algorithms to compare genes, so we built it for a fair comparison in top of the GO term semantic similarities of the library. 
 
-![Gene similarity speed](src/benchmark_gene_batch_similarity.png)
+![Gene similarity speed](imgs/benchmark_gene_batch_similarity.png)
 
 ## Contributing
 
