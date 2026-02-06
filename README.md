@@ -6,16 +6,16 @@
 [![Documentation](https://readthedocs.org/projects/go3/badge/?version=latest)](https://go3.readthedocs.io/en/latest/)
 [![License](https://img.shields.io/github/license/Mellandd/go3)](LICENSE)
 
-GO3 is a high-performance semantic similarity library for Gene Ontology (GO), implemented in Rust and exposed through a Python API.
+GO3 is a high-performance Gene Ontology (GO) semantic similarity library with a Rust core and a Python API.
 
-It supports:
+It is designed for bioinformatics workflows that need:
 
-- term-to-term similarity
-- gene-to-gene similarity
-- batch workloads at scale
-- visualization-ready distance matrices and embeddings
+- fast term-to-term similarity
+- gene-to-gene similarity from GAF annotations
+- batch processing at scale
+- distance matrices and t-SNE/UMAP utilities
 
-The preprint is available at:
+Preprint:
 https://www.biorxiv.org/content/10.1101/2025.09.04.669468v1
 
 ## Installation
@@ -35,7 +35,7 @@ pip install go3[viz]
 ```python
 import go3
 
-# 1) Load ontology and annotations
+# 1) Load ontology + annotations
 go3.load_go_terms("go-basic.obo")
 annots = go3.load_gaf("goa_human.gaf")
 counter = go3.build_term_counter(annots)
@@ -47,14 +47,11 @@ print(f"Term similarity: {sim:.4f}")
 # 3) Gene similarity
 score = go3.compare_genes("TP53", "BRCA1", "BP", "lin", "bma", counter)
 print(f"Gene similarity: {score:.4f}")
-
-# 4) Batch gene similarity
-gene_pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1")]
-scores = go3.compare_gene_pairs_batch(gene_pairs, "BP", "lin", "bma", counter)
-print(scores)
 ```
 
-## Supported term similarity methods
+## Similarity methods
+
+Term-level methods:
 
 - `resnik`
 - `lin`
@@ -65,7 +62,7 @@ print(scores)
 - `wang`
 - `topoicsim`
 
-Groupwise strategies for term sets / genes:
+Groupwise strategies (term sets / genes):
 
 - `bma`
 - `max`
@@ -73,20 +70,26 @@ Groupwise strategies for term sets / genes:
 - `hausdorff`
 - `simgic`
 
-## Performance-oriented APIs
+## Common workflows
 
-- `batch_similarity(...)`
-- `compare_gene_pairs_batch(...)`
-- `gene_distance_matrix(...)`
-
-Use `go3.set_num_threads(n)` to control internal parallelism.
-
-## Embeddings and plotting
+### Batch term similarity
 
 ```python
-import go3
+pairs = [("GO:0006397", "GO:0008380"), ("GO:0008150", "GO:0009987")]
+scores = go3.batch_similarity([a for a, _ in pairs], [b for _, b in pairs], "lin", counter)
+```
 
-genes = ["TP53", "BRCA1", "EGFR", "AKT1"]
+### Batch gene similarity
+
+```python
+gene_pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1")]
+scores = go3.compare_gene_pairs_batch(gene_pairs, "BP", "lin", "bma", counter)
+```
+
+### Distance matrix + embedding
+
+```python
+genes = ["TP53", "BRCA1", "EGFR", "AKT1", "CASP8"]
 
 ordered, dist = go3.gene_distance_matrix(
     genes,
@@ -97,69 +100,63 @@ ordered, dist = go3.gene_distance_matrix(
     distance_transform="auto",
 )
 
-ordered, emb_tsne = go3.tsne_genes(genes, "BP", "lin", "bma", counter, perplexity=2.0, random_state=42)
-ordered, emb_umap = go3.umap_genes(genes, "BP", "lin", "bma", counter, n_neighbors=3, random_state=42)
+ordered, emb_tsne = go3.tsne_genes(
+    genes, "BP", "lin", "bma", counter, perplexity=2.0, random_state=42
+)
+
+ordered, emb_umap = go3.umap_genes(
+    genes, "BP", "lin", "bma", counter, n_neighbors=3, random_state=42
+)
 ```
 
-## Benchmarks
+### Plot helpers
 
-Benchmark scripts are in `scripts/`.
+```python
+ordered, emb_t, fig_t, ax_t = go3.plot_tsne_genes(
+    genes, "BP", "lin", "bma", counter, perplexity=2.0, random_state=42, annotate="auto"
+)
 
-Main script:
-
-- `scripts/benchmark_go3vsgoatools.py`
-
-Size controls:
-
-- `--term-pair-sizes` for term-level workloads
-- `--gene-pair-sizes` for gene-level workloads
-- `--pair-sizes` as a legacy shortcut for both
-
-It benchmarks:
-
-1. loading + preprocessing time and memory
-2. batch term-pair similarity
-3. batch gene-pair similarity
-4. all-vs-all gene similarity workloads
-
-Recommended run:
-
-```bash
-./venv/bin/python scripts/benchmark_go3vsgoatools.py \
-  --namespace BP \
-  --term-method lin \
-  --gene-method lin \
-  --term-pair-sizes 1000,5000,20000 \
-  --gene-pair-sizes 25,50,100 \
-  --matrix-gene-sizes 8,12 \
-  --warmup 1 \
-  --repeats 2 \
-  --threads 8 \
-  --outdir imgs
+ordered, emb_u, fig_u, ax_u = go3.plot_umap_genes(
+    genes, "BP", "lin", "bma", counter, n_neighbors=3, random_state=42, annotate="auto"
+)
 ```
 
-Paper-ready profile:
+Example outputs:
 
-```bash
-./venv/bin/python scripts/benchmark_go3vsgoatools.py \
-  --paper-ready \
-  --namespace BP \
-  --term-method lin \
-  --gene-method lin \
-  --outdir imgs
-```
+![GO3 plot_tsne_genes example](imgs/plot_helper_tsne_example.png)
 
-This mode writes high-resolution PNG figures plus SVG copies and includes system metadata in `benchmark_results.json`.
+![GO3 plot_umap_genes example](imgs/plot_helper_umap_example.png)
 
-Generated artifacts:
+## Performance and benchmarks
 
-- `imgs/benchmark_loading_time_memory.png`
-- `imgs/benchmark_batch_similarity.png`
-- `imgs/benchmark_gene_batch_similarity.png`
-- `imgs/benchmark_all_vs_all_gene_similarity.png`
-- `imgs/benchmark_results.json`
+GO3 was benchmarked against `goatools` in realistic workloads (BP, Lin, BMA) and shows a large runtime advantage.
 
-Optional `GOSemSim` support exists for reference comparisons, but the strict Python ecosystem baseline is `goatools`.
+Current benchmark snapshot:
+
+- Loading pipeline (`load_go_terms` + `load_gaf` + `build_term_counter`): `~1.59x` faster and `~2.88x` lower peak memory.
+- Batch GO-term similarity (1000, 5000, 20000 pairs): median speedup `~7.27x` (`min ~6.65x`, `max ~8.02x`).
+- Batch gene similarity (25, 50, 100 pairs): median speedup `~23.10x` (`min ~19.36x`, `max ~23.21x`).
+- All-vs-all gene workload (8, 12 genes): median speedup `~21.57x`.
+
+Exact values depend on hardware and dataset versions, but the speed profile is consistently favorable to GO3 in medium/large workloads.
+
+Loading and memory:
+
+![GO3 vs goatools loading benchmark](imgs/benchmark_loading_time_memory.png)
+
+Batch GO-term similarity:
+
+![GO3 vs goatools batch GO-term benchmark](imgs/benchmark_batch_similarity.png)
+
+Batch gene similarity:
+
+![GO3 vs goatools batch gene benchmark](imgs/benchmark_gene_batch_similarity.png)
+
+All-vs-all gene similarity:
+
+![GO3 vs goatools all-vs-all gene benchmark](imgs/benchmark_all_vs_all_gene_similarity.png)
+
+Reproducibility details, methodology, and raw benchmark JSON are documented in `docs/source/benchmarks.md`.
 
 ## Documentation
 
@@ -167,12 +164,13 @@ Full docs:
 
 - https://go3.readthedocs.io
 
-Local sources:
+Main sections:
 
 - `docs/source/introduction.rst`
 - `docs/source/examples.rst`
 - `docs/source/similarity.rst`
 - `docs/source/guide/performance.md`
+- `docs/source/guide/visualization.md`
 - `docs/source/benchmarks.md`
 
 ## Development
