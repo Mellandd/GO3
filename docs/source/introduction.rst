@@ -1,61 +1,77 @@
 Installation
-===============
+============
 
-**go3** is provided as binary wheels for most platforms on PyPI (Linux, Windows and MacOS). You can run
+GO3 provides Python bindings for a Rust implementation of Gene Ontology semantic similarity.
+
+Install from PyPI:
 
 .. code-block:: bash
 
    pip install go3
 
-Initializing the Ontology
-============================
+Optional visualization dependencies:
 
-**go3** does not ship with any prebuilt GO Ontology by default. If you don't provide any .obo, when you try to load the ontology into memory it automatically downloads the last version of go-basic.obo.
+.. code-block:: bash
+
+   pip install go3[viz]
+
+Requirements
+============
+
+GO3 expects:
+
+- a GO ontology file in OBO format (for example ``go-basic.obo``)
+- a GO annotation file in GAF format for your organism
+
+If you call ``go3.load_go_terms()`` without a path, GO3 downloads ``go-basic.obo`` automatically.
+
+Minimal workflow
+================
 
 .. code-block:: python
 
    import go3
 
-   # Initialize the ontology (downloads the latest go-basic.obo)
-   go3.load_go_terms()
+   # 1) Ontology
+   go3.load_go_terms("go-basic.obo")
 
-   # Load a specific GO term
-   term_1 = go3.get_term_by_id("GO:0006397")
+   # 2) Annotations
+   annots = go3.load_gaf("goa_human.gaf")
 
-   print(term_1.name)
-   #> mRNA processing
+   # 3) Information Content structures
+   counter = go3.build_term_counter(annots)
 
-Instead, you can pass to the ``load_go_terms`` function the path to any OBO version of the ontology that you already have downloaded:
+   # 4) Term similarity
+   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
+   print(sim)
 
-.. code-block:: python
+   # 5) Gene similarity
+   score = go3.compare_genes("TP53", "BRCA1", "BP", "lin", "bma", counter)
+   print(score)
 
-   go3.load_go_terms("path/to/go-basic.obo")
+Core concepts
+=============
 
-Initializing the annotations
-===============================
+- ``load_go_terms`` loads and caches ontology terms in memory.
+- ``load_gaf`` parses GAF annotations and builds a gene-to-GO mapping.
+- ``build_term_counter`` computes annotation counts and IC values.
+- IC-based methods (for example ``resnik`` and ``lin``) require ``counter``.
 
-In the Gene Ontology, the annotations come in the GO Association File (GAF) format.
+Namespaces
+==========
 
-A standard GO annotation is a statement that links a gene product and a GO term via a relation from the Relations Ontology (RO). It minimally contains:
+GO3 uses standard GO sub-ontologies:
 
-- a gene product: may be a protein, an miRNA, a tRNA, etc.
-- a GO term
-- a reference, usually a PMID, but DOIs and GO Reference (GO_REF) are also used
-- an evidence code, using a GO Evidence Code, which describes the type of evidence: experimental evidence, sequence similarity or phylogenetic relation, as well as whether the evidence was reviewed by an expert biocurator. If not manually reviewed, the annotation is described as ‘automated’.
+- ``BP``: Biological Process
+- ``MF``: Molecular Function
+- ``CC``: Cellular Component
 
-The Gene Ontology contains annotations for almost any organism. Depending on your choice, you must download the corresponding GAF file from the official website to use it in this library:
-`Website to download the annotations <https://current.geneontology.org/products/pages/downloads.html>`_
+For gene-level APIs, select namespace explicitly via the ``ontology`` argument.
 
-.. code-block:: python
-    
-    import go3
-    # Initialize the ontology
-    go3.load_go_terms()
+Next steps
+==========
 
-    # Initialize the annotations from the downloaded gaf file.
-    annots = go3.load_gaf("goa_human.gaf")
-
-    # Build the Term Counter that counts the annotations for every GO Term. 
-    # Needed to calculate the Information Content (IC) of a GO Term, and to calculate similarities 
-    # using Resnik, Lin or any other measure between the terms.
-    term_counts = go3.build_term_counter(annots)
+- :doc:`examples` for end-to-end usage patterns
+- :doc:`similarity` for available methods and formulas
+- :doc:`guide/performance` for throughput-oriented workflows
+- :doc:`benchmarks` for reproducible comparisons

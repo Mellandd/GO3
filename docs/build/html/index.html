@@ -201,26 +201,29 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-ontology">Initializing the Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-annotations">Initializing the annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#requirements">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#minimal-workflow">Minimal workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#core-concepts">Core concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#next-steps">Next steps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guide/visualization.html">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="benchmarks.html">Benchmarks</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations and IC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities and Advanced APIs</a></li>
 </ul>
 
 </div>
@@ -261,6 +264,15 @@
         <article role="main" id="furo-main-content">
           <section id="go-3">
 <h1><span class="math notranslate nohighlight">\(GO_3\)</span><a class="headerlink" href="#go-3" title="Link to this heading">¶</a></h1>
+<p>GO3 is a high-performance Python library (Rust backend) for Gene Ontology semantic similarity.</p>
+<p>It supports:</p>
+<ul class="simple">
+<li><p>ontology and annotation loading</p></li>
+<li><p>term-level similarity</p></li>
+<li><p>term-set and gene-level similarity</p></li>
+<li><p>high-throughput batch workflows</p></li>
+<li><p>distance-matrix and embedding utilities</p></li>
+</ul>
 <div class="toctree-wrapper compound">
 </div>
 <div class="toctree-wrapper compound">
@@ -268,54 +280,38 @@
 <div class="toctree-wrapper compound">
 </div>
 <section id="start-here">
-<h2>Start here<a class="headerlink" href="#start-here" title="Link to this heading">¶</a></h2>
+<h2>Start Here<a class="headerlink" href="#start-here" title="Link to this heading">¶</a></h2>
 <ul class="simple">
 <li><p><a class="reference internal" href="introduction.html"><span class="doc">Installation</span></a></p></li>
 <li><p><a class="reference internal" href="examples.html"><span class="doc">Examples</span></a></p></li>
-<li><p><a class="reference internal" href="similarity.html"><span class="doc">Semantic Similarity Functions</span></a></p></li>
-<li><p><a class="reference internal" href="guide/performance.html"><span class="doc">Performance and parallelism</span></a></p></li>
+<li><p><a class="reference internal" href="similarity.html"><span class="doc">Semantic Similarity</span></a></p></li>
+<li><p><a class="reference internal" href="guide/performance.html"><span class="doc">Performance Guide</span></a></p></li>
 <li><p><a class="reference internal" href="guide/visualization.html"><span class="doc">Visualization (t-SNE / UMAP)</span></a></p></li>
 <li><p><a class="reference internal" href="benchmarks.html"><span class="doc">Benchmarks</span></a></p></li>
 </ul>
 </section>
-<section id="go3">
-<h2>GO3<a class="headerlink" href="#go3" title="Link to this heading">¶</a></h2>
-<p><span class="math notranslate nohighlight">\(GO_3\)</span>. is a Python library to work with the Gene Ontology (GO). It can calculate similarities between individual terms or between sets of terms.
-It also can calculate similarities between genes directly with the associated GO Terms from any given sub-ontology: MF, BP or CC.</p>
-</section>
-<section id="installation">
-<h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h2>
-<p><strong>go3</strong> is provided as binary wheels for most platforms on PyPI (Linux, Windows and MacOS). You can run</p>
+<section id="install">
+<h2>Install<a class="headerlink" href="#install" title="Link to this heading">¶</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>go3
 </pre></div>
 </div>
-<p><strong>go3</strong> does not ship with any prebuilt GO Ontology by default. If you don’t provide any .obo, when you try to load the ontology into memory it automatically downloads the last version of go-basic.obo.</p>
-</section>
-<section id="quick-start">
-<h2>Quick Start<a class="headerlink" href="#quick-start" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
-<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
-<span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
-<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;resnik&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Resnik similarity:&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="p">)</span>
+<p>Optional visualization extras:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>go3<span class="o">[</span>viz<span class="o">]</span>
 </pre></div>
 </div>
 </section>
-<section id="main-features">
-<h2>Main Features<a class="headerlink" href="#main-features" title="Link to this heading">¶</a></h2>
-<ul class="simple">
-<li><p><strong>Ontology loading</strong>: Download or load any GO OBO file.</p></li>
-<li><p><strong>Annotation parsing</strong>: Read GAF files for any organism.</p></li>
-<li><p><strong>Term and gene similarity</strong>: Compute Resnik, Lin, Wang, TopoICSim, and more.</p></li>
-<li><p><strong>Batch and parallel computation</strong>: Fast, scalable, and memory-efficient.</p></li>
-<li><p><strong>Rich Python API</strong>: All results are Python objects, easy to inspect and use.</p></li>
-</ul>
-<p>See the <a class="reference internal" href="examples.html"><span class="doc">Examples</span></a> for more!</p>
-</section>
-<section id="benchmarks">
-<h2>Benchmarks<a class="headerlink" href="#benchmarks" title="Link to this heading">¶</a></h2>
-<p>See <a class="reference internal" href="benchmarks.html"><span class="doc">Benchmarks</span></a> for the benchmark plots.</p>
+<section id="quick-example">
+<h2>Quick example<a class="headerlink" href="#quick-example" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
+
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">(</span><span class="s2">&quot;go-basic.obo&quot;</span><span class="p">)</span>
+<span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
+<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
+
+<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+</pre></div>
+</div>
 </section>
 </section>
 
@@ -365,12 +361,9 @@ It also can calculate similarities between genes directly with the associated GO
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#"><span class="math notranslate nohighlight">\(GO_3\)</span></a><ul>
-<li><a class="reference internal" href="#start-here">Start here</a></li>
-<li><a class="reference internal" href="#go3">GO3</a></li>
-<li><a class="reference internal" href="#installation">Installation</a></li>
-<li><a class="reference internal" href="#quick-start">Quick Start</a></li>
-<li><a class="reference internal" href="#main-features">Main Features</a></li>
-<li><a class="reference internal" href="#benchmarks">Benchmarks</a></li>
+<li><a class="reference internal" href="#start-here">Start Here</a></li>
+<li><a class="reference internal" href="#install">Install</a></li>
+<li><a class="reference internal" href="#quick-example">Quick example</a></li>
 </ul>
 </li>
 </ul>

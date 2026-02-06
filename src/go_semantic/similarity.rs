@@ -7,6 +7,15 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use crate::go_loader::{GO_TERMS_CACHE, TermCounter};
 use crate::go_ontology::{collect_ancestors, deepest_common_ancestor, get_term_by_id, GOTerm};
 use dashmap::DashMap;
+use std::sync::Arc;
+
+static SEMANTIC_CONTRIB_CACHE: once_cell::sync::Lazy<
+    DashMap<String, Arc<HashMap<String, f64>>>,
+> = once_cell::sync::Lazy::new(DashMap::new);
+
+pub(crate) fn clear_internal_caches() {
+    SEMANTIC_CONTRIB_CACHE.clear();
+}
 
 /// Configure the maximum number of threads rayon will use.
 ///
@@ -233,18 +242,19 @@ impl SimilarityMethod {
             
                 let sv_a = semantic_contributions(id1, terms);
                 let sv_b = semantic_contributions(id2, terms);
-            
+
                 let sum_a: f64 = sv_a.values().sum();
                 let sum_b: f64 = sv_b.values().sum();
-            
-                let common_keys: std::collections::HashSet<_> = sv_a.keys().collect::<HashSet<_>>()
-                    .intersection(&sv_b.keys().collect::<HashSet<_>>())
-                    .cloned()
-                    .collect();
-            
+
+                let (small, large) = if sv_a.len() <= sv_b.len() {
+                    (&*sv_a, &*sv_b)
+                } else {
+                    (&*sv_b, &*sv_a)
+                };
+
                 let mut numerator = 0.0;
-                for key in common_keys {
-                    if let (Some(w1), Some(w2)) = (sv_a.get(key), sv_b.get(key)) {
+                for (key, w1) in small.iter() {
+                    if let Some(w2) = large.get(key) {
                         numerator += (*w1).min(*w2);
                     }
                 }
@@ -321,17 +331,13 @@ impl SimilarityMethod {
 fn semantic_contributions(
     go_id: &str,
     terms: &HashMap<String, GOTerm>,
-) -> HashMap<String, f64> {
-    // Static cache for memoization
-    static SEMANTIC_CONTRIB_CACHE: once_cell::sync::Lazy<DashMap<String, HashMap<String, f64>>> = once_cell::sync::Lazy::new(|| DashMap::new());
-
-    // Check cache first
+) -> Arc<HashMap<String, f64>> {
     if let Some(cached) = SEMANTIC_CONTRIB_CACHE.get(go_id) {
-        return cached.clone();
+        return Arc::clone(cached.value());
     }
 
     let mut contributions = HashMap::default();
-    let mut to_visit = vec![(go_id, 1.0)];
+    let mut to_visit: Vec<(&str, f64)> = vec![(go_id, 1.0)];
 
     while let Some((current_id, weight)) = to_visit.pop() {
         if weight < 1e-6 || contributions.contains_key(current_id) {
@@ -343,21 +349,19 @@ fn semantic_contributions(
         if let Some(term) = terms.get(current_id) {
             // is_a → 0.8
             for parent in &term.parents {
-                to_visit.push((parent, weight * 0.8));
+                to_visit.push((parent.as_str(), weight * 0.8));
             }
             // part_of → 0.6
             for (rel_type, target) in &term.relationships {
-                let rel_weight = match rel_type.as_str() {
-                    "part_of" => 0.6,
-                    _ => continue,  // skip other relationships for now
-                };
-                to_visit.push((target, weight * rel_weight));
+                if rel_type == "part_of" {
+                    to_visit.push((target.as_str(), weight * 0.6));
+                }
             }
         }
     }
 
-    // Store in cache as HashMap<String, f64>
-    SEMANTIC_CONTRIB_CACHE.insert(go_id.to_string(), contributions.clone());
+    let contributions = Arc::new(contributions);
+    SEMANTIC_CONTRIB_CACHE.insert(go_id.to_string(), Arc::clone(&contributions));
     contributions
 }
 
@@ -653,32 +657,48 @@ pub fn batch_similarity(
     let method_enum = SimilarityMethod::from_str(method)
         .ok_or_else(|| PyValueError::new_err(format!("Unknown similarity method: {}", method)))?;
 
-    // 1. Collect all unique pairs (order them to avoid (a,b) vs (b,a) duplicates)
-    let unique_pairs: HashSet<(String, String)> = list1.iter().zip(list2.iter())
-        .map(|(a, b)| {
-            if a <= b {
-                (a.clone(), b.clone())
-            } else {
-                (b.clone(), a.clone())
-            }
-        })
-        .collect();
+    // Intern terms to indices to avoid cloning Strings into HashSet/HashMap keys.
+    let mut term_to_idx: HashMap<&str, usize> = HashMap::default();
+    let mut idx_to_term: Vec<&str> = Vec::new();
+    for s in list1.iter().chain(list2.iter()) {
+        let key = s.as_str();
+        if term_to_idx.get(key).is_none() {
+            let idx = idx_to_term.len();
+            term_to_idx.insert(key, idx);
+            idx_to_term.push(key);
+        }
+    }
 
-    // 2. Compute similarity for each unique pair in parallel
-    let sim_map: HashMap<(String, String), f64> = unique_pairs
+    // 1) Collect unique unordered pairs, and keep the per-item lookup key to preserve order.
+    let mut unique_pairs: HashSet<(usize, usize)> = HashSet::default();
+    let mut pair_indices: Vec<(usize, usize)> = Vec::with_capacity(list1.len());
+    for (a, b) in list1.iter().zip(list2.iter()) {
+        let i = *term_to_idx
+            .get(a.as_str())
+            .expect("intern table should contain all terms in list1");
+        let j = *term_to_idx
+            .get(b.as_str())
+            .expect("intern table should contain all terms in list2");
+        let key = if i <= j { (i, j) } else { (j, i) };
+        unique_pairs.insert(key);
+        pair_indices.push(key);
+    }
+
+    // 2) Compute similarity for each unique pair in parallel.
+    let sim_map: HashMap<(usize, usize), f64> = unique_pairs
         .par_iter()
-        .map(|(a, b)| {
+        .map(|(i, j)| {
+            let a = idx_to_term[*i];
+            let b = idx_to_term[*j];
             let sim = method_enum.compute(a, b, counter);
-            ((a.clone(), b.clone()), sim)
+            ((*i, *j), sim)
         })
         .collect();
 
-    // 3. For each original pair, look up the result (parallelized)
-    let result: Vec<f64> = list1.par_iter().zip(list2.par_iter())
-        .map(|(a, b)| {
-            let key = if a <= b { (a.clone(), b.clone()) } else { (b.clone(), a.clone()) };
-            *sim_map.get(&key).unwrap_or(&0.0)
-        })
+    // 3) For each original pair, look up the result (parallelized).
+    let result: Vec<f64> = pair_indices
+        .par_iter()
+        .map(|(i, j)| *sim_map.get(&(*i, *j)).unwrap_or(&0.0))
         .collect();
 
     Ok(result)

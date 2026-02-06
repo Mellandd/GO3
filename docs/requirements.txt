@@ -3,4 +3,3 @@ myst-parser
 sphinx-copybutton
 sphinxcontrib-bibtex
 go3
-sphinx_copybutton

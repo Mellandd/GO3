@@ -3,11 +3,11 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Performance and parallelism" href="guide/performance.html"><link rel="prev" title="Examples" href="examples.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Performance Guide" href="guide/performance.html"><link rel="prev" title="Examples" href="examples.html">
         <link rel="prefetch" href="_static/avatar-go3.png" as="image">
 
     <link rel="shortcut icon" href="_static/avatar-go3.png"><!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Semantic Similarity Functions - GO3 documentation</title>
+        <title>Semantic Similarity - GO3 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
@@ -201,26 +201,29 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-ontology">Initializing the Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-annotations">Initializing the annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#requirements">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#minimal-workflow">Minimal workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#core-concepts">Core concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#next-steps">Next steps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Semantic Similarity Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance and parallelism</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Semantic Similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guide/visualization.html">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="benchmarks.html">Benchmarks</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations and IC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities and Advanced APIs</a></li>
 </ul>
 
 </div>
@@ -259,257 +262,177 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="semantic-similarity-functions">
-<h1>Semantic Similarity Functions<a class="headerlink" href="#semantic-similarity-functions" title="Link to this heading">¶</a></h1>
-<section id="introduction">
-<h2>Introduction<a class="headerlink" href="#introduction" title="Link to this heading">¶</a></h2>
-<p>The <cite>go3</cite> library provides several semantic similarity functions for comparing Gene Ontology (GO) terms. These measures rely on two main principles:</p>
-<ul class="simple">
-<li><p>Information Content (IC) derived from GO annotations.</p></li>
-<li><p>Graph-based topological relationships in the GO hierarchy.</p></li>
-</ul>
-</section>
-<section id="available-similarity-methods">
-<h2>Available Similarity Methods<a class="headerlink" href="#available-similarity-methods" title="Link to this heading">¶</a></h2>
-<div class="table-wrapper docutils container" id="id16">
-<table class="docutils align-default" id="id16">
-<caption><span class="caption-text"><strong>Similarity Methods for the `method` Parameter</strong></span><a class="headerlink" href="#id16" title="Link to this table">¶</a></caption>
+          <section id="semantic-similarity">
+<h1>Semantic Similarity<a class="headerlink" href="#semantic-similarity" title="Link to this heading">¶</a></h1>
+<p>GO3 supports term-level and gene-level semantic similarity across multiple methods.</p>
+<section id="quick-reference">
+<h2>Quick reference<a class="headerlink" href="#quick-reference" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper docutils container" id="id9">
+<table class="docutils align-default" id="id9">
+<caption><span class="caption-text">Similarity methods (<cite>method</cite> argument)</span><a class="headerlink" href="#id9" title="Link to this table">¶</a></caption>
 <thead>
-<tr class="row-odd"><th class="head"><p>Method Name</p></th>
-<th class="head"><p>String for <code class="docutils literal notranslate"><span class="pre">method</span></code></p></th>
-<th class="head"><p>Description</p></th>
+<tr class="row-odd"><th class="head"><p>Method</p></th>
+<th class="head"><p>Key</p></th>
+<th class="head"><p>Family</p></th>
+<th class="head"><p>Typical range</p></th>
 </tr>
 </thead>
 <tbody>
 <tr class="row-even"><td><p>Resnik</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">resnik</span></code></p></td>
-<td><p>Information content of the most informative common ancestor (MICA)</p></td>
+<td><p>IC-based</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&gt;=</span> <span class="pre">0</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Lin</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">lin</span></code></p></td>
-<td><p>Normalized Resnik similarity</p></td>
+<td><p>IC-based</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code></p></td>
 </tr>
-<tr class="row-even"><td><p>Jiang-Conrath</p></td>
+<tr class="row-even"><td><p>Jiang-Conrath similarity</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">jc</span></code></p></td>
-<td><p>Inverse of Jiang-Conrath distance</p></td>
+<td><p>IC-based</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&gt;=</span> <span class="pre">0</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>SimRel</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">simrel</span></code></p></td>
-<td><p>Lin similarity with exponential relevance factor</p></td>
+<td><p>IC-based</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Information Coefficient</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">iccoef</span></code></p></td>
-<td><p>Normalized by minimum IC of the two terms</p></td>
+<td><p>IC-based</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&gt;=</span> <span class="pre">0</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>GraphIC</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">graphic</span></code></p></td>
-<td><p>IC divided by maximum graph depth</p></td>
+<td><p>Hybrid</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&gt;=</span> <span class="pre">0</span></code></p></td>
 </tr>
 <tr class="row-even"><td><p>Wang</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">wang</span></code></p></td>
-<td><p>Graph-based semantic similarity (Wang et al.)</p></td>
+<td><p>Topological</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>TopoICSim</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">topoicsim</span></code></p></td>
-<td><p>Topological and IC-based hybrid similarity</p></td>
+<td><p>Hybrid</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>You can use these strings as the <code class="docutils literal notranslate"><span class="pre">method</span></code> parameter in all <cite>go3</cite> similarity functions:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;topoicsim&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-</pre></div>
-</div>
 </section>
-<section id="common-workflows">
-<h2>Common workflows<a class="headerlink" href="#common-workflows" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
-<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
-<span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
-<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
-
-<span class="c1"># Term-to-term similarity</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-
-<span class="c1"># Term set similarity (groupwise)</span>
-<span class="n">sim_set</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">termset_similarity</span><span class="p">(</span>
-    <span class="p">[</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;GO:0008380&quot;</span><span class="p">],</span> <span class="n">term_similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="o">=</span><span class="n">counter</span>
-<span class="p">)</span>
-
-<span class="c1"># Information Content (IC) of a term</span>
-<span class="n">ic</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">term_ic</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-
-<span class="c1"># Batch gene similarity</span>
-<span class="n">pairs</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">)]</span>
-<span class="n">scores</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">compare_gene_pairs_batch</span><span class="p">(</span><span class="n">pairs</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-</pre></div>
-</div>
+<section id="term-level-apis">
+<h2>Term-level APIs<a class="headerlink" href="#term-level-apis" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">semantic_similarity(id1,</span> <span class="pre">id2,</span> <span class="pre">method,</span> <span class="pre">counter)</span></code></p>
+<ul class="simple">
+<li><p>Computes one score for one term pair.</p></li>
+<li><p>Raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> if <code class="docutils literal notranslate"><span class="pre">method</span></code> is unknown.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">batch_similarity(list1,</span> <span class="pre">list2,</span> <span class="pre">method,</span> <span class="pre">counter)</span></code></p>
+<ul class="simple">
+<li><p>Computes one score per aligned pair.</p></li>
+<li><p>Requires <code class="docutils literal notranslate"><span class="pre">len(list1)</span> <span class="pre">==</span> <span class="pre">len(list2)</span></code>.</p></li>
+<li><p>Raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> if list sizes differ or method is unknown.</p></li>
+</ul>
 </section>
-<section id="similarity-measures">
-<h2>Similarity Measures<a class="headerlink" href="#similarity-measures" title="Link to this heading">¶</a></h2>
-<section id="resnik-similarity">
-<h3>Resnik Similarity<a class="headerlink" href="#resnik-similarity" title="Link to this heading">¶</a></h3>
-<p>The Resnik similarity <span id="id1">[<a class="reference internal" href="#id9" title="P. Resnik. Using information content to evaluate semantic similarity in a taxonomy. In Proceedings of the 14th International Joint Conference on Artificial Intelligence (IJCAI), 448–453. 1995.">1</a>]</span> measures the similarity between two GO terms as the information content (IC) of their Most Informative Common Ancestor (MICA):</p>
+<section id="set-level-api">
+<h2>Set-level API<a class="headerlink" href="#set-level-api" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">termset_similarity(terms1,</span> <span class="pre">terms2,</span> <span class="pre">term_similarity=&quot;lin&quot;,</span> <span class="pre">groupwise=&quot;bma&quot;,</span> <span class="pre">counter=...)</span></code></p>
+<p>Groupwise strategies:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">bma</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">avg</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hausdorff</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">simgic</span></code></p></li>
+</ul>
+<p>Notes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">simgic</span></code> is set-based and does not use the pairwise method in the same way as other strategies.</p></li>
+<li><p>For empty sets, GO3 returns <code class="docutils literal notranslate"><span class="pre">0.0</span></code>.</p></li>
+</ul>
+</section>
+<section id="gene-level-apis">
+<h2>Gene-level APIs<a class="headerlink" href="#gene-level-apis" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">compare_genes(gene1,</span> <span class="pre">gene2,</span> <span class="pre">ontology,</span> <span class="pre">similarity,</span> <span class="pre">groupwise,</span> <span class="pre">counter)</span></code></p>
+<ul class="simple">
+<li><p>Ontology must be one of <code class="docutils literal notranslate"><span class="pre">BP</span></code>, <code class="docutils literal notranslate"><span class="pre">MF</span></code>, <code class="docutils literal notranslate"><span class="pre">CC</span></code>.</p></li>
+<li><p>Raises <code class="docutils literal notranslate"><span class="pre">ValueError</span></code> if either gene is missing from loaded annotations.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">compare_gene_pairs_batch(pairs,</span> <span class="pre">ontology,</span> <span class="pre">similarity,</span> <span class="pre">groupwise,</span> <span class="pre">counter)</span></code></p>
+<ul class="simple">
+<li><p>Fast path for large pair lists.</p></li>
+<li><p>Missing/empty per-gene term mappings yield <code class="docutils literal notranslate"><span class="pre">0.0</span></code> for those pairs.</p></li>
+</ul>
+</section>
+<section id="practical-behavior-and-edge-cases">
+<h2>Practical behavior and edge cases<a class="headerlink" href="#practical-behavior-and-edge-cases" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Invalid or missing GO IDs in similarity calls generally return <code class="docutils literal notranslate"><span class="pre">0.0</span></code>.</p></li>
+<li><p>Terms from different namespaces produce <code class="docutils literal notranslate"><span class="pre">0.0</span></code>.</p></li>
+<li><p>For normalized methods (for example <code class="docutils literal notranslate"><span class="pre">lin</span></code> and <code class="docutils literal notranslate"><span class="pre">wang</span></code>), self-similarity is typically near 1.0.</p></li>
+</ul>
+</section>
+<section id="distance-oriented-workflow">
+<h2>Distance-oriented workflow<a class="headerlink" href="#distance-oriented-workflow" title="Link to this heading">¶</a></h2>
+<p>For clustering/embedding workflows, use:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">gene_distance_matrix</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tsne_genes</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">umap_genes</span></code></p></li>
+</ul>
+<p>These functions convert similarity to distance using <code class="docutils literal notranslate"><span class="pre">distance_transform</span></code> rules (see <a class="reference internal" href="guide/visualization.html"><span class="doc">Visualization (t-SNE / UMAP)</span></a>).</p>
+</section>
+<section id="mathematical-definitions">
+<h2>Mathematical definitions<a class="headerlink" href="#mathematical-definitions" title="Link to this heading">¶</a></h2>
+<section id="resnik">
+<h3>Resnik<a class="headerlink" href="#resnik" title="Link to this heading">¶</a></h3>
 <div class="math-wrapper docutils container">
 <div class="math notranslate nohighlight">
 \[\mathrm{Sim}_{Resnik}(t_1, t_2) = IC(\mathrm{MICA}(t_1, t_2))\]</div>
 </div>
 </section>
-<section id="lin-similarity">
-<h3>Lin Similarity<a class="headerlink" href="#lin-similarity" title="Link to this heading">¶</a></h3>
-<p>Lin’s similarity <span id="id2">[<a class="reference internal" href="#id10" title="D. Lin. An information-theoretic definition of similarity. In Proceedings of the 15th International Conference on Machine Learning (ICML), 296–304. 1998.">2</a>]</span> normalizes Resnik’s similarity by the sum of the ICs of both terms:</p>
+<section id="lin">
+<h3>Lin<a class="headerlink" href="#lin" title="Link to this heading">¶</a></h3>
 <div class="math-wrapper docutils container">
 <div class="math notranslate nohighlight">
-\[\mathrm{Sim}_{Lin}(t_1, t_2) = \frac{2 \times IC(\mathrm{MICA}(t_1, t_2))}{IC(t_1) + IC(t_2)}\]</div>
+\[\mathrm{Sim}_{Lin}(t_1, t_2) = \frac{2\,IC(\mathrm{MICA}(t_1, t_2))}{IC(t_1)+IC(t_2)}\]</div>
 </div>
 </section>
-<section id="jiang-conrath-similarity">
-<h3>Jiang-Conrath Similarity<a class="headerlink" href="#jiang-conrath-similarity" title="Link to this heading">¶</a></h3>
-<p>Jiang and Conrath define a distance between two GO terms based on IC <span id="id3">[<a class="reference internal" href="#id11" title="J. J. Jiang and D. W. Conrath. Semantic similarity based on corpus statistics and lexical taxonomy. In Proceedings of the International Conference on Research in Computational Linguistics (ROCLING), 19–33. 1997.">3</a>]</span>:</p>
+<section id="jiang-conrath-distance-derived-similarity">
+<h3>Jiang-Conrath (distance-derived similarity)<a class="headerlink" href="#jiang-conrath-distance-derived-similarity" title="Link to this heading">¶</a></h3>
 <div class="math-wrapper docutils container">
 <div class="math notranslate nohighlight">
-\[d_{JC} = IC(t_1) + IC(t_2) - 2 \times IC(\mathrm{MICA})\]</div>
+\[d_{JC} = IC(t_1) + IC(t_2) - 2\,IC(\mathrm{MICA})\]</div>
 </div>
-<p>Similarity is then calculated as:</p>
 <div class="math-wrapper docutils container">
 <div class="math notranslate nohighlight">
-\[\mathrm{Sim}_{JC} = \frac{1}{d_{JC}}\]</div>
+\[\mathrm{Sim}_{JC} = \frac{1}{1 + d_{JC}}\]</div>
 </div>
 </section>
-<section id="simrel-similarity">
-<h3>SimRel Similarity<a class="headerlink" href="#simrel-similarity" title="Link to this heading">¶</a></h3>
-<p>The SimRel measure <span id="id4">[<a class="reference internal" href="#id12" title="A. Schlicker, F. S. Domingues, J. Rahnenfuhrer, and T. Lengauer. A new measure for functional similarity of gene products based on gene ontology. BMC Bioinformatics, 7(1):302, 2006.">4</a>]</span> combines Lin’s similarity with an exponential relevance factor:</p>
+<section id="simrel">
+<h3>SimRel<a class="headerlink" href="#simrel" title="Link to this heading">¶</a></h3>
 <div class="math-wrapper docutils container">
 <div class="math notranslate nohighlight">
-\[\mathrm{Sim}_{Rel} = \left( \frac{2 \times IC(\mathrm{MICA})}{IC(t_1) + IC(t_2)} \right) \times \left(1 - e^{-IC(\mathrm{MICA})}\right)\]</div>
+\[\mathrm{Sim}_{Rel} = \left(\frac{2\,IC(\mathrm{MICA})}{IC(t_1)+IC(t_2)}\right)\left(1-e^{-IC(\mathrm{MICA})}\right)\]</div>
 </div>
 </section>
-<section id="information-coefficient">
-<h3>Information Coefficient<a class="headerlink" href="#information-coefficient" title="Link to this heading">¶</a></h3>
-<p>Li et al. <span id="id5">[<a class="reference internal" href="#id13" title="B. Li, J. Z. Wang, F. A. Feltus, J. Zhou, and F. Luo. Effectively integrating information content and structural relationship to improve the go-based similarity measure. Journal of Biomedical Informatics, 43(5):752–760, 2010.">5</a>]</span> propose a normalization using the minimum IC of the two terms:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\mathrm{IC\_coef} = \frac{IC(\mathrm{MICA})}{\min(IC(t_1), IC(t_2))}\]</div>
-</div>
+<section id="wang">
+<h3>Wang<a class="headerlink" href="#wang" title="Link to this heading">¶</a></h3>
+<p>Wang similarity uses weighted ancestor contributions from GO graph topology and does not require annotation IC frequencies in the same way as IC-only methods.</p>
 </section>
-<section id="graphic-similarity">
-<h3>GraphIC Similarity<a class="headerlink" href="#graphic-similarity" title="Link to this heading">¶</a></h3>
-<p>The GraphIC measure uses the maximum graph depth of the two terms to scale the similarity:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\mathrm{GraphIC} = \frac{IC(\mathrm{MICA})}{\max(\mathrm{depth}(t_1), \mathrm{depth}(t_2)) + 1}\]</div>
-</div>
+<section id="topoicsim">
+<h3>TopoICSim<a class="headerlink" href="#topoicsim" title="Link to this heading">¶</a></h3>
+<p>TopoICSim combines topology-aware paths and IC-derived weights to produce a bounded similarity.</p>
 </section>
-<section id="wang-similarity">
-<h3>Wang Similarity<a class="headerlink" href="#wang-similarity" title="Link to this heading">¶</a></h3>
-<p>The Wang similarity <span id="id6">[<a class="reference internal" href="#id14" title="J. Z. Wang, Z. Du, R. Payattakool, S. Y. Philip, and C. F. Chen. A new method to measure the semantic similarity of go terms. Bioinformatics, 23(10):1274–1281, 2007.">6</a>]</span> considers the graph structure of GO by propagating weights from each term through its ancestors.</p>
-<p>Each ancestor node receives a weight based on the decay factor (usually <span class="math notranslate nohighlight">\(w = 0.8\)</span>). The similarity is computed as:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\mathrm{Sim}_{Wang}(t_1, t_2) =
-\frac{
-    \sum_{x \in A(t_1) \cap A(t_2)} \left( S_{t_1}(x) + S_{t_2}(x) \right)
-}{
-    SV(t_1) + SV(t_2)
-}\]</div>
-</div>
-<p>where</p>
-<ul class="simple">
-<li><p><span class="math notranslate nohighlight">\(A(t)\)</span> is the set of ancestors of term <span class="math notranslate nohighlight">\(t\)</span> (including itself),</p></li>
-<li><p><span class="math notranslate nohighlight">\(S_t(x)\)</span> is the semantic contribution of ancestor <span class="math notranslate nohighlight">\(x\)</span> to term <span class="math notranslate nohighlight">\(t\)</span>,</p></li>
-<li><p><span class="math notranslate nohighlight">\(SV(t)\)</span> is the total semantic value of term <span class="math notranslate nohighlight">\(t\)</span>.</p></li>
-</ul>
-<p>The key idea is that ancestors closer to the term contribute more to its meaning than distant ancestors, capturing the hierarchical semantics of the ontology without relying on external annotation statistics.</p>
-</section>
-<section id="topoicsim-similarity">
-<h3>TopoICSim Similarity<a class="headerlink" href="#topoicsim-similarity" title="Link to this heading">¶</a></h3>
-<p>The TopoICSim similarity <span id="id7">[<a class="reference internal" href="#id15" title="R. Ehsani and F. Drabløs. Topoicsim: a new semantic similarity measure based on gene ontology. BMC Bioinformatics, 17:296, 2016. doi:10.1186/s12859-016-1160-0.">7</a>]</span> is a hybrid measure that combines information content and the topology of the GO graph. It is defined as:</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\mathrm{Sim}_{TopoICSim}(t_1, t_2) = 1 - \frac{2}{\pi} \arctan \left( \min_{x \in DCA(t_1, t_2)} \frac{wSP(t_1, x) + wSP(t_2, x)}{wLP(x, r)} \right)\]</div>
-</div>
-<p>where</p>
-<ul class="simple">
-<li><p><span class="math notranslate nohighlight">\(DCA(t_1, t_2)\)</span> is the set of disjunctive common ancestors of <span class="math notranslate nohighlight">\(t_1\)</span> and <span class="math notranslate nohighlight">\(t_2\)</span>,</p></li>
-<li><p><span class="math notranslate nohighlight">\(wSP(t, x)\)</span> is the weighted shortest path (sum of inverse ICs) from <span class="math notranslate nohighlight">\(t\)</span> to ancestor <span class="math notranslate nohighlight">\(x\)</span>,</p></li>
-<li><p><span class="math notranslate nohighlight">\(wLP(x, r)\)</span> is the weighted longest path from <span class="math notranslate nohighlight">\(x\)</span> to a root <span class="math notranslate nohighlight">\(r\)</span> in the ontology.</p></li>
-</ul>
-<p>This measure captures both the specificity of the common ancestors and the topological distance between terms, providing a robust similarity score.</p>
-</section>
-</section>
-<section id="groupwise-similarity-measures">
-<h2>Groupwise Similarity Measures<a class="headerlink" href="#groupwise-similarity-measures" title="Link to this heading">¶</a></h2>
-<p>When comparing sets of terms (e.g., genes annotated with multiple GO terms), specific strategies are needed to combine pairwise similarities or compute set-level similarity.</p>
-<section id="best-match-average-bma">
-<h3>Best-Match Average (BMA)<a class="headerlink" href="#best-match-average-bma" title="Link to this heading">¶</a></h3>
-<p>Calculates the average of the best matches for each term in both sets.</p>
-</section>
-<section id="maximum-max">
-<h3>Maximum (MAX)<a class="headerlink" href="#maximum-max" title="Link to this heading">¶</a></h3>
-<p>Takes the maximum similarity score found between any pair of terms from the two sets.</p>
-</section>
-<section id="average-avg">
-<h3>Average (AVG)<a class="headerlink" href="#average-avg" title="Link to this heading">¶</a></h3>
-<p>Computes the average of all pairwise similarity scores between the two sets.</p>
-</section>
-<section id="hausdorff-similarity">
-<h3>Hausdorff Similarity<a class="headerlink" href="#hausdorff-similarity" title="Link to this heading">¶</a></h3>
-<p>Computes the “worst” of the best matches, ensuring that every term in one set has a reasonably good match in the other.</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\mathrm{Sim}_{Hausdorff}(A, B) = \min \left( \min_{a \in A} \max_{b \in B} \mathrm{Sim}(a, b), \min_{b \in B} \max_{a \in A} \mathrm{Sim}(a, b) \right)\]</div>
-</div>
-</section>
-<section id="simgic">
-<h3>SimGIC<a class="headerlink" href="#simgic" title="Link to this heading">¶</a></h3>
-<p>A graph-based Jaccard Index weighted by Information Content (IC). It is defined directly on the sets of terms (ancestors) rather than combining pairwise scores.</p>
-<div class="math-wrapper docutils container">
-<div class="math notranslate nohighlight">
-\[\mathrm{Sim}_{SimGIC}(A, B) = \frac{\sum_{t \in Anc(A) \cap Anc(B)} IC(t)}{\sum_{t \in Anc(A) \cup Anc(B)} IC(t)}\]</div>
-</div>
-<p>where <span class="math notranslate nohighlight">\(Anc(A)\)</span> is the union of ancestors of all terms in set <span class="math notranslate nohighlight">\(A\)</span>.</p>
-</section>
-</section>
-<section id="batch-computation">
-<h2>Batch Computation<a class="headerlink" href="#batch-computation" title="Link to this heading">¶</a></h2>
-<p>All these similarity measures are available in efficient batch versions in the <cite>go3</cite> library, taking full advantage of Rust’s parallelism.</p>
 </section>
 <section id="bibliography">
 <h2>Bibliography<a class="headerlink" href="#bibliography" title="Link to this heading">¶</a></h2>
-<div class="docutils container" id="id8">
-<div role="list" class="citation-list">
-<div class="citation" id="id9" role="doc-biblioentry">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id1">1</a><span class="fn-bracket">]</span></span>
-<p>P. Resnik. Using information content to evaluate semantic similarity in a taxonomy. In <em>Proceedings of the 14th International Joint Conference on Artificial Intelligence (IJCAI)</em>, 448–453. 1995.</p>
-</div>
-<div class="citation" id="id10" role="doc-biblioentry">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id2">2</a><span class="fn-bracket">]</span></span>
-<p>D. Lin. An information-theoretic definition of similarity. In <em>Proceedings of the 15th International Conference on Machine Learning (ICML)</em>, 296–304. 1998.</p>
-</div>
-<div class="citation" id="id11" role="doc-biblioentry">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id3">3</a><span class="fn-bracket">]</span></span>
-<p>J. J. Jiang and D. W. Conrath. Semantic similarity based on corpus statistics and lexical taxonomy. In <em>Proceedings of the International Conference on Research in Computational Linguistics (ROCLING)</em>, 19–33. 1997.</p>
-</div>
-<div class="citation" id="id12" role="doc-biblioentry">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id4">4</a><span class="fn-bracket">]</span></span>
-<p>A. Schlicker, F. S. Domingues, J. Rahnenfuhrer, and T. Lengauer. A new measure for functional similarity of gene products based on gene ontology. <em>BMC Bioinformatics</em>, 7(1):302, 2006.</p>
-</div>
-<div class="citation" id="id13" role="doc-biblioentry">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id5">5</a><span class="fn-bracket">]</span></span>
-<p>B. Li, J. Z. Wang, F. A. Feltus, J. Zhou, and F. Luo. Effectively integrating information content and structural relationship to improve the go-based similarity measure. <em>Journal of Biomedical Informatics</em>, 43(5):752–760, 2010.</p>
-</div>
-<div class="citation" id="id14" role="doc-biblioentry">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id6">6</a><span class="fn-bracket">]</span></span>
-<p>J. Z. Wang, Z. Du, R. Payattakool, S. Y. Philip, and C. F. Chen. A new method to measure the semantic similarity of go terms. <em>Bioinformatics</em>, 23(10):1274–1281, 2007.</p>
-</div>
-<div class="citation" id="id15" role="doc-biblioentry">
-<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id7">7</a><span class="fn-bracket">]</span></span>
-<p>R. Ehsani and F. Drabløs. Topoicsim: a new semantic similarity measure based on gene ontology. <em>BMC Bioinformatics</em>, 17:296, 2016. <a class="reference external" href="https://doi.org/10.1186/s12859-016-1160-0">doi:10.1186/s12859-016-1160-0</a>.</p>
-</div>
-</div>
-</div>
-<dl class="py function" id="module-go3">
+<span class="target" id="id1"></span></section>
+<section id="module-go3">
+<span id="api-reference"></span><h2>API reference<a class="headerlink" href="#module-go3" title="Link to this heading">¶</a></h2>
+<dl class="py function">
 <dt class="sig sig-object py" id="go3.batch_similarity">
 <span class="sig-name descname"><span class="pre">batch_similarity</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">list1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">list2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">method</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">counter</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#go3.batch_similarity" title="Link to this definition">¶</a></dt>
 <dd><p>Compute pairwise semantic similarity in batch using a selected method.</p>
@@ -668,7 +591,7 @@
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Performance and parallelism</div>
+                <div class="title">Performance Guide</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -713,31 +636,24 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Semantic Similarity Functions</a><ul>
-<li><a class="reference internal" href="#introduction">Introduction</a></li>
-<li><a class="reference internal" href="#available-similarity-methods">Available Similarity Methods</a></li>
-<li><a class="reference internal" href="#common-workflows">Common workflows</a></li>
-<li><a class="reference internal" href="#similarity-measures">Similarity Measures</a><ul>
-<li><a class="reference internal" href="#resnik-similarity">Resnik Similarity</a></li>
-<li><a class="reference internal" href="#lin-similarity">Lin Similarity</a></li>
-<li><a class="reference internal" href="#jiang-conrath-similarity">Jiang-Conrath Similarity</a></li>
-<li><a class="reference internal" href="#simrel-similarity">SimRel Similarity</a></li>
-<li><a class="reference internal" href="#information-coefficient">Information Coefficient</a></li>
-<li><a class="reference internal" href="#graphic-similarity">GraphIC Similarity</a></li>
-<li><a class="reference internal" href="#wang-similarity">Wang Similarity</a></li>
-<li><a class="reference internal" href="#topoicsim-similarity">TopoICSim Similarity</a></li>
+<li><a class="reference internal" href="#">Semantic Similarity</a><ul>
+<li><a class="reference internal" href="#quick-reference">Quick reference</a></li>
+<li><a class="reference internal" href="#term-level-apis">Term-level APIs</a></li>
+<li><a class="reference internal" href="#set-level-api">Set-level API</a></li>
+<li><a class="reference internal" href="#gene-level-apis">Gene-level APIs</a></li>
+<li><a class="reference internal" href="#practical-behavior-and-edge-cases">Practical behavior and edge cases</a></li>
+<li><a class="reference internal" href="#distance-oriented-workflow">Distance-oriented workflow</a></li>
+<li><a class="reference internal" href="#mathematical-definitions">Mathematical definitions</a><ul>
+<li><a class="reference internal" href="#resnik">Resnik</a></li>
+<li><a class="reference internal" href="#lin">Lin</a></li>
+<li><a class="reference internal" href="#jiang-conrath-distance-derived-similarity">Jiang-Conrath (distance-derived similarity)</a></li>
+<li><a class="reference internal" href="#simrel">SimRel</a></li>
+<li><a class="reference internal" href="#wang">Wang</a></li>
+<li><a class="reference internal" href="#topoicsim">TopoICSim</a></li>
 </ul>
 </li>
-<li><a class="reference internal" href="#groupwise-similarity-measures">Groupwise Similarity Measures</a><ul>
-<li><a class="reference internal" href="#best-match-average-bma">Best-Match Average (BMA)</a></li>
-<li><a class="reference internal" href="#maximum-max">Maximum (MAX)</a></li>
-<li><a class="reference internal" href="#average-avg">Average (AVG)</a></li>
-<li><a class="reference internal" href="#hausdorff-similarity">Hausdorff Similarity</a></li>
-<li><a class="reference internal" href="#simgic">SimGIC</a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#batch-computation">Batch Computation</a></li>
-<li><a class="reference internal" href="#bibliography">Bibliography</a><ul>
+<li><a class="reference internal" href="#bibliography">Bibliography</a></li>
+<li><a class="reference internal" href="#module-go3">API reference</a><ul>
 <li><a class="reference internal" href="#go3.batch_similarity"><code class="docutils literal notranslate"><span class="pre">batch_similarity()</span></code></a></li>
 <li><a class="reference internal" href="#go3.compare_gene_pairs_batch"><code class="docutils literal notranslate"><span class="pre">compare_gene_pairs_batch()</span></code></a></li>
 <li><a class="reference internal" href="#go3.compare_genes"><code class="docutils literal notranslate"><span class="pre">compare_genes()</span></code></a></li>

@@ -7,6 +7,7 @@ def test_load_go_terms():
     assert any(t.id.startswith("GO:") for t in terms)
 
 def test_load_gaf():
+    _ = go3.load_go_terms()
     gaf = go3.load_gaf("tests/goa_human.gaf")  # Debe estar descargado
     assert isinstance(gaf, list)
     assert len(gaf) > 100000  # Número típico de anotaciones

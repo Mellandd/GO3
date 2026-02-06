@@ -67,39 +67,94 @@ pub(crate) fn termset_similarity_internal_with_method(
         PyValueError::new_err("similarity argument is required for this groupwise method")
     })?;
 
+    // Avoid nested rayon parallelism when this function is called from an already-parallel
+    // context (e.g. gene_distance_matrix or compare_gene_pairs_batch). In those cases, the
+    // outer loop should control parallelism, and we compute the termset score serially.
+    let use_parallel = rayon::current_thread_index().is_none();
+
     match groupwise {
         "max" => {
-            let max_val = terms1.par_iter()
-                .map(|id1| {
-                    terms2.par_iter()
-                        .map(|id2| sim_fn.compute(id1, id2, counter))
-                        .reduce(|| 0.0, f64::max)
-                })
-                .reduce(|| 0.0, f64::max);
+            let max_val = if use_parallel {
+                terms1
+                    .par_iter()
+                    .map(|id1| {
+                        terms2
+                            .iter()
+                            .map(|id2| sim_fn.compute(id1, id2, counter))
+                            .fold(0.0, f64::max)
+                    })
+                    .reduce(|| 0.0, f64::max)
+            } else {
+                let mut max_val: f64 = 0.0;
+                for id1 in terms1 {
+                    for id2 in terms2 {
+                        max_val = max_val.max(sim_fn.compute(id1, id2, counter));
+                    }
+                }
+                max_val
+            };
             Ok(max_val)
         }
         "bma" => {
-            let sem1: Vec<f64> = terms1.par_iter()
-                .map(|id1| {
-                    terms2.par_iter()
-                        .map(|id2| sim_fn.compute(id1, id2, counter))
-                        .reduce(|| 0.0, f64::max)
-                })
-                .collect();
+            let total = (terms1.len() + terms2.len()) as f64;
+            if total == 0.0 {
+                return Ok(0.0);
+            }
 
-            let sem2: Vec<f64> = terms2.par_iter()
-                .map(|id2| {
-                    terms1.par_iter()
-                        .map(|id1| sim_fn.compute(id1, id2, counter))
-                        .reduce(|| 0.0, f64::max)
-                })
-                .collect();
-
-            let total = sem1.len() + sem2.len();
-            if total == 0 {
-                Ok(0.0)
+            // Compute row maxima for terms1 and column maxima for terms2 in a single pass
+            // over the cartesian product. This avoids doing 2× work for symmetric similarities.
+            if use_parallel {
+                let (sum_row_max, col_max) = terms1
+                    .par_iter()
+                    .fold(
+                        || (0.0_f64, vec![0.0_f64; terms2.len()]),
+                        |(sum, mut col_max), id1| {
+                            let mut row_max: f64 = 0.0;
+                            for (j, id2) in terms2.iter().enumerate() {
+                                let s = sim_fn.compute(id1, id2, counter);
+                                if s > row_max {
+                                    row_max = s;
+                                }
+                                if s > col_max[j] {
+                                    col_max[j] = s;
+                                }
+                            }
+                            (sum + row_max, col_max)
+                        },
+                    )
+                    .reduce(
+                        || (0.0_f64, vec![0.0_f64; terms2.len()]),
+                        |(sum_a, mut col_a), (sum_b, col_b)| {
+                            for (a, b) in col_a.iter_mut().zip(col_b.iter()) {
+                                if *b > *a {
+                                    *a = *b;
+                                }
+                            }
+                            (sum_a + sum_b, col_a)
+                        },
+                    );
+                let sum_col_max: f64 = col_max.into_iter().sum();
+                Ok((sum_row_max + sum_col_max) / total)
             } else {
-                Ok((sem1.iter().sum::<f64>() + sem2.iter().sum::<f64>()) / total as f64)
+                let mut col_max = vec![0.0_f64; terms2.len()];
+                let mut sum_row_max: f64 = 0.0;
+
+                for id1 in terms1 {
+                    let mut row_max: f64 = 0.0;
+                    for (j, id2) in terms2.iter().enumerate() {
+                        let s = sim_fn.compute(id1, id2, counter);
+                        if s > row_max {
+                            row_max = s;
+                        }
+                        if s > col_max[j] {
+                            col_max[j] = s;
+                        }
+                    }
+                    sum_row_max += row_max;
+                }
+
+                let sum_col_max: f64 = col_max.into_iter().sum();
+                Ok((sum_row_max + sum_col_max) / total)
             }
         }
         "avg" => {
@@ -108,40 +163,89 @@ pub(crate) fn termset_similarity_internal_with_method(
                  return Ok(0.0);
              }
              // sum( sim(t1, t2) ) / (N*M)
-             let total_sim: f64 = terms1.par_iter()
-                 .map(|id1| {
-                     terms2.par_iter()
-                        .map(|id2| sim_fn.compute(id1, id2, counter))
-                        .sum::<f64>()
-                 })
-                 .sum();
+             let total_sim: f64 = if use_parallel {
+                 terms1
+                     .par_iter()
+                     .map(|id1| {
+                         terms2
+                             .iter()
+                             .map(|id2| sim_fn.compute(id1, id2, counter))
+                             .sum::<f64>()
+                     })
+                     .sum()
+             } else {
+                 let mut total = 0.0;
+                 for id1 in terms1 {
+                     for id2 in terms2 {
+                         total += sim_fn.compute(id1, id2, counter);
+                     }
+                 }
+                 total
+             };
                  
              Ok(total_sim / count)
         }
         "hausdorff" => {
             // min( min_a max_b sim(a, b), min_b max_a sim(b, a) )
-            
-            let min_max_1: f64 = terms1.par_iter()
-                .map(|id1| {
-                     terms2.par_iter()
-                        .map(|id2| sim_fn.compute(id1, id2, counter))
-                        .reduce(|| 0.0, f64::max)
-                })
-                .reduce(|| f64::INFINITY, f64::min);
-                
-            let min_max_2: f64 = terms2.par_iter()
-                .map(|id2| {
-                     terms1.par_iter()
-                        .map(|id1| sim_fn.compute(id1, id2, counter))
-                        .reduce(|| 0.0, f64::max)
-                })
-                .reduce(|| f64::INFINITY, f64::min);
-                
-             if min_max_1.is_infinite() || min_max_2.is_infinite() {
-                 Ok(0.0)
-             } else {
-                 Ok(min_max_1.min(min_max_2))
-             }
+
+            let (min_row_max, col_max) = if use_parallel {
+                terms1
+                    .par_iter()
+                    .fold(
+                        || (f64::INFINITY, vec![0.0_f64; terms2.len()]),
+                        |(min_row, mut col_max), id1| {
+                            let mut row_max: f64 = 0.0;
+                            for (j, id2) in terms2.iter().enumerate() {
+                                let s = sim_fn.compute(id1, id2, counter);
+                                if s > row_max {
+                                    row_max = s;
+                                }
+                                if s > col_max[j] {
+                                    col_max[j] = s;
+                                }
+                            }
+                            (min_row.min(row_max), col_max)
+                        },
+                    )
+                    .reduce(
+                        || (f64::INFINITY, vec![0.0_f64; terms2.len()]),
+                        |(min_a, mut col_a), (min_b, col_b)| {
+                            for (a, b) in col_a.iter_mut().zip(col_b.iter()) {
+                                if *b > *a {
+                                    *a = *b;
+                                }
+                            }
+                            (min_a.min(min_b), col_a)
+                        },
+                    )
+            } else {
+                let mut col_max = vec![0.0_f64; terms2.len()];
+                let mut min_row_max = f64::INFINITY;
+
+                for id1 in terms1 {
+                    let mut row_max: f64 = 0.0;
+                    for (j, id2) in terms2.iter().enumerate() {
+                        let s = sim_fn.compute(id1, id2, counter);
+                        if s > row_max {
+                            row_max = s;
+                        }
+                        if s > col_max[j] {
+                            col_max[j] = s;
+                        }
+                    }
+                    min_row_max = min_row_max.min(row_max);
+                }
+
+                (min_row_max, col_max)
+            };
+
+            let min_col_max: f64 = col_max.into_iter().fold(f64::INFINITY, f64::min);
+
+            if min_row_max.is_infinite() || min_col_max.is_infinite() {
+                Ok(0.0)
+            } else {
+                Ok(min_row_max.min(min_col_max))
+            }
         }
         _ => Err(pyo3::exceptions::PyValueError::new_err(format!("Unknown groupwise strategy: {}", groupwise))),
     }

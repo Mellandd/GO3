@@ -134,6 +134,9 @@ pub fn parse_obo(path: &str) -> HashMap<String, GOTerm> {
     // Initialize (or reset) DCA_CACHE
     set_or_replace_cache(&DCA_CACHE, HashMap::default());
 
+    // Clear caches in semantic similarity code that depend on the GO graph topology.
+    crate::go_semantic::clear_internal_caches();
+
     term_map
 }
 
@@ -543,16 +546,30 @@ fn _build_term_counter(
     annotations: &[GAFAnnotation],
     terms: &HashMap<String, GOTerm>,
 ) -> TermCounter {
+    // Hold a read lock on the ancestors cache once so we can read it without per-annotation locking.
+    let ancestors_cache_guard = ANCESTORS_CACHE.get().map(|lock| lock.read());
+    let ancestors_cache = ancestors_cache_guard.as_deref();
+
     // Parallel: build obj_to_terms without global locking
     let obj_to_terms: HashMap<&str, HashSet<String>> = annotations
         .par_iter()
         .fold(HashMap::<&str, HashSet<String>>::default, |mut acc, ann| {
             let go_id = ann.go_term.as_str();
-            let mut term_set: HashSet<String> = collect_ancestors(go_id, terms);
-            term_set.insert(go_id.to_string());
-            acc.entry(ann.db_object_id.as_str())
-                .or_default()
-                .extend(term_set);
+            let entry = acc.entry(ann.db_object_id.as_str()).or_default();
+
+            // Add the term itself plus its ancestors, but avoid cloning a whole HashSet only to
+            // re-hash all elements again when extending `entry`.
+            entry.insert(go_id.to_string());
+            if let Some(cache) = ancestors_cache {
+                if let Some(ancestors) = cache.get(go_id) {
+                    entry.extend(ancestors.iter().cloned());
+                } else {
+                    // Should be rare (unknown GO ID), but keep a correct fallback.
+                    entry.extend(collect_ancestors(go_id, terms).into_iter());
+                }
+            } else {
+                entry.extend(collect_ancestors(go_id, terms).into_iter());
+            }
             acc
         })
         .reduce(HashMap::<&str, HashSet<String>>::default, |mut acc, map| {

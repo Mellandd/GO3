@@ -3,11 +3,11 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Visualization (t-SNE / UMAP)" href="visualization.html"><link rel="prev" title="Semantic Similarity Functions" href="../similarity.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Visualization (t-SNE / UMAP)" href="visualization.html"><link rel="prev" title="Semantic Similarity" href="../similarity.html">
         <link rel="prefetch" href="../_static/avatar-go3.png" as="image">
 
     <link rel="shortcut icon" href="../_static/avatar-go3.png"><!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Performance and parallelism - GO3 documentation</title>
+        <title>Performance Guide - GO3 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
@@ -201,26 +201,29 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../introduction.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../introduction.html#initializing-the-ontology">Initializing the Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../introduction.html#initializing-the-annotations">Initializing the annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#requirements">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#minimal-workflow">Minimal workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#core-concepts">Core concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#next-steps">Next steps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../similarity.html">Semantic Similarity Functions</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Performance and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../similarity.html">Semantic Similarity</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Performance Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="visualization.html">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../benchmarks.html">Benchmarks</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../ontology.html">Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../goterm.html">GOTerm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../annotations.html">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../utilities.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology.html">Ontology API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../goterm.html">GOTerm Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../annotations.html">Annotations and IC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../utilities.html">Utilities and Advanced APIs</a></li>
 </ul>
 
 </div>
@@ -259,25 +262,112 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="performance-and-parallelism">
-<h1>Performance and parallelism<a class="headerlink" href="#performance-and-parallelism" title="Link to this heading">¶</a></h1>
-<p>GO3 is implemented in Rust and uses parallelism for batch computations.</p>
-<section id="control-the-number-of-threads">
-<h2>Control the number of threads<a class="headerlink" href="#control-the-number-of-threads" title="Link to this heading">¶</a></h2>
-<p>You can limit the maximum number of threads used by GO3’s internal thread pool:</p>
+          <section id="performance-guide">
+<h1>Performance Guide<a class="headerlink" href="#performance-guide" title="Link to this heading">¶</a></h1>
+<p>GO3 is implemented in Rust and exposes Python APIs optimized for high-throughput GO semantic similarity workloads.</p>
+<p>This guide focuses on practical performance tuning in real pipelines.</p>
+<section id="load-once-reuse-many-times">
+<h2>1. Load once, reuse many times<a class="headerlink" href="#load-once-reuse-many-times" title="Link to this heading">¶</a></h2>
+<p>The typical high-performance workflow is:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
 
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">(</span><span class="s2">&quot;go-basic.obo&quot;</span><span class="p">)</span>
+<span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
+<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
+
+<span class="c1"># Reuse `counter` and loaded ontology for all subsequent analyses.</span>
+</pre></div>
+</div>
+<p>Avoid repeatedly reloading ontology/GAF or rebuilding <code class="docutils literal notranslate"><span class="pre">counter</span></code> inside loops.</p>
+</section>
+<section id="configure-threads-before-heavy-workloads">
+<h2>2. Configure threads before heavy workloads<a class="headerlink" href="#configure-threads-before-heavy-workloads" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
 <span class="n">go3</span><span class="o">.</span><span class="n">set_num_threads</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
 </pre></div>
 </div>
-<p><code class="docutils literal notranslate"><span class="pre">load_go_terms()</span></code> and <code class="docutils literal notranslate"><span class="pre">load_gaf()</span></code> cache data globally in the current process, so you typically call them once.</p>
+<p>Call <code class="docutils literal notranslate"><span class="pre">set_num_threads</span></code> once at startup, before launching large batch jobs.</p>
 </section>
-<section id="prefer-batch-apis-for-throughput">
-<h2>Prefer batch APIs for throughput<a class="headerlink" href="#prefer-batch-apis-for-throughput" title="Link to this heading">¶</a></h2>
+<section id="prefer-batch-apis-over-scalar-loops">
+<h2>3. Prefer batch APIs over scalar loops<a class="headerlink" href="#prefer-batch-apis-over-scalar-loops" title="Link to this heading">¶</a></h2>
+<p>Use batch/vectorized endpoints whenever possible:</p>
 <ul class="simple">
-<li><p>Term similarity: <code class="docutils literal notranslate"><span class="pre">batch_similarity(...)</span></code></p></li>
-<li><p>Gene similarity: <code class="docutils literal notranslate"><span class="pre">compare_gene_pairs_batch(...)</span></code></p></li>
+<li><p>term pairs: <code class="docutils literal notranslate"><span class="pre">batch_similarity(...)</span></code></p></li>
+<li><p>gene pairs: <code class="docutils literal notranslate"><span class="pre">compare_gene_pairs_batch(...)</span></code></p></li>
 </ul>
+<p>Python loops over single-pair calls (<code class="docutils literal notranslate"><span class="pre">semantic_similarity</span></code> or <code class="docutils literal notranslate"><span class="pre">compare_genes</span></code>) add interpreter overhead and reduce throughput.</p>
+</section>
+<section id="benchmark-with-warmups-and-medians">
+<h2>4. Benchmark with warmups and medians<a class="headerlink" href="#benchmark-with-warmups-and-medians" title="Link to this heading">¶</a></h2>
+<p>For stable measurements:</p>
+<ul class="simple">
+<li><p>include at least one warmup run</p></li>
+<li><p>run multiple repeats</p></li>
+<li><p>compare median wall time</p></li>
+</ul>
+<p>Use <code class="docutils literal notranslate"><span class="pre">scripts/benchmark_go3vsgoatools.py</span></code> for standardized runs.</p>
+</section>
+<section id="choose-realistic-workload-sizes">
+<h2>5. Choose realistic workload sizes<a class="headerlink" href="#choose-realistic-workload-sizes" title="Link to this heading">¶</a></h2>
+<p>For tiny input sizes, fixed overhead can dominate and hide the true performance profile.</p>
+<p>To assess production behavior, benchmark with medium/large batches (hundreds to thousands of pairs) and matrix-style workloads.</p>
+</section>
+<section id="gene-matrix-workloads-scale-quadratically">
+<h2>6. Gene matrix workloads scale quadratically<a class="headerlink" href="#gene-matrix-workloads-scale-quadratically" title="Link to this heading">¶</a></h2>
+<p>All-vs-all comparisons on <code class="docutils literal notranslate"><span class="pre">g</span></code> genes produce approximately <code class="docutils literal notranslate"><span class="pre">g^2</span> <span class="pre">/</span> <span class="pre">2</span></code> pairs.</p>
+<ul class="simple">
+<li><p>memory and compute both increase quickly with <code class="docutils literal notranslate"><span class="pre">g</span></code></p></li>
+<li><p>prefer batched pair evaluation and subset/sampling strategies for exploratory phases</p></li>
+</ul>
+</section>
+<section id="distance-transforms-for-embedding-pipelines">
+<h2>7. Distance transforms for embedding pipelines<a class="headerlink" href="#distance-transforms-for-embedding-pipelines" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">gene_distance_matrix</span></code> supports:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">auto</span></code> (recommended default)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">one_minus</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_minus</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reciprocal</span></code></p></li>
+</ul>
+<p>For normalized similarities (for example <code class="docutils literal notranslate"><span class="pre">lin</span></code>, <code class="docutils literal notranslate"><span class="pre">simrel</span></code>, <code class="docutils literal notranslate"><span class="pre">wang</span></code>), <code class="docutils literal notranslate"><span class="pre">auto</span></code> maps to <code class="docutils literal notranslate"><span class="pre">one_minus</span></code>.</p>
+</section>
+<section id="input-quality-affects-runtime-and-comparability">
+<h2>8. Input quality affects runtime and comparability<a class="headerlink" href="#input-quality-affects-runtime-and-comparability" title="Link to this heading">¶</a></h2>
+<p>Runtime and similarity distributions depend on:</p>
+<ul class="simple">
+<li><p>ontology version</p></li>
+<li><p>annotation source/version</p></li>
+<li><p>ontology namespace (<code class="docutils literal notranslate"><span class="pre">BP</span></code>, <code class="docutils literal notranslate"><span class="pre">MF</span></code>, <code class="docutils literal notranslate"><span class="pre">CC</span></code>)</p></li>
+<li><p>term similarity method (<code class="docutils literal notranslate"><span class="pre">lin</span></code>, <code class="docutils literal notranslate"><span class="pre">resnik</span></code>, <code class="docutils literal notranslate"><span class="pre">wang</span></code>, …)</p></li>
+<li><p>groupwise strategy (<code class="docutils literal notranslate"><span class="pre">bma</span></code>, <code class="docutils literal notranslate"><span class="pre">max</span></code>, <code class="docutils literal notranslate"><span class="pre">avg</span></code>, <code class="docutils literal notranslate"><span class="pre">hausdorff</span></code>, <code class="docutils literal notranslate"><span class="pre">simgic</span></code>)</p></li>
+</ul>
+<p>When reporting results, always include these settings.</p>
+</section>
+<section id="suggested-benchmark-profile">
+<h2>9. Suggested benchmark profile<a class="headerlink" href="#suggested-benchmark-profile" title="Link to this heading">¶</a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./venv/bin/python<span class="w"> </span>scripts/benchmark_go3vsgoatools.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--namespace<span class="w"> </span>BP<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--term-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gene-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--term-pair-sizes<span class="w"> </span><span class="m">1000</span>,5000,20000<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gene-pair-sizes<span class="w"> </span><span class="m">25</span>,50,100<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--matrix-gene-sizes<span class="w"> </span><span class="m">8</span>,12<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--warmup<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--repeats<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--threads<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--outdir<span class="w"> </span>imgs
+</pre></div>
+</div>
+<p>This profile usually gives stable and interpretable comparisons for both throughput and memory.</p>
+<p>For publication-ready figures and metadata, use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./venv/bin/python<span class="w"> </span>scripts/benchmark_go3vsgoatools.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--paper-ready<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--namespace<span class="w"> </span>BP<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--term-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gene-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--outdir<span class="w"> </span>imgs
+</pre></div>
+</div>
 </section>
 </section>
 
@@ -302,7 +392,7 @@
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Semantic Similarity Functions</div>
+                <div class="title">Semantic Similarity</div>
                 
               </div>
             </a>
@@ -336,9 +426,16 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Performance and parallelism</a><ul>
-<li><a class="reference internal" href="#control-the-number-of-threads">Control the number of threads</a></li>
-<li><a class="reference internal" href="#prefer-batch-apis-for-throughput">Prefer batch APIs for throughput</a></li>
+<li><a class="reference internal" href="#">Performance Guide</a><ul>
+<li><a class="reference internal" href="#load-once-reuse-many-times">1. Load once, reuse many times</a></li>
+<li><a class="reference internal" href="#configure-threads-before-heavy-workloads">2. Configure threads before heavy workloads</a></li>
+<li><a class="reference internal" href="#prefer-batch-apis-over-scalar-loops">3. Prefer batch APIs over scalar loops</a></li>
+<li><a class="reference internal" href="#benchmark-with-warmups-and-medians">4. Benchmark with warmups and medians</a></li>
+<li><a class="reference internal" href="#choose-realistic-workload-sizes">5. Choose realistic workload sizes</a></li>
+<li><a class="reference internal" href="#gene-matrix-workloads-scale-quadratically">6. Gene matrix workloads scale quadratically</a></li>
+<li><a class="reference internal" href="#distance-transforms-for-embedding-pipelines">7. Distance transforms for embedding pipelines</a></li>
+<li><a class="reference internal" href="#input-quality-affects-runtime-and-comparability">8. Input quality affects runtime and comparability</a></li>
+<li><a class="reference internal" href="#suggested-benchmark-profile">9. Suggested benchmark profile</a></li>
 </ul>
 </li>
 </ul>

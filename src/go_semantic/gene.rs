@@ -309,29 +309,31 @@ pub fn gene_distance_matrix(
     let n = gene_list.len();
     let mut matrix = vec![vec![0.0; n]; n];
 
-    matrix
-        .par_iter_mut()
-        .enumerate()
-        .for_each(|(i, row)| {
-            for j in i..n {
-                let sim = termset_similarity_internal_with_method(
-                    &gene_terms[i],
-                    &gene_terms[j],
-                    sim_fn,
-                    groupwise,
-                    counter,
-                    &terms,
-                )
-                .unwrap_or(0.0);
-                row[j] = sim;
-            }
-        });
+    // Parallelize over all (i, j) in the upper triangle (including diagonal) to improve
+    // load balancing across threads. This is especially important when each pairwise gene
+    // comparison is expensive (large term sets / slower similarity methods).
+    let pairs: Vec<(usize, usize)> = (0..n)
+        .flat_map(|i| (i..n).map(move |j| (i, j)))
+        .collect();
 
-    for i in 0..n {
-        for j in 0..i {
-            let v = matrix[j][i];
-            matrix[i][j] = v;
-        }
+    let sims: Vec<f64> = pairs
+        .par_iter()
+        .map(|(i, j)| {
+            termset_similarity_internal_with_method(
+                &gene_terms[*i],
+                &gene_terms[*j],
+                sim_fn,
+                groupwise,
+                counter,
+                &terms,
+            )
+            .unwrap_or(0.0)
+        })
+        .collect();
+
+    for ((i, j), sim) in pairs.into_iter().zip(sims.into_iter()) {
+        matrix[i][j] = sim;
+        matrix[j][i] = sim;
     }
 
     let transform = resolve_distance_transform(distance_transform, similarity, groupwise)?;

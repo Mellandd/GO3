@@ -201,26 +201,29 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="current">
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#initializing-the-ontology">Initializing the Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="#initializing-the-annotations">Initializing the annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#requirements">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#minimal-workflow">Minimal workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#core-concepts">Core concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="#next-steps">Next steps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guide/visualization.html">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="benchmarks.html">Benchmarks</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations and IC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities and Advanced APIs</a></li>
 </ul>
 
 </div>
@@ -261,56 +264,75 @@
         <article role="main" id="furo-main-content">
           <section id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">¶</a></h1>
-<p><strong>go3</strong> is provided as binary wheels for most platforms on PyPI (Linux, Windows and MacOS). You can run</p>
+<p>GO3 provides Python bindings for a Rust implementation of Gene Ontology semantic similarity.</p>
+<p>Install from PyPI:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>go3
 </pre></div>
 </div>
-</section>
-<section id="initializing-the-ontology">
-<h1>Initializing the Ontology<a class="headerlink" href="#initializing-the-ontology" title="Link to this heading">¶</a></h1>
-<p><strong>go3</strong> does not ship with any prebuilt GO Ontology by default. If you don’t provide any .obo, when you try to load the ontology into memory it automatically downloads the last version of go-basic.obo.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
-
-<span class="c1"># Initialize the ontology (downloads the latest go-basic.obo)</span>
-<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
-
-<span class="c1"># Load a specific GO term</span>
-<span class="n">term_1</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">get_term_by_id</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">)</span>
-
-<span class="nb">print</span><span class="p">(</span><span class="n">term_1</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
-<span class="c1">#&gt; mRNA processing</span>
-</pre></div>
-</div>
-<p>Instead, you can pass to the <code class="docutils literal notranslate"><span class="pre">load_go_terms</span></code> function the path to any OBO version of the ontology that you already have downloaded:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">(</span><span class="s2">&quot;path/to/go-basic.obo&quot;</span><span class="p">)</span>
+<p>Optional visualization dependencies:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>go3<span class="o">[</span>viz<span class="o">]</span>
 </pre></div>
 </div>
 </section>
-<section id="initializing-the-annotations">
-<h1>Initializing the annotations<a class="headerlink" href="#initializing-the-annotations" title="Link to this heading">¶</a></h1>
-<p>In the Gene Ontology, the annotations come in the GO Association File (GAF) format.</p>
-<p>A standard GO annotation is a statement that links a gene product and a GO term via a relation from the Relations Ontology (RO). It minimally contains:</p>
+<section id="requirements">
+<h1>Requirements<a class="headerlink" href="#requirements" title="Link to this heading">¶</a></h1>
+<p>GO3 expects:</p>
 <ul class="simple">
-<li><p>a gene product: may be a protein, an miRNA, a tRNA, etc.</p></li>
-<li><p>a GO term</p></li>
-<li><p>a reference, usually a PMID, but DOIs and GO Reference (GO_REF) are also used</p></li>
-<li><p>an evidence code, using a GO Evidence Code, which describes the type of evidence: experimental evidence, sequence similarity or phylogenetic relation, as well as whether the evidence was reviewed by an expert biocurator. If not manually reviewed, the annotation is described as ‘automated’.</p></li>
+<li><p>a GO ontology file in OBO format (for example <code class="docutils literal notranslate"><span class="pre">go-basic.obo</span></code>)</p></li>
+<li><p>a GO annotation file in GAF format for your organism</p></li>
 </ul>
-<p>The Gene Ontology contains annotations for almost any organism. Depending on your choice, you must download the corresponding GAF file from the official website to use it in this library:
-<a class="reference external" href="https://current.geneontology.org/products/pages/downloads.html">Website to download the annotations</a></p>
+<p>If you call <code class="docutils literal notranslate"><span class="pre">go3.load_go_terms()</span></code> without a path, GO3 downloads <code class="docutils literal notranslate"><span class="pre">go-basic.obo</span></code> automatically.</p>
+</section>
+<section id="minimal-workflow">
+<h1>Minimal workflow<a class="headerlink" href="#minimal-workflow" title="Link to this heading">¶</a></h1>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
-<span class="c1"># Initialize the ontology</span>
-<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
 
-<span class="c1"># Initialize the annotations from the downloaded gaf file.</span>
+<span class="c1"># 1) Ontology</span>
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">(</span><span class="s2">&quot;go-basic.obo&quot;</span><span class="p">)</span>
+
+<span class="c1"># 2) Annotations</span>
 <span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
 
-<span class="c1"># Build the Term Counter that counts the annotations for every GO Term.</span>
-<span class="c1"># Needed to calculate the Information Content (IC) of a GO Term, and to calculate similarities</span>
-<span class="c1"># using Resnik, Lin or any other measure between the terms.</span>
-<span class="n">term_counts</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
+<span class="c1"># 3) Information Content structures</span>
+<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
+
+<span class="c1"># 4) Term similarity</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+
+<span class="c1"># 5) Gene similarity</span>
+<span class="n">score</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">compare_genes</span><span class="p">(</span><span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">score</span><span class="p">)</span>
 </pre></div>
 </div>
+</section>
+<section id="core-concepts">
+<h1>Core concepts<a class="headerlink" href="#core-concepts" title="Link to this heading">¶</a></h1>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">load_go_terms</span></code> loads and caches ontology terms in memory.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">load_gaf</span></code> parses GAF annotations and builds a gene-to-GO mapping.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">build_term_counter</span></code> computes annotation counts and IC values.</p></li>
+<li><p>IC-based methods (for example <code class="docutils literal notranslate"><span class="pre">resnik</span></code> and <code class="docutils literal notranslate"><span class="pre">lin</span></code>) require <code class="docutils literal notranslate"><span class="pre">counter</span></code>.</p></li>
+</ul>
+</section>
+<section id="namespaces">
+<h1>Namespaces<a class="headerlink" href="#namespaces" title="Link to this heading">¶</a></h1>
+<p>GO3 uses standard GO sub-ontologies:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">BP</span></code>: Biological Process</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MF</span></code>: Molecular Function</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CC</span></code>: Cellular Component</p></li>
+</ul>
+<p>For gene-level APIs, select namespace explicitly via the <code class="docutils literal notranslate"><span class="pre">ontology</span></code> argument.</p>
+</section>
+<section id="next-steps">
+<h1>Next steps<a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="examples.html"><span class="doc">Examples</span></a> for end-to-end usage patterns</p></li>
+<li><p><a class="reference internal" href="similarity.html"><span class="doc">Semantic Similarity</span></a> for available methods and formulas</p></li>
+<li><p><a class="reference internal" href="guide/performance.html"><span class="doc">Performance Guide</span></a> for throughput-oriented workflows</p></li>
+<li><p><a class="reference internal" href="benchmarks.html"><span class="doc">Benchmarks</span></a> for reproducible comparisons</p></li>
+</ul>
 </section>
 
         </article>

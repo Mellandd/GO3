@@ -3,11 +3,11 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Utilities" href="utilities.html"><link rel="prev" title="GOTerm" href="goterm.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Utilities and Advanced APIs" href="utilities.html"><link rel="prev" title="GOTerm Object" href="goterm.html">
         <link rel="prefetch" href="_static/avatar-go3.png" as="image">
 
     <link rel="shortcut icon" href="_static/avatar-go3.png"><!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
-        <title>Annotations - GO3 documentation</title>
+        <title>Annotations and IC - GO3 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
@@ -201,26 +201,29 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-ontology">Initializing the Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-annotations">Initializing the annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#requirements">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#minimal-workflow">Minimal workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#core-concepts">Core concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#next-steps">Next steps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guide/visualization.html">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="benchmarks.html">Benchmarks</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm</a></li>
-<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm Object</a></li>
+<li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Annotations and IC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities and Advanced APIs</a></li>
 </ul>
 
 </div>
@@ -259,15 +262,86 @@
           </label>
         </div>
         <article role="main" id="furo-main-content">
-          <section id="annotations">
-<h1>Annotations<a class="headerlink" href="#annotations" title="Link to this heading">¶</a></h1>
+          <section id="annotations-and-ic">
+<h1>Annotations and IC<a class="headerlink" href="#annotations-and-ic" title="Link to this heading">¶</a></h1>
+<p>GO3 parses GAF annotations and builds term-level statistics for IC-based similarity methods.</p>
+<section id="functions">
+<h2>Functions<a class="headerlink" href="#functions" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">load_gaf(path)</span></code></p>
+<ul class="simple">
+<li><p>Parses a GAF file and caches gene-to-GO mappings.</p></li>
+<li><p>Returns a list of <code class="docutils literal notranslate"><span class="pre">GAFAnnotation</span></code> objects.</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">build_term_counter(annotations)</span></code></p>
+<ul class="simple">
+<li><p>Builds a <code class="docutils literal notranslate"><span class="pre">TermCounter</span></code> from parsed annotations.</p></li>
+<li><p>Computes counts and Information Content (IC) by namespace.</p></li>
+</ul>
+</section>
+<section id="filtering-rules-in-load-gaf">
+<h2>Filtering rules in <code class="docutils literal notranslate"><span class="pre">load_gaf</span></code><a class="headerlink" href="#filtering-rules-in-load-gaf" title="Link to this heading">¶</a></h2>
+<p>During parsing, GO3 applies key biological filters:</p>
+<ul class="simple">
+<li><p>skips annotations with evidence code <code class="docutils literal notranslate"><span class="pre">ND</span></code></p></li>
+<li><p>skips annotations with qualifier containing <code class="docutils literal notranslate"><span class="pre">NOT</span></code></p></li>
+<li><p>handles obsolete GO terms:</p>
+<ul>
+<li><p>uses <code class="docutils literal notranslate"><span class="pre">replaced_by</span></code> when available</p></li>
+<li><p>otherwise uses first <code class="docutils literal notranslate"><span class="pre">consider</span></code> target when available</p></li>
+<li><p>otherwise discards that annotation</p></li>
+</ul>
+</li>
+</ul>
+<p>These rules affect both downstream scores and benchmark comparability.</p>
+</section>
+<section id="example">
+<h2>Example<a class="headerlink" href="#example" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
+
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">(</span><span class="s2">&quot;go-basic.obo&quot;</span><span class="p">)</span>
+<span class="n">annotations</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
+<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annotations</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Annotations:&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">annotations</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;IC terms:&quot;</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">counter</span><span class="o">.</span><span class="n">ic</span><span class="p">))</span>
+</pre></div>
+</div>
+</section>
+<section id="inspecting-structures">
+<h2>Inspecting structures<a class="headerlink" href="#inspecting-structures" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ann</span> <span class="o">=</span> <span class="n">annotations</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ann</span><span class="o">.</span><span class="n">db_object_id</span><span class="p">,</span> <span class="n">ann</span><span class="o">.</span><span class="n">go_term</span><span class="p">,</span> <span class="n">ann</span><span class="o">.</span><span class="n">evidence</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">counter</span><span class="o">.</span><span class="n">counts</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GO:0008150&quot;</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">counter</span><span class="o">.</span><span class="n">total_by_ns</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">counter</span><span class="o">.</span><span class="n">ic</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;GO:0008150&quot;</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+</pre></div>
+</div>
+</section>
+<section id="class-reference">
+<h2>Class reference<a class="headerlink" href="#class-reference" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">GAFAnnotation</span></code> fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">db_object_id</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">go_term</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">evidence</span></code></p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">TermCounter</span></code> fields:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">counts</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">total_by_ns</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ic</span></code></p></li>
+</ul>
+</section>
+<section id="api-reference">
+<h2>API reference<a class="headerlink" href="#api-reference" title="Link to this heading">¶</a></h2>
 <dl class="py class">
 <dt class="sig sig-object py">
 <span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-name descname"><span class="pre">GAFAnnotation</span></span></dt>
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Struct representing a single annotation from a GAF file.</p>
 <section id="fields">
-<h2>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h2>
+<h3>Fields<a class="headerlink" href="#fields" title="Link to this heading">¶</a></h3>
 <dl class="simple">
 <dt>db_object_id<span class="classifier">str</span></dt><dd><p>The gene product identifier (e.g., UniProt ID).</p>
 </dd>
@@ -300,7 +374,7 @@
 <dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
 <p>Struct holding annotation counts and information content (IC) for GO terms.</p>
 <section id="id1">
-<h2>Fields<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h2>
+<h3>Fields<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
 <dl class="simple">
 <dt>counts<span class="classifier">dict</span></dt><dd><p>Mapping from GO term ID to annotation count.</p>
 </dd>
@@ -361,20 +435,6 @@
 </dl>
 </dd></dl>
 
-<section id="annotation-functions">
-<h2>Annotation Functions<a class="headerlink" href="#annotation-functions" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
-<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
-<span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
-<span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
-</pre></div>
-</div>
-<ul class="simple">
-<li><p><strong>load_gaf</strong>: Loads a GAF file and parses gene-to-GO annotations.</p></li>
-<li><p><strong>build_term_counter</strong>: Builds annotation counts and IC values for all terms.</p></li>
-<li><p><strong>GAFAnnotation</strong>: Class representing a single annotation.</p></li>
-<li><p><strong>TermCounter</strong>: Class holding counts and IC values.</p></li>
-</ul>
 </section>
 </section>
 
@@ -388,7 +448,7 @@
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Utilities</div>
+                <div class="title">Utilities and Advanced APIs</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -399,7 +459,7 @@
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">GOTerm</div>
+                <div class="title">GOTerm Object</div>
                 
               </div>
             </a>
@@ -433,8 +493,13 @@
         <div class="toc-tree-container">
           <div class="toc-tree">
             <ul>
-<li><a class="reference internal" href="#">Annotations</a><ul>
-<li><a class="reference internal" href="#annotation-functions">Annotation Functions</a></li>
+<li><a class="reference internal" href="#">Annotations and IC</a><ul>
+<li><a class="reference internal" href="#functions">Functions</a></li>
+<li><a class="reference internal" href="#filtering-rules-in-load-gaf">Filtering rules in <code class="docutils literal notranslate"><span class="pre">load_gaf</span></code></a></li>
+<li><a class="reference internal" href="#example">Example</a></li>
+<li><a class="reference internal" href="#inspecting-structures">Inspecting structures</a></li>
+<li><a class="reference internal" href="#class-reference">Class reference</a></li>
+<li><a class="reference internal" href="#api-reference">API reference</a></li>
 </ul>
 </li>
 </ul>

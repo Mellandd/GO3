@@ -8,3 +8,5 @@ tests/__pycache__/
 .env
 *goa_human.gaf
 *goa_human.gaf.gz
+embedding_sweep_*.png
+/.r_libs

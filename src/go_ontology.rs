@@ -354,20 +354,62 @@ pub fn deepest_common_ancestor(go_id1: &str, go_id2: &str) -> PyResult<Option<St
         }
     }
 
-    let set1 = collect_ancestors(id_a, &terms);
-    let set2 = collect_ancestors(id_b, &terms);
-    let mut best = None;
-    let mut max_depth = 0;
-    for term_id in set1.intersection(&set2) {
-        if let Some(term) = terms.get(term_id) {
-            if let Some(depth) = term.depth {
-                if depth >= max_depth {
-                    max_depth = depth;
-                    best = Some(term_id.to_string());
+    // Fast path: if we have the precomputed ancestors cache, avoid cloning large HashSets
+    // on every DCA query by intersecting the cached sets by reference.
+    let best = if let Some(lock) = crate::go_loader::ANCESTORS_CACHE.get() {
+        let cache = lock.read();
+        match (cache.get(id_a), cache.get(id_b)) {
+            (Some(set1), Some(set2)) => {
+                let mut best = None;
+                let mut max_depth = 0;
+                for term_id in set1.intersection(set2) {
+                    if let Some(term) = terms.get(term_id.as_str()) {
+                        if let Some(depth) = term.depth {
+                            if depth >= max_depth {
+                                max_depth = depth;
+                                best = Some(term_id.clone());
+                            }
+                        }
+                    }
+                }
+                best
+            }
+            _ => {
+                // Fallback: compute ancestors (may still use cache internally).
+                let set1 = collect_ancestors(id_a, &terms);
+                let set2 = collect_ancestors(id_b, &terms);
+                let mut best = None;
+                let mut max_depth = 0;
+                for term_id in set1.intersection(&set2) {
+                    if let Some(term) = terms.get(term_id.as_str()) {
+                        if let Some(depth) = term.depth {
+                            if depth >= max_depth {
+                                max_depth = depth;
+                                best = Some(term_id.clone());
+                            }
+                        }
+                    }
+                }
+                best
+            }
+        }
+    } else {
+        let set1 = collect_ancestors(id_a, &terms);
+        let set2 = collect_ancestors(id_b, &terms);
+        let mut best = None;
+        let mut max_depth = 0;
+        for term_id in set1.intersection(&set2) {
+            if let Some(term) = terms.get(term_id.as_str()) {
+                if let Some(depth) = term.depth {
+                    if depth >= max_depth {
+                        max_depth = depth;
+                        best = Some(term_id.clone());
+                    }
                 }
             }
         }
-    }
+        best
+    };
 
     // Store the result in the cache if available
     if let (Some(lock), Some(dca)) = (crate::go_loader::DCA_CACHE.get(), best.as_ref()) {

@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Semantic Similarity Functions" href="similarity.html"><link rel="prev" title="Installation" href="introduction.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Semantic Similarity" href="similarity.html"><link rel="prev" title="Installation" href="introduction.html">
         <link rel="prefetch" href="_static/avatar-go3.png" as="image">
 
     <link rel="shortcut icon" href="_static/avatar-go3.png"><!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
@@ -201,26 +201,29 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="introduction.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-ontology">Initializing the Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-annotations">Initializing the annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#requirements">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#minimal-workflow">Minimal workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#core-concepts">Core concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#next-steps">Next steps</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Examples</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guide/visualization.html">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="benchmarks.html">Benchmarks</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations and IC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities and Advanced APIs</a></li>
 </ul>
 
 </div>
@@ -261,85 +264,151 @@
         <article role="main" id="furo-main-content">
           <section id="examples">
 <h1>Examples<a class="headerlink" href="#examples" title="Link to this heading">¶</a></h1>
-<section id="basic-term-similarity">
-<h2>Basic Term Similarity<a class="headerlink" href="#basic-term-similarity" title="Link to this heading">¶</a></h2>
+<p>This page shows practical GO3 workflows from initialization to large-scale comparisons.</p>
+<section id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Link to this heading">¶</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
-<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
+
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">(</span><span class="s2">&quot;go-basic.obo&quot;</span><span class="p">)</span>
 <span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
 <span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;resnik&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Resnik similarity:&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="batch-similarity">
-<h2>Batch Similarity<a class="headerlink" href="#batch-similarity" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">list1</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">]</span>
-<span class="n">list2</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0006397&quot;</span><span class="p">]</span>
-<span class="n">sims</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">batch_similarity</span><span class="p">(</span><span class="n">list1</span><span class="p">,</span> <span class="n">list2</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">sims</span><span class="p">)</span>
+<section id="term-to-term-similarity">
+<h2>Term-to-term similarity<a class="headerlink" href="#term-to-term-similarity" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">go1</span> <span class="o">=</span> <span class="s2">&quot;GO:0006397&quot;</span>
+<span class="n">go2</span> <span class="o">=</span> <span class="s2">&quot;GO:0008380&quot;</span>
+
+<span class="c1"># Available methods include: resnik, lin, jc, simrel, iccoef, graphic, wang, topoicsim</span>
+<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="n">go1</span><span class="p">,</span> <span class="n">go2</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Lin similarity:&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="p">)</span>
 </pre></div>
 </div>
+</section>
+<section id="batch-term-similarity">
+<h2>Batch term similarity<a class="headerlink" href="#batch-term-similarity" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">list1</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008150&quot;</span><span class="p">]</span>
+<span class="n">list2</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0009987&quot;</span><span class="p">]</span>
+
+<span class="n">scores</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">batch_similarity</span><span class="p">(</span><span class="n">list1</span><span class="p">,</span> <span class="n">list2</span><span class="p">,</span> <span class="s2">&quot;resnik&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The two lists must have the same length.</p>
 </section>
 <section id="term-set-similarity">
-<h2>Term Set Similarity<a class="headerlink" href="#term-set-similarity" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">terms1</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">]</span>
-<span class="n">terms2</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0008380&quot;</span><span class="p">]</span>
-<span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">termset_similarity</span><span class="p">(</span><span class="n">terms1</span><span class="p">,</span> <span class="n">terms2</span><span class="p">,</span> <span class="n">term_similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
+<h2>Term-set similarity<a class="headerlink" href="#term-set-similarity" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">terms_a</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0008380&quot;</span><span class="p">]</span>
+<span class="n">terms_b</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;GO:0008380&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0009987&quot;</span><span class="p">]</span>
+
+<span class="n">sim_bma</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">termset_similarity</span><span class="p">(</span><span class="n">terms_a</span><span class="p">,</span> <span class="n">terms_b</span><span class="p">,</span> <span class="n">term_similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">)</span>
+<span class="n">sim_max</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">termset_similarity</span><span class="p">(</span><span class="n">terms_a</span><span class="p">,</span> <span class="n">terms_b</span><span class="p">,</span> <span class="n">term_similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;max&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">)</span>
+<span class="n">sim_avg</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">termset_similarity</span><span class="p">(</span><span class="n">terms_a</span><span class="p">,</span> <span class="n">terms_b</span><span class="p">,</span> <span class="n">term_similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;avg&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">)</span>
+<span class="n">sim_h</span>   <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">termset_similarity</span><span class="p">(</span><span class="n">terms_a</span><span class="p">,</span> <span class="n">terms_b</span><span class="p">,</span> <span class="n">term_similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;hausdorff&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">)</span>
+<span class="n">sim_gic</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">termset_similarity</span><span class="p">(</span><span class="n">terms_a</span><span class="p">,</span> <span class="n">terms_b</span><span class="p">,</span> <span class="n">term_similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;simgic&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">sim_bma</span><span class="p">,</span> <span class="n">sim_max</span><span class="p">,</span> <span class="n">sim_avg</span><span class="p">,</span> <span class="n">sim_h</span><span class="p">,</span> <span class="n">sim_gic</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="gene-to-gene-similarity">
-<h2>Gene-to-Gene Similarity<a class="headerlink" href="#gene-to-gene-similarity" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">compare_genes</span><span class="p">(</span><span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;CASP8&quot;</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;topoicsim&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;TopoICSim gene similarity:&quot;</span><span class="p">,</span> <span class="n">sim</span><span class="p">)</span>
+<h2>Gene-to-gene similarity<a class="headerlink" href="#gene-to-gene-similarity" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">compare_genes</span><span class="p">(</span><span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;CASP8&quot;</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="batch-gene-similarity">
-<h2>Batch Gene Similarity<a class="headerlink" href="#batch-gene-similarity" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pairs</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">)]</span>
+<h2>Batch gene similarity<a class="headerlink" href="#batch-gene-similarity" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pairs</span> <span class="o">=</span> <span class="p">[(</span><span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">),</span> <span class="p">(</span><span class="s2">&quot;GSDME&quot;</span><span class="p">,</span> <span class="s2">&quot;NLRP1&quot;</span><span class="p">)]</span>
 <span class="n">scores</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">compare_gene_pairs_batch</span><span class="p">(</span><span class="n">pairs</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">scores</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="gene-distance-matrix-and-t-sne">
-<h2>Gene Distance Matrix and t-SNE<a class="headerlink" href="#gene-distance-matrix-and-t-sne" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">genes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">]</span>
-<span class="n">genes</span><span class="p">,</span> <span class="n">dist</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">gene_distance_matrix</span><span class="p">(</span><span class="n">genes</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-<span class="n">genes</span><span class="p">,</span> <span class="n">emb</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">tsne_genes</span><span class="p">(</span><span class="n">genes</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">perplexity</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
-<span class="c1"># Or UMAP:</span>
-<span class="c1"># genes, emb = go3.umap_genes(genes, &quot;BP&quot;, &quot;lin&quot;, &quot;bma&quot;, counter, n_neighbors=15, random_state=42)</span>
+<section id="distance-matrix-for-downstream-analysis">
+<h2>Distance matrix for downstream analysis<a class="headerlink" href="#distance-matrix-for-downstream-analysis" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">genes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;CASP8&quot;</span><span class="p">,</span> <span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">]</span>
+<span class="n">ordered_genes</span><span class="p">,</span> <span class="n">dist</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">gene_distance_matrix</span><span class="p">(</span>
+    <span class="n">genes</span><span class="p">,</span>
+    <span class="n">ontology</span><span class="o">=</span><span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="n">similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">,</span>
+    <span class="n">distance_transform</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+<span class="p">)</span>
 
-<span class="c1"># Plot (optional)</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">emb</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">],</span> <span class="n">emb</span><span class="p">[:,</span> <span class="mi">1</span><span class="p">])</span>
-<span class="k">for</span> <span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">),</span> <span class="n">g</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">emb</span><span class="p">,</span> <span class="n">genes</span><span class="p">):</span>
-    <span class="n">plt</span><span class="o">.</span><span class="n">text</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">g</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ordered_genes</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">dist</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">dist</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+</section>
+<section id="embedding-helpers-t-sne-umap">
+<h2>Embedding helpers (t-SNE / UMAP)<a class="headerlink" href="#embedding-helpers-t-sne-umap" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Requires go3[viz] extras</span>
+<span class="n">genes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;CASP8&quot;</span><span class="p">,</span> <span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">]</span>
 
-<span class="c1"># Or use the integrated plot helper</span>
-<span class="n">genes</span><span class="p">,</span> <span class="n">emb</span><span class="p">,</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">plot_tsne_genes</span><span class="p">(</span>
-    <span class="n">genes</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">perplexity</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">annotate</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span>
+<span class="n">genes</span><span class="p">,</span> <span class="n">emb_tsne</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">tsne_genes</span><span class="p">(</span>
+    <span class="n">genes</span><span class="p">,</span>
+    <span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="p">,</span>
+    <span class="n">perplexity</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">n_iter</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">genes</span><span class="p">,</span> <span class="n">emb_umap</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">umap_genes</span><span class="p">(</span>
+    <span class="n">genes</span><span class="p">,</span>
+    <span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="p">,</span>
+    <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
 <span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="threading">
-<h2>Threading<a class="headerlink" href="#threading" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Limit the maximum number of threads used internally</span>
+<section id="quick-plotting-helpers">
+<h2>Quick plotting helpers<a class="headerlink" href="#quick-plotting-helpers" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">genes</span><span class="p">,</span> <span class="n">emb</span><span class="p">,</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">plot_tsne_genes</span><span class="p">(</span>
+    <span class="n">genes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;CASP8&quot;</span><span class="p">,</span> <span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">],</span>
+    <span class="n">ontology</span><span class="o">=</span><span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="n">similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">,</span>
+    <span class="n">perplexity</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">n_iter</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+    <span class="n">annotate</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;GO3 t-SNE&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Reuse generic plotting for custom embeddings</span>
+<span class="n">fig2</span><span class="p">,</span> <span class="n">ax2</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">plot_embedding</span><span class="p">(</span><span class="n">emb</span><span class="p">,</span> <span class="n">genes</span><span class="o">=</span><span class="n">genes</span><span class="p">,</span> <span class="n">annotate</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Custom plot&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="thread-control">
+<h2>Thread control<a class="headerlink" href="#thread-control" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Call once before heavy batch workloads</span>
 <span class="n">go3</span><span class="o">.</span><span class="n">set_num_threads</span><span class="p">(</span><span class="mi">8</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
-<section id="error-handling">
-<h2>Error Handling<a class="headerlink" href="#error-handling" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="p">:</span>
-    <span class="n">sim</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">compare_genes</span><span class="p">(</span><span class="s2">&quot;FAKEGENE&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;resnik&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-<span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Error:&quot;</span><span class="p">,</span> <span class="n">e</span><span class="p">)</span>
+<section id="basic-error-handling-patterns">
+<h2>Basic error handling patterns<a class="headerlink" href="#basic-error-handling-patterns" title="Link to this heading">¶</a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Unknown gene in compare_genes -&gt; ValueError</span>
+<span class="k">try</span><span class="p">:</span>
+    <span class="n">go3</span><span class="o">.</span><span class="n">compare_genes</span><span class="p">(</span><span class="s2">&quot;FAKE_GENE&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
+<span class="k">except</span> <span class="ne">ValueError</span> <span class="k">as</span> <span class="n">exc</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;compare_genes error:&quot;</span><span class="p">,</span> <span class="n">exc</span><span class="p">)</span>
+
+<span class="c1"># Missing term or cross-namespace term pairs return similarity 0.0</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">go3</span><span class="o">.</span><span class="n">semantic_similarity</span><span class="p">(</span><span class="s2">&quot;GO:9999999&quot;</span><span class="p">,</span> <span class="s2">&quot;GO:0006397&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">))</span>
 </pre></div>
 </div>
 </section>
@@ -355,7 +424,7 @@
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Semantic Similarity Functions</div>
+                <div class="title">Semantic Similarity</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -401,14 +470,17 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Examples</a><ul>
-<li><a class="reference internal" href="#basic-term-similarity">Basic Term Similarity</a></li>
-<li><a class="reference internal" href="#batch-similarity">Batch Similarity</a></li>
-<li><a class="reference internal" href="#term-set-similarity">Term Set Similarity</a></li>
-<li><a class="reference internal" href="#gene-to-gene-similarity">Gene-to-Gene Similarity</a></li>
-<li><a class="reference internal" href="#batch-gene-similarity">Batch Gene Similarity</a></li>
-<li><a class="reference internal" href="#gene-distance-matrix-and-t-sne">Gene Distance Matrix and t-SNE</a></li>
-<li><a class="reference internal" href="#threading">Threading</a></li>
-<li><a class="reference internal" href="#error-handling">Error Handling</a></li>
+<li><a class="reference internal" href="#setup">Setup</a></li>
+<li><a class="reference internal" href="#term-to-term-similarity">Term-to-term similarity</a></li>
+<li><a class="reference internal" href="#batch-term-similarity">Batch term similarity</a></li>
+<li><a class="reference internal" href="#term-set-similarity">Term-set similarity</a></li>
+<li><a class="reference internal" href="#gene-to-gene-similarity">Gene-to-gene similarity</a></li>
+<li><a class="reference internal" href="#batch-gene-similarity">Batch gene similarity</a></li>
+<li><a class="reference internal" href="#distance-matrix-for-downstream-analysis">Distance matrix for downstream analysis</a></li>
+<li><a class="reference internal" href="#embedding-helpers-t-sne-umap">Embedding helpers (t-SNE / UMAP)</a></li>
+<li><a class="reference internal" href="#quick-plotting-helpers">Quick plotting helpers</a></li>
+<li><a class="reference internal" href="#thread-control">Thread control</a></li>
+<li><a class="reference internal" href="#basic-error-handling-patterns">Basic error handling patterns</a></li>
 </ul>
 </li>
 </ul>

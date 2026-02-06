@@ -1,229 +1,167 @@
-Semantic Similarity Functions
-=============================
+Semantic Similarity
+===================
 
-Introduction
-------------
+GO3 supports term-level and gene-level semantic similarity across multiple methods.
 
-The `go3` library provides several semantic similarity functions for comparing Gene Ontology (GO) terms. These measures rely on two main principles:
+Quick reference
+---------------
 
-- Information Content (IC) derived from GO annotations.
-- Graph-based topological relationships in the GO hierarchy.
-
-Available Similarity Methods
------------------------------
-
-.. list-table:: **Similarity Methods for the `method` Parameter**
+.. list-table:: Similarity methods (`method` argument)
    :header-rows: 1
 
-   * - Method Name
-     - String for ``method``
-     - Description
+   * - Method
+     - Key
+     - Family
+     - Typical range
    * - Resnik
      - ``resnik``
-     - Information content of the most informative common ancestor (MICA)
+     - IC-based
+     - ``>= 0``
    * - Lin
      - ``lin``
-     - Normalized Resnik similarity
-   * - Jiang-Conrath
+     - IC-based
+     - ``[0, 1]``
+   * - Jiang-Conrath similarity
      - ``jc``
-     - Inverse of Jiang-Conrath distance
+     - IC-based
+     - ``>= 0``
    * - SimRel
      - ``simrel``
-     - Lin similarity with exponential relevance factor
+     - IC-based
+     - ``[0, 1]``
    * - Information Coefficient
      - ``iccoef``
-     - Normalized by minimum IC of the two terms
+     - IC-based
+     - ``>= 0``
    * - GraphIC
      - ``graphic``
-     - IC divided by maximum graph depth
+     - Hybrid
+     - ``>= 0``
    * - Wang
      - ``wang``
-     - Graph-based semantic similarity (Wang et al.)
+     - Topological
+     - ``[0, 1]``
    * - TopoICSim
      - ``topoicsim``
-     - Topological and IC-based hybrid similarity
+     - Hybrid
+     - ``[0, 1]``
 
-You can use these strings as the ``method`` parameter in all `go3` similarity functions:
+Term-level APIs
+---------------
 
-.. code-block:: python
+``semantic_similarity(id1, id2, method, counter)``
 
-   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
-   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "topoicsim", counter)
+- Computes one score for one term pair.
+- Raises ``ValueError`` if ``method`` is unknown.
 
-Common workflows
-----------------
+``batch_similarity(list1, list2, method, counter)``
 
-.. code-block:: python
+- Computes one score per aligned pair.
+- Requires ``len(list1) == len(list2)``.
+- Raises ``ValueError`` if list sizes differ or method is unknown.
 
-   import go3
-   go3.load_go_terms()
-   annots = go3.load_gaf("goa_human.gaf")
-   counter = go3.build_term_counter(annots)
+Set-level API
+-------------
 
-   # Term-to-term similarity
-   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
+``termset_similarity(terms1, terms2, term_similarity="lin", groupwise="bma", counter=...)``
 
-   # Term set similarity (groupwise)
-   sim_set = go3.termset_similarity(
-       ["GO:0006397"], ["GO:0008380"], term_similarity="lin", groupwise="bma", counter=counter
-   )
+Groupwise strategies:
 
-   # Information Content (IC) of a term
-   ic = go3.term_ic("GO:0006397", counter)
+- ``bma``
+- ``max``
+- ``avg``
+- ``hausdorff``
+- ``simgic``
 
-   # Batch gene similarity
-   pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1")]
-   scores = go3.compare_gene_pairs_batch(pairs, "BP", "lin", "bma", counter)
+Notes:
 
-Similarity Measures
---------------------
+- ``simgic`` is set-based and does not use the pairwise method in the same way as other strategies.
+- For empty sets, GO3 returns ``0.0``.
 
-Resnik Similarity
-~~~~~~~~~~~~~~~~~
+Gene-level APIs
+---------------
 
-The Resnik similarity :cite:p:`Resnik1995` measures the similarity between two GO terms as the information content (IC) of their Most Informative Common Ancestor (MICA):
+``compare_genes(gene1, gene2, ontology, similarity, groupwise, counter)``
 
-.. math::
+- Ontology must be one of ``BP``, ``MF``, ``CC``.
+- Raises ``ValueError`` if either gene is missing from loaded annotations.
 
-    \mathrm{Sim}_{Resnik}(t_1, t_2) = IC(\mathrm{MICA}(t_1, t_2))
+``compare_gene_pairs_batch(pairs, ontology, similarity, groupwise, counter)``
 
-Lin Similarity
-~~~~~~~~~~~~~~
+- Fast path for large pair lists.
+- Missing/empty per-gene term mappings yield ``0.0`` for those pairs.
 
-Lin's similarity :cite:p:`Lin1998` normalizes Resnik's similarity by the sum of the ICs of both terms:
+Practical behavior and edge cases
+---------------------------------
 
-.. math::
+- Invalid or missing GO IDs in similarity calls generally return ``0.0``.
+- Terms from different namespaces produce ``0.0``.
+- For normalized methods (for example ``lin`` and ``wang``), self-similarity is typically near 1.0.
 
-    \mathrm{Sim}_{Lin}(t_1, t_2) = \frac{2 \times IC(\mathrm{MICA}(t_1, t_2))}{IC(t_1) + IC(t_2)}
+Distance-oriented workflow
+--------------------------
 
-Jiang-Conrath Similarity
-~~~~~~~~~~~~~~~~~~~~~~~~
+For clustering/embedding workflows, use:
 
-Jiang and Conrath define a distance between two GO terms based on IC :cite:p:`JiangConrath1997`:
+- ``gene_distance_matrix``
+- ``tsne_genes``
+- ``umap_genes``
 
-.. math::
+These functions convert similarity to distance using ``distance_transform`` rules (see :doc:`guide/visualization`).
 
-    d_{JC} = IC(t_1) + IC(t_2) - 2 \times IC(\mathrm{MICA})
+Mathematical definitions
+------------------------
 
-Similarity is then calculated as:
-
-.. math::
-
-    \mathrm{Sim}_{JC} = \frac{1}{d_{JC}}
-
-SimRel Similarity
-~~~~~~~~~~~~~~~~~
-
-The SimRel measure :cite:p:`Schlicker2006` combines Lin's similarity with an exponential relevance factor:
-
-.. math::
-
-    \mathrm{Sim}_{Rel} = \left( \frac{2 \times IC(\mathrm{MICA})}{IC(t_1) + IC(t_2)} \right) \times \left(1 - e^{-IC(\mathrm{MICA})}\right)
-
-Information Coefficient
-~~~~~~~~~~~~~~~~~~~~~~~
-
-Li et al. :cite:p:`Li2010` propose a normalization using the minimum IC of the two terms:
-
-.. math::
-
-    \mathrm{IC\_coef} = \frac{IC(\mathrm{MICA})}{\min(IC(t_1), IC(t_2))}
-
-GraphIC Similarity
-~~~~~~~~~~~~~~~~~~
-
-The GraphIC measure uses the maximum graph depth of the two terms to scale the similarity:
-
-.. math::
-
-    \mathrm{GraphIC} = \frac{IC(\mathrm{MICA})}{\max(\mathrm{depth}(t_1), \mathrm{depth}(t_2)) + 1}
-
-Wang Similarity
-~~~~~~~~~~~~~~~
-
-The Wang similarity :cite:p:`Wang2007` considers the graph structure of GO by propagating weights from each term through its ancestors.
-
-Each ancestor node receives a weight based on the decay factor (usually :math:`w = 0.8`). The similarity is computed as:
-
-.. math::
-
-    \mathrm{Sim}_{Wang}(t_1, t_2) =
-    \frac{
-        \sum_{x \in A(t_1) \cap A(t_2)} \left( S_{t_1}(x) + S_{t_2}(x) \right)
-    }{
-        SV(t_1) + SV(t_2)
-    }
-
-where
-
-- :math:`A(t)` is the set of ancestors of term :math:`t` (including itself),
-- :math:`S_t(x)` is the semantic contribution of ancestor :math:`x` to term :math:`t`,
-- :math:`SV(t)` is the total semantic value of term :math:`t`.
-
-The key idea is that ancestors closer to the term contribute more to its meaning than distant ancestors, capturing the hierarchical semantics of the ontology without relying on external annotation statistics.
-
-TopoICSim Similarity
-~~~~~~~~~~~~~~~~~~~~
-
-The TopoICSim similarity :cite:p:`Ehsani2016` is a hybrid measure that combines information content and the topology of the GO graph. It is defined as:
-
-.. math::
-
-    \mathrm{Sim}_{TopoICSim}(t_1, t_2) = 1 - \frac{2}{\pi} \arctan \left( \min_{x \in DCA(t_1, t_2)} \frac{wSP(t_1, x) + wSP(t_2, x)}{wLP(x, r)} \right)
-
-where
-
-- :math:`DCA(t_1, t_2)` is the set of disjunctive common ancestors of :math:`t_1` and :math:`t_2`,
-- :math:`wSP(t, x)` is the weighted shortest path (sum of inverse ICs) from :math:`t` to ancestor :math:`x`,
-- :math:`wLP(x, r)` is the weighted longest path from :math:`x` to a root :math:`r` in the ontology.
-
-This measure captures both the specificity of the common ancestors and the topological distance between terms, providing a robust similarity score.
-
-Groupwise Similarity Measures
------------------------------
-
-When comparing sets of terms (e.g., genes annotated with multiple GO terms), specific strategies are needed to combine pairwise similarities or compute set-level similarity.
-
-Best-Match Average (BMA)
-~~~~~~~~~~~~~~~~~~~~~~~~
-Calculates the average of the best matches for each term in both sets.
-
-Maximum (MAX)
-~~~~~~~~~~~~~
-Takes the maximum similarity score found between any pair of terms from the two sets.
-
-Average (AVG)
-~~~~~~~~~~~~~
-Computes the average of all pairwise similarity scores between the two sets.
-
-Hausdorff Similarity
-~~~~~~~~~~~~~~~~~~~~
-Computes the "worst" of the best matches, ensuring that every term in one set has a reasonably good match in the other. 
-
-.. math::
-
-    \mathrm{Sim}_{Hausdorff}(A, B) = \min \left( \min_{a \in A} \max_{b \in B} \mathrm{Sim}(a, b), \min_{b \in B} \max_{a \in A} \mathrm{Sim}(a, b) \right)
-
-SimGIC
+Resnik
 ~~~~~~
-A graph-based Jaccard Index weighted by Information Content (IC). It is defined directly on the sets of terms (ancestors) rather than combining pairwise scores.
 
 .. math::
 
-    \mathrm{Sim}_{SimGIC}(A, B) = \frac{\sum_{t \in Anc(A) \cap Anc(B)} IC(t)}{\sum_{t \in Anc(A) \cup Anc(B)} IC(t)}
+   \mathrm{Sim}_{Resnik}(t_1, t_2) = IC(\mathrm{MICA}(t_1, t_2))
 
-where :math:`Anc(A)` is the union of ancestors of all terms in set :math:`A`.
+Lin
+~~~
 
-Batch Computation
------------------
+.. math::
 
-All these similarity measures are available in efficient batch versions in the `go3` library, taking full advantage of Rust’s parallelism.
+   \mathrm{Sim}_{Lin}(t_1, t_2) = \frac{2\,IC(\mathrm{MICA}(t_1, t_2))}{IC(t_1)+IC(t_2)}
+
+Jiang-Conrath (distance-derived similarity)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. math::
+
+   d_{JC} = IC(t_1) + IC(t_2) - 2\,IC(\mathrm{MICA})
+
+.. math::
+
+   \mathrm{Sim}_{JC} = \frac{1}{1 + d_{JC}}
+
+SimRel
+~~~~~~
+
+.. math::
+
+   \mathrm{Sim}_{Rel} = \left(\frac{2\,IC(\mathrm{MICA})}{IC(t_1)+IC(t_2)}\right)\left(1-e^{-IC(\mathrm{MICA})}\right)
+
+Wang
+~~~~
+
+Wang similarity uses weighted ancestor contributions from GO graph topology and does not require annotation IC frequencies in the same way as IC-only methods.
+
+TopoICSim
+~~~~~~~~~
+
+TopoICSim combines topology-aware paths and IC-derived weights to produce a bounded similarity.
 
 Bibliography
 ------------
 
 .. bibliography::
    :style: unsrt
+
+API reference
+-------------
 
 .. automodule:: go3
    :members: term_ic, semantic_similarity, batch_similarity, termset_similarity, compare_genes, compare_gene_pairs_batch

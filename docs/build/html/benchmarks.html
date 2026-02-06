@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Ontology" href="ontology.html"><link rel="prev" title="Visualization (t-SNE / UMAP)" href="guide/visualization.html">
+<link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Ontology API" href="ontology.html"><link rel="prev" title="Visualization (t-SNE / UMAP)" href="guide/visualization.html">
         <link rel="prefetch" href="_static/avatar-go3.png" as="image">
 
     <link rel="shortcut icon" href="_static/avatar-go3.png"><!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
@@ -201,26 +201,29 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-ontology">Initializing the Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="introduction.html#initializing-the-annotations">Initializing the annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#requirements">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#minimal-workflow">Minimal workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#core-concepts">Core concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#next-steps">Next steps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guide/visualization.html">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Benchmarks</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ontology.html">Ontology API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="goterm.html">GOTerm Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="annotations.html">Annotations and IC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="utilities.html">Utilities and Advanced APIs</a></li>
 </ul>
 
 </div>
@@ -261,18 +264,163 @@
         <article role="main" id="furo-main-content">
           <section id="benchmarks">
 <h1>Benchmarks<a class="headerlink" href="#benchmarks" title="Link to this heading">¶</a></h1>
-<p>GO3 is designed to be fast and memory-efficient. The plots below compare GO3 against <code class="docutils literal notranslate"><span class="pre">goatools</span></code> for common workloads.</p>
-<section id="ontology-annotation-loading">
-<h2>Ontology + annotation loading<a class="headerlink" href="#ontology-annotation-loading" title="Link to this heading">¶</a></h2>
-<p><img alt="Ontology loading time and peak memory" src="_images/benchmark_loading_time_memory.png" /></p>
+<p>GO3 is a Rust-native backend with Python bindings. Benchmarking should therefore distinguish between:</p>
+<ul class="simple">
+<li><p>end-to-end preprocessing cost (ontology + annotations + IC)</p></li>
+<li><p>high-throughput semantic similarity workloads</p></li>
+</ul>
+<p>The benchmark suite in this repository is implemented in:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">scripts/benchmark_go3vsgoatools.py</span></code></p></li>
+</ul>
+<section id="scope-and-goals">
+<h2>Scope and goals<a class="headerlink" href="#scope-and-goals" title="Link to this heading">¶</a></h2>
+<p>The benchmark is designed to answer practical questions for bioinformatics pipelines:</p>
+<ol class="arabic simple">
+<li><p>How expensive is initialization (<code class="docutils literal notranslate"><span class="pre">load_go_terms</span></code>, <code class="docutils literal notranslate"><span class="pre">load_gaf</span></code>, <code class="docutils literal notranslate"><span class="pre">build_term_counter</span></code>)?</p></li>
+<li><p>How does throughput scale for batch term similarity?</p></li>
+<li><p>How does throughput scale for batch gene similarity (BMA)?</p></li>
+<li><p>What happens in matrix-like workloads (all-vs-all gene similarity)?</p></li>
+</ol>
 </section>
-<section id="batch-go-term-similarity">
-<h2>Batch GO term similarity<a class="headerlink" href="#batch-go-term-similarity" title="Link to this heading">¶</a></h2>
-<p><img alt="Batch term similarity throughput" src="_images/benchmark_batch_similarity.png" /></p>
+<section id="compared-libraries">
+<h2>Compared libraries<a class="headerlink" href="#compared-libraries" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">go3</span></code>: this package (Rust core, Python API)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">goatools</span></code>: Python-only baseline in the same runtime ecosystem</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GOSemSim</span></code> (optional): informative reference only</p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">GOSemSim</span></code> is optional because it runs in R and can differ in ontology/annotation handling details, which limits strict apples-to-apples comparisons.</p>
 </section>
-<section id="batch-gene-similarity">
-<h2>Batch gene similarity<a class="headerlink" href="#batch-gene-similarity" title="Link to this heading">¶</a></h2>
-<p><img alt="Batch gene similarity throughput" src="_images/benchmark_gene_batch_similarity.png" /></p>
+<section id="methodology-summary">
+<h2>Methodology summary<a class="headerlink" href="#methodology-summary" title="Link to this heading">¶</a></h2>
+<section id="loading-benchmark">
+<h3>Loading benchmark<a class="headerlink" href="#loading-benchmark" title="Link to this heading">¶</a></h3>
+<p>Measured in isolated subprocesses per library to avoid cache carry-over:</p>
+<ol class="arabic simple">
+<li><p>load ontology</p></li>
+<li><p>load annotations</p></li>
+<li><p>build term statistics / IC structures</p></li>
+</ol>
+<p>Reported metrics:</p>
+<ul class="simple">
+<li><p>total wall-clock time</p></li>
+<li><p>peak resident memory (RSS)</p></li>
+</ul>
+</section>
+<section id="pair-benchmarks-terms-and-genes">
+<h3>Pair benchmarks (terms and genes)<a class="headerlink" href="#pair-benchmarks-terms-and-genes" title="Link to this heading">¶</a></h3>
+<p>For each input size <code class="docutils literal notranslate"><span class="pre">n</span></code>:</p>
+<ul class="simple">
+<li><p>same sampled pair set is used by all libraries</p></li>
+<li><p>warmup runs are excluded from timing</p></li>
+<li><p>median over repeated timed runs is reported</p></li>
+<li><p>throughput (<code class="docutils literal notranslate"><span class="pre">pairs/second</span></code>) is computed</p></li>
+<li><p>speedup (<code class="docutils literal notranslate"><span class="pre">goatools_time</span> <span class="pre">/</span> <span class="pre">go3_time</span></code>) is computed</p></li>
+</ul>
+<p>The benchmark supports independent size grids for term and gene workloads:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">--term-pair-sizes</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--gene-pair-sizes</span></code></p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">--pair-sizes</span></code> remains available as a legacy shortcut to set both to the same values.</p>
+</section>
+<section id="all-vs-all-gene-benchmark">
+<h3>All-vs-all gene benchmark<a class="headerlink" href="#all-vs-all-gene-benchmark" title="Link to this heading">¶</a></h3>
+<p>For each cohort size <code class="docutils literal notranslate"><span class="pre">g</span></code>:</p>
+<ul class="simple">
+<li><p>build all unique gene pairs: <code class="docutils literal notranslate"><span class="pre">g*(g-1)/2</span></code></p></li>
+<li><p>compare <code class="docutils literal notranslate"><span class="pre">go3.compare_gene_pairs_batch</span></code> vs a goatools-based BMA implementation</p></li>
+<li><p>report median time, throughput, and speedup</p></li>
+</ul>
+<p>This benchmark emphasizes realistic quadratic workloads often seen in clustering, network construction, or cohort-level exploratory analyses.</p>
+</section>
+</section>
+<section id="reproducible-commands">
+<h2>Reproducible commands<a class="headerlink" href="#reproducible-commands" title="Link to this heading">¶</a></h2>
+<p>Run from an environment where <code class="docutils literal notranslate"><span class="pre">go3</span></code> and <code class="docutils literal notranslate"><span class="pre">goatools</span></code> are installed (for example <code class="docutils literal notranslate"><span class="pre">./venv/bin/python</span></code> in this repo).</p>
+<section id="full-benchmark-recommended">
+<h3>Full benchmark (recommended)<a class="headerlink" href="#full-benchmark-recommended" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./venv/bin/python<span class="w"> </span>scripts/benchmark_go3vsgoatools.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--namespace<span class="w"> </span>BP<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--term-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gene-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--term-pair-sizes<span class="w"> </span><span class="m">1000</span>,5000,20000<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gene-pair-sizes<span class="w"> </span><span class="m">25</span>,50,100<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--matrix-gene-sizes<span class="w"> </span><span class="m">8</span>,12<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--warmup<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--repeats<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--threads<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--outdir<span class="w"> </span>imgs
+</pre></div>
+</div>
+</section>
+<section id="paper-ready-profile-recommended-for-manuscript-figures">
+<h3>Paper-ready profile (recommended for manuscript figures)<a class="headerlink" href="#paper-ready-profile-recommended-for-manuscript-figures" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./venv/bin/python<span class="w"> </span>scripts/benchmark_go3vsgoatools.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--paper-ready<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--namespace<span class="w"> </span>BP<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--term-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gene-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--outdir<span class="w"> </span>imgs
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">--paper-ready</span></code> enables:</p>
+<ul class="simple">
+<li><p>publication-oriented size profile</p></li>
+<li><p>more robust timing repeats/warmup</p></li>
+<li><p>high-resolution figures (<code class="docutils literal notranslate"><span class="pre">.png</span></code>) and vector copies (<code class="docutils literal notranslate"><span class="pre">.svg</span></code>)</p></li>
+<li><p>extra environment metadata in <code class="docutils literal notranslate"><span class="pre">benchmark_results.json</span></code></p></li>
+</ul>
+</section>
+<section id="include-gosemsim-optional">
+<h3>Include GOSemSim (optional)<a class="headerlink" href="#include-gosemsim-optional" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>./venv/bin/python<span class="w"> </span>scripts/benchmark_go3vsgoatools.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--include-gosemsim<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--gosemsim-measure<span class="w"> </span>wang<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--r-libs-user<span class="w"> </span>./.r_libs<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--outdir<span class="w"> </span>imgs
+</pre></div>
+</div>
+</section>
+</section>
+<section id="output-artifacts">
+<h2>Output artifacts<a class="headerlink" href="#output-artifacts" title="Link to this heading">¶</a></h2>
+<p>The script writes:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_loading_time_memory.png</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_batch_similarity.png</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_gene_batch_similarity.png</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_all_vs_all_gene_similarity.png</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_results.json</span></code></p></li>
+</ul>
+<p>The JSON contains raw runs, medians, throughput, and speedup summaries for downstream analysis or figure regeneration.</p>
+<p>When using <code class="docutils literal notranslate"><span class="pre">--paper-ready</span></code>, each benchmark figure is also exported as <code class="docutils literal notranslate"><span class="pre">.svg</span></code>.</p>
+</section>
+<section id="current-repository-figures">
+<h2>Current repository figures<a class="headerlink" href="#current-repository-figures" title="Link to this heading">¶</a></h2>
+<p>The repository usually includes the latest generated figures:</p>
+<p><img alt="Loading time and memory" src="_images/benchmark_loading_time_memory.png" /></p>
+<p><img alt="Batch term similarity" src="_images/benchmark_batch_similarity.png" /></p>
+<p><img alt="Batch gene similarity" src="_images/benchmark_gene_batch_similarity.png" /></p>
+<p><img alt="All-vs-all gene similarity" src="_images/benchmark_all_vs_all_gene_similarity.png" /></p>
+</section>
+<section id="reading-the-plots">
+<h2>Reading the plots<a class="headerlink" href="#reading-the-plots" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Single panel: absolute runtime curves (log-scale where appropriate)</p></li>
+<li><p>A speedup summary text box is included inside the plot</p></li>
+<li><p>Speedup &gt; 1.0 means <code class="docutils literal notranslate"><span class="pre">go3</span></code> is faster</p></li>
+</ul>
+<p>For very small <code class="docutils literal notranslate"><span class="pre">n</span></code>, Python overhead can dominate and reduce visible speedup. The practical signal is in medium/large batches and all-vs-all scenarios.</p>
+</section>
+<section id="fairness-notes">
+<h2>Fairness notes<a class="headerlink" href="#fairness-notes" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>Benchmarks use the same ontology and GAF inputs for all compared methods.</p></li>
+<li><p>Gene-level goatools comparisons rely on an explicit BMA implementation, because goatools does not provide equivalent high-level gene batch APIs.</p></li>
+<li><p>Candidate selection favors biologically informative terms/genes (non-trivial IC/depth and sufficiently annotated genes), which better reflects real downstream analyses.</p></li>
+</ul>
 </section>
 </section>
 
@@ -286,7 +434,7 @@
                 <div class="context">
                   <span>Next</span>
                 </div>
-                <div class="title">Ontology</div>
+                <div class="title">Ontology API</div>
               </div>
               <svg class="furo-related-icon"><use href="#svg-arrow-right"></use></svg>
             </a>
@@ -332,9 +480,24 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Benchmarks</a><ul>
-<li><a class="reference internal" href="#ontology-annotation-loading">Ontology + annotation loading</a></li>
-<li><a class="reference internal" href="#batch-go-term-similarity">Batch GO term similarity</a></li>
-<li><a class="reference internal" href="#batch-gene-similarity">Batch gene similarity</a></li>
+<li><a class="reference internal" href="#scope-and-goals">Scope and goals</a></li>
+<li><a class="reference internal" href="#compared-libraries">Compared libraries</a></li>
+<li><a class="reference internal" href="#methodology-summary">Methodology summary</a><ul>
+<li><a class="reference internal" href="#loading-benchmark">Loading benchmark</a></li>
+<li><a class="reference internal" href="#pair-benchmarks-terms-and-genes">Pair benchmarks (terms and genes)</a></li>
+<li><a class="reference internal" href="#all-vs-all-gene-benchmark">All-vs-all gene benchmark</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#reproducible-commands">Reproducible commands</a><ul>
+<li><a class="reference internal" href="#full-benchmark-recommended">Full benchmark (recommended)</a></li>
+<li><a class="reference internal" href="#paper-ready-profile-recommended-for-manuscript-figures">Paper-ready profile (recommended for manuscript figures)</a></li>
+<li><a class="reference internal" href="#include-gosemsim-optional">Include GOSemSim (optional)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#output-artifacts">Output artifacts</a></li>
+<li><a class="reference internal" href="#current-repository-figures">Current repository figures</a></li>
+<li><a class="reference internal" href="#reading-the-plots">Reading the plots</a></li>
+<li><a class="reference internal" href="#fairness-notes">Fairness notes</a></li>
 </ul>
 </li>
 </ul>

@@ -3,7 +3,7 @@
   <head><meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
-<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Benchmarks" href="../benchmarks.html"><link rel="prev" title="Performance and parallelism" href="performance.html">
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html"><link rel="next" title="Benchmarks" href="../benchmarks.html"><link rel="prev" title="Performance Guide" href="performance.html">
         <link rel="prefetch" href="../_static/avatar-go3.png" as="image">
 
     <link rel="shortcut icon" href="../_static/avatar-go3.png"><!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
@@ -201,26 +201,29 @@
   <input type="hidden" name="area" value="default">
 </form>
 <div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
-  <p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+  <p class="caption" role="heading"><span class="caption-text">Getting Started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../introduction.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../introduction.html#initializing-the-ontology">Initializing the Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../introduction.html#initializing-the-annotations">Initializing the annotations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#requirements">Requirements</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#minimal-workflow">Minimal workflow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#core-concepts">Core concepts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../introduction.html#next-steps">Next steps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../examples.html">Examples</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guide</span></p>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="../similarity.html">Semantic Similarity Functions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="performance.html">Performance and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../similarity.html">Semantic Similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="performance.html">Performance Guide</a></li>
 <li class="toctree-l1 current current-page"><a class="current reference internal" href="#">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../benchmarks.html">Benchmarks</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">API reference</span></p>
+<p class="caption" role="heading"><span class="caption-text">API Reference</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="../ontology.html">Ontology</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../goterm.html">GOTerm</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../annotations.html">Annotations</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../utilities.html">Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../ontology.html">Ontology API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../goterm.html">GOTerm Object</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../annotations.html">Annotations and IC</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../utilities.html">Utilities and Advanced APIs</a></li>
 </ul>
 
 </div>
@@ -261,37 +264,129 @@
         <article role="main" id="furo-main-content">
           <section id="visualization-t-sne-umap">
 <h1>Visualization (t-SNE / UMAP)<a class="headerlink" href="#visualization-t-sne-umap" title="Link to this heading">¶</a></h1>
-<p>GO3 can build gene-to-gene distance matrices and compute t-SNE/UMAP embeddings using precomputed distances.</p>
-<section id="install-visualization-extras">
-<h2>Install visualization extras<a class="headerlink" href="#install-visualization-extras" title="Link to this heading">¶</a></h2>
+<p>GO3 can build gene-to-gene distance matrices from semantic similarity and use them for embedding.</p>
+<section id="install-extras">
+<h2>Install extras<a class="headerlink" href="#install-extras" title="Link to this heading">¶</a></h2>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>go3<span class="o">[</span>viz<span class="o">]</span>
 </pre></div>
 </div>
 </section>
-<section id="distance-matrix-embedding">
-<h2>Distance matrix + embedding<a class="headerlink" href="#distance-matrix-embedding" title="Link to this heading">¶</a></h2>
+<section id="end-to-end-example">
+<h2>End-to-end example<a class="headerlink" href="#end-to-end-example" title="Link to this heading">¶</a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
 
-<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">()</span>
+<span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">(</span><span class="s2">&quot;go-basic.obo&quot;</span><span class="p">)</span>
 <span class="n">annots</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">load_gaf</span><span class="p">(</span><span class="s2">&quot;goa_human.gaf&quot;</span><span class="p">)</span>
 <span class="n">counter</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">build_term_counter</span><span class="p">(</span><span class="n">annots</span><span class="p">)</span>
 
-<span class="n">genes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">]</span>
-<span class="n">genes</span><span class="p">,</span> <span class="n">dist</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">gene_distance_matrix</span><span class="p">(</span><span class="n">genes</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">)</span>
-<span class="n">genes</span><span class="p">,</span> <span class="n">emb_tsne</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">tsne_genes</span><span class="p">(</span><span class="n">genes</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">perplexity</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
-<span class="n">genes</span><span class="p">,</span> <span class="n">emb_umap</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">umap_genes</span><span class="p">(</span><span class="n">genes</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+<span class="n">genes</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;TP53&quot;</span><span class="p">,</span> <span class="s2">&quot;BRCA1&quot;</span><span class="p">,</span> <span class="s2">&quot;EGFR&quot;</span><span class="p">,</span> <span class="s2">&quot;AKT1&quot;</span><span class="p">,</span> <span class="s2">&quot;CASP8&quot;</span><span class="p">]</span>
+
+<span class="c1"># 1) Distance matrix from GO similarity</span>
+<span class="n">ordered_genes</span><span class="p">,</span> <span class="n">dist</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">gene_distance_matrix</span><span class="p">(</span>
+    <span class="n">genes</span><span class="p">,</span>
+    <span class="n">ontology</span><span class="o">=</span><span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="n">similarity</span><span class="o">=</span><span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="n">groupwise</span><span class="o">=</span><span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="o">=</span><span class="n">counter</span><span class="p">,</span>
+    <span class="n">distance_transform</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># 2) Embeddings (precomputed distance)</span>
+<span class="n">ordered_genes</span><span class="p">,</span> <span class="n">emb_tsne</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">tsne_genes</span><span class="p">(</span>
+    <span class="n">genes</span><span class="p">,</span>
+    <span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="p">,</span>
+    <span class="n">distance_transform</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">perplexity</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">n_iter</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">ordered_genes</span><span class="p">,</span> <span class="n">emb_umap</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">umap_genes</span><span class="p">(</span>
+    <span class="n">genes</span><span class="p">,</span>
+    <span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="p">,</span>
+    <span class="n">distance_transform</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">min_dist</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+<span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="plot-helpers">
 <h2>Plot helpers<a class="headerlink" href="#plot-helpers" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">genes</span><span class="p">,</span> <span class="n">emb</span><span class="p">,</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">plot_tsne_genes</span><span class="p">(</span>
-    <span class="n">genes</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">perplexity</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">annotate</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ordered_genes</span><span class="p">,</span> <span class="n">emb</span><span class="p">,</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">plot_tsne_genes</span><span class="p">(</span>
+    <span class="n">genes</span><span class="p">,</span>
+    <span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="p">,</span>
+    <span class="n">perplexity</span><span class="o">=</span><span class="mf">2.0</span><span class="p">,</span>
+    <span class="n">n_iter</span><span class="o">=</span><span class="mi">500</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+    <span class="n">annotate</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;GO3 t-SNE&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">genes</span><span class="p">,</span> <span class="n">emb</span><span class="p">,</span> <span class="n">fig</span><span class="p">,</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">plot_umap_genes</span><span class="p">(</span>
-    <span class="n">genes</span><span class="p">,</span> <span class="s2">&quot;BP&quot;</span><span class="p">,</span> <span class="s2">&quot;lin&quot;</span><span class="p">,</span> <span class="s2">&quot;bma&quot;</span><span class="p">,</span> <span class="n">counter</span><span class="p">,</span> <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">15</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span> <span class="n">annotate</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span>
+<span class="n">ordered_genes</span><span class="p">,</span> <span class="n">emb_u</span><span class="p">,</span> <span class="n">fig_u</span><span class="p">,</span> <span class="n">ax_u</span> <span class="o">=</span> <span class="n">go3</span><span class="o">.</span><span class="n">plot_umap_genes</span><span class="p">(</span>
+    <span class="n">genes</span><span class="p">,</span>
+    <span class="s2">&quot;BP&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;lin&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;bma&quot;</span><span class="p">,</span>
+    <span class="n">counter</span><span class="p">,</span>
+    <span class="n">n_neighbors</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+    <span class="n">min_dist</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">random_state</span><span class="o">=</span><span class="mi">42</span><span class="p">,</span>
+    <span class="n">annotate</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="s2">&quot;GO3 UMAP&quot;</span><span class="p">,</span>
 <span class="p">)</span>
+</pre></div>
+</div>
+<p>Example output using plot helpers:</p>
+<p><img alt="t-SNE helper example" src="../_images/plot_helper_tsne_example.png" /></p>
+<p><img alt="UMAP helper example" src="../_images/plot_helper_umap_example.png" /></p>
+</section>
+<section id="distance-transforms">
+<h2>Distance transforms<a class="headerlink" href="#distance-transforms" title="Link to this heading">¶</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">gene_distance_matrix</span></code> supports:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">auto</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">one_minus</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_minus</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reciprocal</span></code></p></li>
+</ul>
+<p><code class="docutils literal notranslate"><span class="pre">auto</span></code> is usually the best choice:</p>
+<ul class="simple">
+<li><p>normalized similarities (<code class="docutils literal notranslate"><span class="pre">lin</span></code>, <code class="docutils literal notranslate"><span class="pre">wang</span></code>, <code class="docutils literal notranslate"><span class="pre">simrel</span></code>, <code class="docutils literal notranslate"><span class="pre">topoicsim</span></code>) use a <code class="docutils literal notranslate"><span class="pre">1</span> <span class="pre">-</span> <span class="pre">sim</span></code> style transform</p></li>
+<li><p>non-normalized similarities use a max-based transform</p></li>
+</ul>
+</section>
+<section id="parameter-constraints">
+<h2>Parameter constraints<a class="headerlink" href="#parameter-constraints" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">tsne_genes</span></code>: <code class="docutils literal notranslate"><span class="pre">perplexity</span> <span class="pre">&lt;</span> <span class="pre">number_of_genes</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">umap_genes</span></code>: <code class="docutils literal notranslate"><span class="pre">n_neighbors</span> <span class="pre">&lt;</span> <span class="pre">number_of_genes</span></code></p></li>
+<li><p>both require at least 2 genes</p></li>
+</ul>
+</section>
+<section id="compare-multiple-settings">
+<h2>Compare multiple settings<a class="headerlink" href="#compare-multiple-settings" title="Link to this heading">¶</a></h2>
+<p>The repository includes a sweep demo script:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/embedding_sweep_demo.py<span class="w"> </span>--n-genes<span class="w"> </span><span class="m">80</span><span class="w"> </span>--embed<span class="w"> </span>both
+</pre></div>
+</div>
+<p>Custom sweep:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/embedding_sweep_demo.py<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--compare<span class="w"> </span>both<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--sweep-ontologies<span class="w"> </span>BP,MF,CC<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--sweep-similarities<span class="w"> </span>resnik,lin,wang,topoicsim<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--distance-transform<span class="w"> </span>auto<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--out-prefix<span class="w"> </span>embedding_sweep
 </pre></div>
 </div>
 </section>
@@ -318,7 +413,7 @@
                   <span>Previous</span>
                 </div>
                 
-                <div class="title">Performance and parallelism</div>
+                <div class="title">Performance Guide</div>
                 
               </div>
             </a>
@@ -353,9 +448,12 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Visualization (t-SNE / UMAP)</a><ul>
-<li><a class="reference internal" href="#install-visualization-extras">Install visualization extras</a></li>
-<li><a class="reference internal" href="#distance-matrix-embedding">Distance matrix + embedding</a></li>
+<li><a class="reference internal" href="#install-extras">Install extras</a></li>
+<li><a class="reference internal" href="#end-to-end-example">End-to-end example</a></li>
 <li><a class="reference internal" href="#plot-helpers">Plot helpers</a></li>
+<li><a class="reference internal" href="#distance-transforms">Distance transforms</a></li>
+<li><a class="reference internal" href="#parameter-constraints">Parameter constraints</a></li>
+<li><a class="reference internal" href="#compare-multiple-settings">Compare multiple settings</a></li>
 </ul>
 </li>
 </ul>
