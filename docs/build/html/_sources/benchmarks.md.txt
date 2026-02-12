@@ -1,81 +1,90 @@
 # Benchmarks
 
-GO3 is a Rust-native backend with Python bindings. Benchmarking should therefore distinguish between:
+GO3 was benchmarked against [goatools](https://github.com/tanghaibao/goatools) (Python) and [GOSemSim](https://bioconductor.org/packages/GOSemSim/) (R/Bioconductor) on realistic workloads using the human GO annotation corpus (Biological Process, Lin similarity, BMA groupwise).
 
-- end-to-end preprocessing cost (ontology + annotations + IC)
-- high-throughput semantic similarity workloads
+## Summary
 
-The benchmark suite in this repository is implemented in:
+| Workload | GO3 vs goatools | GO3 vs GOSemSim |
+|---|---|---|
+| Loading + IC computation | ~1.6x faster, ~2.9x less memory | — |
+| Batch term similarity (up to 20k pairs) | ~8.5x faster | comparable |
+| Batch gene similarity (up to 150 pairs) | ~24x faster | ~3x faster |
+| All-vs-all genes (up to 16 genes) | ~22x faster | ~3x faster |
 
-- `scripts/benchmark_go3vsgoatools.py`
+The speedup grows with workload size. Exact numbers depend on hardware and dataset versions; see the plots below for detailed scaling behavior.
 
-## Scope and goals
+## Loading and memory
 
-The benchmark is designed to answer practical questions for bioinformatics pipelines:
+![Loading time and memory](../../imgs/benchmark_loading_time_memory.png)
 
-1. How expensive is initialization (`load_go_terms`, `load_gaf`, `build_term_counter`)?
-2. How does throughput scale for batch term similarity?
-3. How does throughput scale for batch gene similarity (BMA)?
-4. What happens in matrix-like workloads (all-vs-all gene similarity)?
+## Batch GO-term similarity
 
-## Compared libraries
+![Batch term similarity](../../imgs/benchmark_batch_similarity.png)
 
-- `go3`: this package (Rust core, Python API)
-- `goatools`: Python-only baseline in the same runtime ecosystem
-- `GOSemSim` (optional): informative reference only
+## Batch gene similarity
 
-`GOSemSim` is optional because it runs in R and can differ in ontology/annotation handling details, which limits strict apples-to-apples comparisons.
+![Batch gene similarity](../../imgs/benchmark_gene_batch_similarity.png)
 
-## Methodology summary
+## All-vs-all gene similarity
+
+![All-vs-all gene similarity](../../imgs/benchmark_all_vs_all_gene_similarity.png)
+
+## Reading the plots
+
+- Each panel shows absolute runtime curves (log-scale where appropriate).
+- A speedup summary text box is included inside the plot.
+- Speedup > 1.0 means GO3 is faster.
+- For very small inputs, Python overhead can dominate and reduce visible speedup. The practical advantage appears in medium and large workloads.
+
+## Methodology
+
+### Compared libraries
+
+- **GO3**: this package (Rust core, Python API).
+- **goatools**: Python-only baseline in the same runtime ecosystem.
+- **GOSemSim** (optional): R/Bioconductor reference. Included where available, but differences in ontology/annotation handling limit strict apples-to-apples comparison.
 
 ### Loading benchmark
 
 Measured in isolated subprocesses per library to avoid cache carry-over:
 
-1. load ontology
-2. load annotations
-3. build term statistics / IC structures
+1. Load ontology.
+2. Load annotations.
+3. Build term statistics / IC structures.
 
-Reported metrics:
-
-- total wall-clock time
-- peak resident memory (RSS)
+Reported metrics: total wall-clock time and peak resident memory (RSS).
 
 ### Pair benchmarks (terms and genes)
 
-For each input size `n`:
+For each input size *n*:
 
-- same sampled pair set is used by all libraries
-- warmup runs are excluded from timing
-- median over repeated timed runs is reported
-- throughput (`pairs/second`) is computed
-- speedup (`goatools_time / go3_time`) is computed
-
-The benchmark supports independent size grids for term and gene workloads:
-
-- `--term-pair-sizes`
-- `--gene-pair-sizes`
-
-`--pair-sizes` remains available as a legacy shortcut to set both to the same values.
+- The same sampled pair set is used by all libraries.
+- Warmup runs are excluded from timing.
+- Median over repeated timed runs is reported.
+- Throughput (pairs/second) and speedup (goatools_time / go3_time) are computed.
 
 ### All-vs-all gene benchmark
 
-For each cohort size `g`:
+For each cohort size *g*:
 
-- build all unique gene pairs: `g*(g-1)/2`
-- compare `go3.compare_gene_pairs_batch` vs a goatools-based BMA implementation
-- report median time, throughput, and speedup
+- All unique gene pairs are generated: *g*(g-1)/2*.
+- `go3.compare_gene_pairs_batch` is compared against a goatools-based BMA implementation.
+- Median time, throughput, and speedup are reported.
 
-This benchmark emphasizes realistic quadratic workloads often seen in clustering, network construction, or cohort-level exploratory analyses.
+This workload reflects realistic quadratic scenarios often seen in clustering, network construction, or cohort-level exploratory analyses.
 
-## Reproducible commands
+### Fairness notes
 
-Run from an environment where `go3` and `goatools` are installed (for example `./venv/bin/python` in this repo).
+- All compared methods use the same ontology and GAF inputs.
+- Gene-level goatools comparisons rely on an explicit BMA implementation, because goatools does not provide equivalent high-level gene batch APIs.
+- Candidate selection favors biologically informative terms and genes (non-trivial IC/depth, sufficiently annotated), which better reflects real downstream analyses.
 
-### Full benchmark (recommended)
+## Reproducing the benchmarks
+
+The benchmark script is at `scripts/benchmark_go3vsgoatools.py`. Run from an environment where `go3` and `goatools` are installed:
 
 ```bash
-./venv/bin/python scripts/benchmark_go3vsgoatools.py \
+python scripts/benchmark_go3vsgoatools.py \
   --namespace BP \
   --term-method lin \
   --gene-method lin \
@@ -88,35 +97,17 @@ Run from an environment where `go3` and `goatools` are installed (for example `.
   --outdir imgs
 ```
 
-### Paper-ready profile (recommended for manuscript figures)
+To include GOSemSim (requires R with GOSemSim installed):
 
 ```bash
-./venv/bin/python scripts/benchmark_go3vsgoatools.py \
-  --paper-ready \
-  --namespace BP \
-  --term-method lin \
-  --gene-method lin \
-  --outdir imgs
-```
-
-`--paper-ready` enables:
-
-- publication-oriented size profile
-- more robust timing repeats/warmup
-- high-resolution figures (`.png`) and vector copies (`.svg`)
-- extra environment metadata in `benchmark_results.json`
-
-### Include GOSemSim (optional)
-
-```bash
-./venv/bin/python scripts/benchmark_go3vsgoatools.py \
+python scripts/benchmark_go3vsgoatools.py \
   --include-gosemsim \
   --gosemsim-measure wang \
   --r-libs-user ./.r_libs \
   --outdir imgs
 ```
 
-## Output artifacts
+### Output artifacts
 
 The script writes:
 
@@ -124,34 +115,4 @@ The script writes:
 - `imgs/benchmark_batch_similarity.png`
 - `imgs/benchmark_gene_batch_similarity.png`
 - `imgs/benchmark_all_vs_all_gene_similarity.png`
-- `imgs/benchmark_results.json`
-
-The JSON contains raw runs, medians, throughput, and speedup summaries for downstream analysis or figure regeneration.
-
-When using `--paper-ready`, each benchmark figure is also exported as `.svg`.
-
-## Current repository figures
-
-The repository usually includes the latest generated figures:
-
-![Loading time and memory](../../imgs/benchmark_loading_time_memory.png)
-
-![Batch term similarity](../../imgs/benchmark_batch_similarity.png)
-
-![Batch gene similarity](../../imgs/benchmark_gene_batch_similarity.png)
-
-![All-vs-all gene similarity](../../imgs/benchmark_all_vs_all_gene_similarity.png)
-
-## Reading the plots
-
-- Single panel: absolute runtime curves (log-scale where appropriate)
-- A speedup summary text box is included inside the plot
-- Speedup > 1.0 means `go3` is faster
-
-For very small `n`, Python overhead can dominate and reduce visible speedup. The practical signal is in medium/large batches and all-vs-all scenarios.
-
-## Fairness notes
-
-- Benchmarks use the same ontology and GAF inputs for all compared methods.
-- Gene-level goatools comparisons rely on an explicit BMA implementation, because goatools does not provide equivalent high-level gene batch APIs.
-- Candidate selection favors biologically informative terms/genes (non-trivial IC/depth and sufficiently annotated genes), which better reflects real downstream analyses.
+- `imgs/benchmark_results.json` — raw runs, medians, throughput, and speedup summaries.

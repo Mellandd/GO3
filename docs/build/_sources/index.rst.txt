@@ -1,0 +1,91 @@
+=================
+:math:`GO_3`
+=================
+
+GO3 is a high-performance Python library (Rust backend) for Gene Ontology semantic similarity.
+
+Why GO3?
+--------
+
+- **Fast**: 8--25x faster than pure-Python alternatives thanks to a compiled Rust core and automatic parallelism.
+- **Comprehensive**: 8 term-level methods, 5 groupwise strategies, gene-level comparison, batch operations, distance matrices, and embeddings -- all in one package.
+- **Minimal setup**: install with ``pip install go3``, load an OBO file (auto-downloadable) and a GAF file, and start computing.
+
+Highlights (v0.3)
+-----------------
+
+- TopoICSim and GraphIC hybrid methods
+- t-SNE / UMAP embedding helpers with plotting utilities
+- Thread-pool control via ``set_num_threads``
+- Pre-built wheels for Linux, macOS, and Windows
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Getting Started
+
+   introduction
+   examples
+   faq
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: Guides
+
+   similarity
+   guide/choosing_methods
+   guide/architecture
+   guide/performance
+   guide/visualization
+   benchmarks
+
+.. toctree::
+   :maxdepth: 2
+   :hidden:
+   :caption: API Reference
+
+   ontology
+   goterm
+   annotations
+   utilities
+
+Start Here
+==========
+
+- :doc:`introduction`
+- :doc:`examples`
+- :doc:`faq`
+- :doc:`similarity`
+- :doc:`guide/choosing_methods`
+- :doc:`guide/architecture`
+- :doc:`guide/performance`
+- :doc:`guide/visualization`
+- :doc:`benchmarks`
+
+Install
+=======
+
+.. code-block:: bash
+
+   pip install go3
+
+Optional visualization extras:
+
+.. code-block:: bash
+
+   pip install go3[viz]
+
+Quick example
+=============
+
+.. code-block:: python
+
+   import go3
+
+   go3.load_go_terms("go-basic.obo")
+   annots = go3.load_gaf("goa_human.gaf")
+   counter = go3.build_term_counter(annots)
+
+   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
+   print(sim)

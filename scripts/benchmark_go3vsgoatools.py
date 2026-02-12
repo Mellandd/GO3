@@ -20,6 +20,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 
 try:
     import go3
@@ -44,9 +45,9 @@ from demo_utils import default_paths
 DEFAULT_TERM_PAIR_SIZES = [100, 1000, 5000, 10000]
 DEFAULT_GENE_PAIR_SIZES = [25, 50, 100, 200]
 DEFAULT_MATRIX_GENE_SIZES = [8, 12, 16]
-PAPER_TERM_PAIR_SIZES = [1000, 5000, 20000]
-PAPER_GENE_PAIR_SIZES = [25, 50, 100]
-PAPER_MATRIX_GENE_SIZES = [8, 12]
+PAPER_TERM_PAIR_SIZES = [500, 1000, 2500, 5000, 10000, 20000]
+PAPER_GENE_PAIR_SIZES = [10, 25, 50, 75, 100, 150]
+PAPER_MATRIX_GENE_SIZES = [6, 8, 10, 12, 14, 16]
 PAPER_WARMUP = 2
 PAPER_REPEATS = 5
 PAPER_THREADS = 8
@@ -784,9 +785,10 @@ def plot_loading_summary(
 
         bars_time = ax_time.bar(x, times, color=colors, edgecolor="#333333", linewidth=0.6)
         ax_time.set_title("Loading and preprocessing time")
+        ax_time.set_xlabel("Library")
         ax_time.set_ylabel("Time (s)")
         ax_time.set_xticks(x)
-        ax_time.set_xticklabels(labels, rotation=15, ha="right")
+        ax_time.set_xticklabels(labels)
         ax_time.grid(True, axis="y", linestyle="--", alpha=0.35)
         for bar, value in zip(bars_time, times):
             ax_time.text(
@@ -799,9 +801,10 @@ def plot_loading_summary(
 
         bars_mem = ax_mem.bar(x, peaks, color=colors, edgecolor="#333333", linewidth=0.6)
         ax_mem.set_title("Peak memory during loading")
+        ax_mem.set_xlabel("Library")
         ax_mem.set_ylabel("Peak RSS (MB)")
         ax_mem.set_xticks(x)
-        ax_mem.set_xticklabels(labels, rotation=15, ha="right")
+        ax_mem.set_xticklabels(labels)
         ax_mem.grid(True, axis="y", linestyle="--", alpha=0.35)
         for bar, value in zip(bars_mem, peaks):
             ax_mem.text(
@@ -874,10 +877,19 @@ def plot_runtime_curves(
 
         ax.set_title(title)
         ax.set_xlabel(xlabel)
-        ax.set_ylabel("Median runtime (s)")
+        ax.set_ylabel("Median runtime [s]")
         ax.set_yscale("log")
         if sizes and min(sizes) > 0 and len(set(sizes)) > 1:
             ax.set_xscale("log")
+        if sizes:
+            ticks = sorted(set(int(v) for v in sizes))
+            tick_set = set(ticks)
+            ax.set_xticks(ticks)
+            ax.xaxis.set_major_formatter(
+                mticker.FuncFormatter(
+                    lambda x, _pos: f"{int(x)}" if int(round(x)) in tick_set else ""
+                )
+            )
         ax.grid(True, which="major", linestyle="--", linewidth=0.6, alpha=0.45)
         ax.grid(True, which="minor", linestyle=":", linewidth=0.4, alpha=0.25)
         ax.legend(loc="upper left", frameon=True, framealpha=0.92)
@@ -920,6 +932,37 @@ def prepare_context(*, obo: Path, gaf: Path, namespace: str) -> dict[str, Any]:
         "termcounts": termcounts,
         "gene2terms": gene2terms,
     }
+
+
+def enforce_same_semantic_method(args: argparse.Namespace) -> None:
+    if not args.include_gosemsim:
+        return
+    if args.gosemsim_measure is None:
+        return
+
+    mismatch: list[str] = []
+    if not args.no_term and args.term_method != args.gosemsim_measure:
+        mismatch.append(f"term: {args.term_method} vs gosemsim: {args.gosemsim_measure}")
+    if (not args.no_gene or not args.no_all_vs_all) and args.gene_method != args.gosemsim_measure:
+        mismatch.append(f"gene: {args.gene_method} vs gosemsim: {args.gosemsim_measure}")
+
+    if mismatch:
+        joined = "; ".join(mismatch)
+        raise SystemExit(
+            "Invalid benchmark configuration: all libraries must use the same semantic method. "
+            f"Found mismatches -> {joined}. "
+            "Use matching values for --term-method/--gene-method/--gosemsim-measure, or omit --gosemsim-measure."
+        )
+
+
+def require_gosemsim_series_or_fail(section_name: str, result: dict[str, Any]) -> None:
+    runs = result.get("runs", {})
+    if "gosemsim" in runs:
+        return
+    detail = result.get("gosemsim_error", "No detailed error provided by GOSemSim runner.")
+    raise RuntimeError(
+        f"{section_name}: --include-gosemsim was requested, but no GOSemSim series is available. {detail}"
+    )
 
 
 def benchmark_term_pairs(
@@ -1153,6 +1196,13 @@ def benchmark_all_vs_all_genes(
     warmup: int,
     repeats: int,
     min_gene_terms: int,
+    include_gosemsim: bool,
+    gosemsim_orgdb: str,
+    r_libs_user: str | None,
+    gosemsim_anno_tsv: Path | None,
+    gosemsim_measure: str | None,
+    outdir: Path,
+    seed: int,
 ) -> dict[str, Any]:
     counter = context["counter"]
     godag = context["godag"]
@@ -1188,10 +1238,12 @@ def benchmark_all_vs_all_genes(
 
     points_go3_map: dict[int, dict[str, Any]] = {}
     points_goatools_map: dict[int, dict[str, Any]] = {}
+    pairs_by_gene_size: dict[int, list[tuple[str, str]]] = {}
 
     for n_genes in sorted(gene_sizes, reverse=True):
         genes_subset = selected_genes[:n_genes]
         pairs = all_unique_pairs(genes_subset)
+        pairs_by_gene_size[n_genes] = pairs
         pair_count = len(pairs)
 
         def _go3() -> None:
@@ -1235,6 +1287,35 @@ def benchmark_all_vs_all_genes(
             "goatools": points_goatools,
         },
     }
+
+    if include_gosemsim:
+        pairs_tsv = outdir / f"gosemsim_all_vs_all_gene_pairs_{namespace}_{method}.tsv"
+        with open(pairs_tsv, "w", encoding="utf-8") as handle:
+            for n_genes in ordered_gene_sizes:
+                pairs = pairs_by_gene_size.get(n_genes, [])
+                for g1, g2 in pairs:
+                    terms1 = ",".join(gene2terms.get(g1, []))
+                    terms2 = ",".join(gene2terms.get(g2, []))
+                    handle.write(f"{n_genes}\t{terms1}\t{terms2}\n")
+
+        points_r, err = run_gosemsim_pairs(
+            mode="gene",
+            namespace=namespace,
+            method=method,
+            gosemsim_measure=gosemsim_measure,
+            orgdb=gosemsim_orgdb,
+            warmup=warmup,
+            repeats=repeats,
+            seed=seed,
+            pairs_tsv=pairs_tsv,
+            r_libs_user=r_libs_user,
+            anno_tsv=gosemsim_anno_tsv,
+        )
+        if points_r is not None:
+            result["runs"]["gosemsim"] = points_r
+        if err is not None:
+            result["gosemsim_error"] = err
+
     speedup = speedup_points(result["runs"]["go3"], result["runs"]["goatools"], label="go3_vs_goatools")
     result["go3_speedup_vs_goatools"] = speedup
     result["go3_speedup_summary"] = summarize_speedup(speedup)
@@ -1336,6 +1417,7 @@ def main() -> int:
     raw_argv = sys.argv[1:]
     args = build_argparser().parse_args()
     apply_paper_profile(args, raw_argv)
+    enforce_same_semantic_method(args)
 
     if args.child == "loading":
         if args.lib is None:
@@ -1438,6 +1520,12 @@ def main() -> int:
                 loading_map["gosemsim"] = gosemsim_loading
             if err is not None:
                 report["gosemsim_loading_error"] = err
+            if gosemsim_loading is None:
+                detail = err or "No detailed error provided by GOSemSim loading runner."
+                raise RuntimeError(
+                    "--include-gosemsim was requested, but loading metrics for GOSemSim are unavailable. "
+                    f"{detail}"
+                )
 
         report["loading"] = loading_map
 
@@ -1483,6 +1571,8 @@ def main() -> int:
             outdir=outdir,
         )
         report["term_pairs"] = term_result
+        if args.include_gosemsim:
+            require_gosemsim_series_or_fail("term_pairs", term_result)
 
         plot_runtime_curves(
             out_path=outdir / "benchmark_batch_similarity.png",
@@ -1512,6 +1602,8 @@ def main() -> int:
             outdir=outdir,
         )
         report["gene_pairs"] = gene_result
+        if args.include_gosemsim:
+            require_gosemsim_series_or_fail("gene_pairs", gene_result)
 
         plot_runtime_curves(
             out_path=outdir / "benchmark_gene_batch_similarity.png",
@@ -1532,8 +1624,17 @@ def main() -> int:
             warmup=args.warmup,
             repeats=args.repeats,
             min_gene_terms=args.min_gene_terms,
+            include_gosemsim=bool(args.include_gosemsim),
+            gosemsim_orgdb=args.gosemsim_orgdb,
+            r_libs_user=args.r_libs_user,
+            gosemsim_anno_tsv=gosemsim_anno_tsv,
+            gosemsim_measure=args.gosemsim_measure,
+            outdir=outdir,
+            seed=args.seed,
         )
         report["all_vs_all_gene"] = all_vs_all_result
+        if args.include_gosemsim:
+            require_gosemsim_series_or_fail("all_vs_all_gene", all_vs_all_result)
 
         plot_runtime_curves(
             out_path=outdir / "benchmark_all_vs_all_gene_similarity.png",

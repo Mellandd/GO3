@@ -16,20 +16,84 @@ Functions
 - Builds a ``TermCounter`` from parsed annotations.
 - Computes counts and Information Content (IC) by namespace.
 
+Information Content formula
+---------------------------
+
+IC quantifies how specific a term is within its namespace:
+
+.. math::
+
+   IC(t) = -\log\!\left(\frac{\text{count}(t)}{\text{total}(\text{namespace})}\right)
+
+- ``count(t)`` is the number of annotations for term *t*, **including annotations propagated from descendant terms**. If a gene is annotated to a child term, all of its ancestors also receive that count.
+- ``total(namespace)`` is the total annotation count for the namespace (the value stored in ``counter.total_by_ns``).
+
+The ``total_by_ns`` dictionary maps each namespace (``biological_process``, ``molecular_function``, ``cellular_component``) to its total propagated annotation count. This is the denominator in the IC formula.
+
 Filtering rules in ``load_gaf``
 -------------------------------
 
 During parsing, GO3 applies key biological filters:
 
-- skips annotations with evidence code ``ND``
-- skips annotations with qualifier containing ``NOT``
-- handles obsolete GO terms:
+- **ND (No biological Data)**: annotations with evidence code ``ND`` are skipped. These indicate that no experimental or computational evidence exists and would add noise to IC calculations.
+- **NOT qualifier**: annotations whose qualifier contains ``NOT`` are skipped. These indicate that a gene is explicitly *not* associated with a term.
+- **Obsolete GO terms**: handled automatically:
 
   - uses ``replaced_by`` when available
   - otherwise uses first ``consider`` target when available
   - otherwise discards that annotation
 
 These rules affect both downstream scores and benchmark comparability.
+
+Annotation propagation
+----------------------
+
+When ``build_term_counter`` computes counts, each annotation is propagated up the DAG: if a gene is annotated to term *t*, then *t* and all ancestors of *t* receive a count increment. This means that general (high-level) terms accumulate many counts and have low IC, while specific (leaf-level) terms have fewer counts and high IC.
+
+Common evidence codes
+---------------------
+
+GAF files record **evidence codes** that describe how an annotation was determined. GO3 does not filter by evidence code (other than ``ND``), but knowing what they mean helps interpret annotation quality:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 10 30 60
+
+   * - Code
+     - Name
+     - Description
+   * - ``IEA``
+     - Inferred from Electronic Annotation
+     - Computationally assigned, not curator-reviewed; most abundant code
+   * - ``EXP``
+     - Inferred from Experiment
+     - Supported by a published experiment
+   * - ``IDA``
+     - Inferred from Direct Assay
+     - Based on a direct experimental assay
+   * - ``IPI``
+     - Inferred from Physical Interaction
+     - Based on a physical interaction experiment
+   * - ``IMP``
+     - Inferred from Mutant Phenotype
+     - Based on observed mutant phenotype
+   * - ``IGI``
+     - Inferred from Genetic Interaction
+     - Based on a genetic interaction experiment
+   * - ``IEP``
+     - Inferred from Expression Pattern
+     - Based on gene expression data
+   * - ``TAS``
+     - Traceable Author Statement
+     - Directly cited from a published paper
+   * - ``NAS``
+     - Non-traceable Author Statement
+     - Author statement without a specific citation
+   * - ``ND``
+     - No biological Data
+     - Placeholder when no annotation exists; **filtered out by GO3**
+
+For stricter filtering (e.g., excluding ``IEA`` to use only curated annotations), pre-filter your GAF file before passing it to ``load_gaf``.
 
 Example
 -------
@@ -53,8 +117,13 @@ Inspecting structures
    ann = annotations[0]
    print(ann.db_object_id, ann.go_term, ann.evidence)
 
+   # Raw annotation count for a term (after propagation)
    print(counter.counts.get("GO:0008150", 0))
+
+   # Total annotations per namespace (denominator for IC)
    print(counter.total_by_ns)
+
+   # IC value for a specific term
    print(counter.ic.get("GO:0008150", 0.0))
 
 Class reference
@@ -68,9 +137,9 @@ Class reference
 
 ``TermCounter`` fields:
 
-- ``counts``
-- ``total_by_ns``
-- ``ic``
+- ``counts`` -- per-term annotation count (after ancestor propagation)
+- ``total_by_ns`` -- total annotation count per namespace (used as IC denominator)
+- ``ic`` -- per-term Information Content values
 
 API reference
 -------------

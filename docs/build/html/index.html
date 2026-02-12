@@ -208,12 +208,16 @@
 <li class="toctree-l1"><a class="reference internal" href="introduction.html#minimal-workflow">Minimal workflow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html#core-concepts">Core concepts</a></li>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html#namespaces">Namespaces</a></li>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html#troubleshooting">Troubleshooting</a></li>
 <li class="toctree-l1"><a class="reference internal" href="introduction.html#next-steps">Next steps</a></li>
 <li class="toctree-l1"><a class="reference internal" href="examples.html">Examples</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">FAQ</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Guides</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="similarity.html">Semantic Similarity</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide/choosing_methods.html">Choosing a Similarity Method</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guide/architecture.html">Architecture</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guide/performance.html">Performance Guide</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guide/visualization.html">Visualization (t-SNE / UMAP)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="benchmarks.html">Benchmarks</a></li>
@@ -265,13 +269,26 @@
           <section id="go-3">
 <h1><span class="math notranslate nohighlight">\(GO_3\)</span><a class="headerlink" href="#go-3" title="Link to this heading">¶</a></h1>
 <p>GO3 is a high-performance Python library (Rust backend) for Gene Ontology semantic similarity.</p>
-<p>It supports:</p>
+<section id="why-go3">
+<h2>Why GO3?<a class="headerlink" href="#why-go3" title="Link to this heading">¶</a></h2>
+<p>Existing tools like <a class="reference external" href="https://bioconductor.org/packages/GOSemSim/">GOSemSim</a> (R) and <a class="reference external" href="https://github.com/tanghaibao/goatools">goatools</a> (Python) cover term-level semantic similarity, but many common operations in GO-based analyses — comparing sets of terms, computing gene-level similarity, building distance matrices, or generating embeddings — require writing ad-hoc glue code or switching between languages and packages. GO3 brings all of these into a single Python library:</p>
 <ul class="simple">
-<li><p>ontology and annotation loading</p></li>
-<li><p>term-level similarity</p></li>
-<li><p>term-set and gene-level similarity</p></li>
-<li><p>high-throughput batch workflows</p></li>
-<li><p>distance-matrix and embedding utilities</p></li>
+<li><p><strong>Term-level similarity</strong> — 8 methods (IC-based, topological, and hybrid) in one place.</p></li>
+<li><p><strong>Term-set and gene-level similarity</strong> — compare two sets of GO terms or two genes directly, with 5 groupwise strategies.</p></li>
+<li><p><strong>Batch operations</strong> — compute thousands of term or gene pairs in a single call, parallelized automatically.</p></li>
+<li><p><strong>All-vs-all distance matrices</strong> — one function call for a full symmetric distance matrix over any gene list.</p></li>
+<li><p><strong>Embeddings and visualization</strong> — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.</p></li>
+<li><p><strong>Speed</strong> — 8–25x faster than pure-Python alternatives; the Rust core and Rayon parallelism eliminate interpreter overhead on large workloads.</p></li>
+<li><p><strong>Minimal setup</strong> — install with <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">go3</span></code>, load an OBO file (auto-downloadable) and a GAF file, and start computing.</p></li>
+</ul>
+</section>
+<section id="highlights-v0-3">
+<h2>Highlights (v0.3)<a class="headerlink" href="#highlights-v0-3" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p>TopoICSim and GraphIC hybrid methods</p></li>
+<li><p>t-SNE / UMAP embedding helpers with plotting utilities</p></li>
+<li><p>Thread-pool control via <code class="docutils literal notranslate"><span class="pre">set_num_threads</span></code></p></li>
+<li><p>Pre-built wheels for Linux, macOS, and Windows</p></li>
 </ul>
 <div class="toctree-wrapper compound">
 </div>
@@ -280,18 +297,21 @@
 <div class="toctree-wrapper compound">
 </div>
 <section id="start-here">
-<h2>Start Here<a class="headerlink" href="#start-here" title="Link to this heading">¶</a></h2>
+<h3>Start Here<a class="headerlink" href="#start-here" title="Link to this heading">¶</a></h3>
 <ul class="simple">
 <li><p><a class="reference internal" href="introduction.html"><span class="doc">Installation</span></a></p></li>
 <li><p><a class="reference internal" href="examples.html"><span class="doc">Examples</span></a></p></li>
+<li><p><a class="reference internal" href="faq.html"><span class="doc">FAQ</span></a></p></li>
 <li><p><a class="reference internal" href="similarity.html"><span class="doc">Semantic Similarity</span></a></p></li>
+<li><p><a class="reference internal" href="guide/choosing_methods.html"><span class="doc">Choosing a Similarity Method</span></a></p></li>
+<li><p><a class="reference internal" href="guide/architecture.html"><span class="doc">Architecture</span></a></p></li>
 <li><p><a class="reference internal" href="guide/performance.html"><span class="doc">Performance Guide</span></a></p></li>
 <li><p><a class="reference internal" href="guide/visualization.html"><span class="doc">Visualization (t-SNE / UMAP)</span></a></p></li>
 <li><p><a class="reference internal" href="benchmarks.html"><span class="doc">Benchmarks</span></a></p></li>
 </ul>
 </section>
 <section id="install">
-<h2>Install<a class="headerlink" href="#install" title="Link to this heading">¶</a></h2>
+<h3>Install<a class="headerlink" href="#install" title="Link to this heading">¶</a></h3>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>go3
 </pre></div>
 </div>
@@ -301,7 +321,7 @@
 </div>
 </section>
 <section id="quick-example">
-<h2>Quick example<a class="headerlink" href="#quick-example" title="Link to this heading">¶</a></h2>
+<h3>Quick example<a class="headerlink" href="#quick-example" title="Link to this heading">¶</a></h3>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
 
 <span class="n">go3</span><span class="o">.</span><span class="n">load_go_terms</span><span class="p">(</span><span class="s2">&quot;go-basic.obo&quot;</span><span class="p">)</span>
@@ -312,6 +332,7 @@
 <span class="nb">print</span><span class="p">(</span><span class="n">sim</span><span class="p">)</span>
 </pre></div>
 </div>
+</section>
 </section>
 </section>
 
@@ -361,9 +382,13 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#"><span class="math notranslate nohighlight">\(GO_3\)</span></a><ul>
+<li><a class="reference internal" href="#why-go3">Why GO3?</a></li>
+<li><a class="reference internal" href="#highlights-v0-3">Highlights (v0.3)</a><ul>
 <li><a class="reference internal" href="#start-here">Start Here</a></li>
 <li><a class="reference internal" href="#install">Install</a></li>
 <li><a class="reference internal" href="#quick-example">Quick example</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

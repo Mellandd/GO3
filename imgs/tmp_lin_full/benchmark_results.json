@@ -1,0 +1,213 @@
+{
+  "profile": "default",
+  "namespace": "BP",
+  "term_pair_sizes": [
+    10
+  ],
+  "gene_pair_sizes": [
+    10
+  ],
+  "matrix_gene_sizes": [
+    6
+  ],
+  "term_method": "lin",
+  "gene_method": "lin",
+  "seed": 42,
+  "warmup": 0,
+  "repeats": 1,
+  "threads": 8,
+  "min_gene_terms": 8,
+  "r_libs_user": "/home/mell/Universidad/GO3/.r_libs",
+  "gosemsim_measure": null,
+  "python": "3.14.2 (main, Jan 10 2026, 20:53:44) [GCC 15.2.1 20260103]",
+  "platform": "linux",
+  "cpu_count": 12,
+  "system_metadata": {
+    "timestamp_utc": "2026-02-12T11:39:25.981242+00:00",
+    "os": "Linux-6.18.9-3-cachyos-x86_64-with-glibc2.43",
+    "machine": "x86_64",
+    "processor": "AMD Ryzen 5 9600X 6-Core Processor",
+    "cpu_count_logical": 12,
+    "total_memory_gb": 30.340869903564453,
+    "python_version": "3.14.2 (main, Jan 10 2026, 20:53:44) [GCC 15.2.1 20260103]",
+    "go3_version": "0.2.4",
+    "goatools_version": "1.5.2",
+    "matplotlib_version": "3.10.8"
+  },
+  "gosemsim_anno_tsv": "imgs/tmp_lin_full/gosemsim_goanno.tsv",
+  "term_pairs": {
+    "method": "lin",
+    "sizes": [
+      10
+    ],
+    "candidate_selection": {
+      "candidate_count": 13042,
+      "min_depth": 4,
+      "min_ic": 0.5
+    },
+    "runs": {
+      "go3": [
+        {
+          "n": 10,
+          "runs_s": [
+            0.00023068799964676145
+          ],
+          "median_s": 0.00023068799964676145,
+          "min_s": 0.00023068799964676145,
+          "max_s": 0.00023068799964676145,
+          "throughput_per_s": 43348.59210410769
+        }
+      ],
+      "goatools": [
+        {
+          "n": 10,
+          "runs_s": [
+            0.000236528000641556
+          ],
+          "median_s": 0.000236528000641556,
+          "min_s": 0.000236528000641556,
+          "max_s": 0.000236528000641556,
+          "throughput_per_s": 42278.29251875511
+        }
+      ],
+      "gosemsim": [
+        {
+          "n": 10,
+          "median_s": 2.537,
+          "throughput_per_s": 3.941663381947182
+        }
+      ]
+    },
+    "go3_speedup_vs_goatools": [
+      {
+        "n": 10,
+        "speedup": 1.025315582101093,
+        "label": "go3_vs_goatools"
+      }
+    ],
+    "go3_speedup_summary": {
+      "n_points": 1,
+      "median_x": 1.025315582101093,
+      "min_x": 1.025315582101093,
+      "max_x": 1.025315582101093
+    }
+  },
+  "gene_pairs": {
+    "method": "lin",
+    "sizes": [
+      10
+    ],
+    "candidate_selection": {
+      "min_gene_terms_requested": 8,
+      "min_gene_terms_used": 8,
+      "candidate_count": 7,
+      "eligible_before_cap": 5670
+    },
+    "runs": {
+      "go3": [
+        {
+          "n": 10,
+          "runs_s": [
+            0.24087005999990652
+          ],
+          "median_s": 0.24087005999990652,
+          "min_s": 0.24087005999990652,
+          "max_s": 0.24087005999990652,
+          "throughput_per_s": 41.5161602068928
+        }
+      ],
+      "goatools": [
+        {
+          "n": 10,
+          "runs_s": [
+            2.0503698959992107
+          ],
+          "median_s": 2.0503698959992107,
+          "min_s": 2.0503698959992107,
+          "max_s": 2.0503698959992107,
+          "throughput_per_s": 4.877168758433551
+        }
+      ],
+      "gosemsim": [
+        {
+          "n": 10,
+          "median_s": 2.505,
+          "throughput_per_s": 3.9920159680638725
+        }
+      ]
+    },
+    "go3_speedup_vs_goatools": [
+      {
+        "n": 10,
+        "speedup": 8.512348508569335,
+        "label": "go3_vs_goatools"
+      }
+    ],
+    "go3_speedup_summary": {
+      "n_points": 1,
+      "median_x": 8.512348508569335,
+      "min_x": 8.512348508569335,
+      "max_x": 8.512348508569335
+    }
+  },
+  "all_vs_all_gene": {
+    "method": "lin",
+    "gene_sizes": [
+      6
+    ],
+    "candidate_selection": {
+      "min_gene_terms_requested": 8,
+      "min_gene_terms_used": 8,
+      "candidate_count": 9,
+      "eligible_before_cap": 5670
+    },
+    "runs": {
+      "go3": [
+        {
+          "n": 6,
+          "pair_count": 15,
+          "runs_s": [
+            0.2519992910001747
+          ],
+          "median_s": 0.2519992910001747,
+          "min_s": 0.2519992910001747,
+          "max_s": 0.2519992910001747,
+          "throughput_per_s": 59.52397699400512
+        }
+      ],
+      "goatools": [
+        {
+          "n": 6,
+          "pair_count": 15,
+          "runs_s": [
+            2.86452158999964
+          ],
+          "median_s": 2.86452158999964,
+          "min_s": 2.86452158999964,
+          "max_s": 2.86452158999964,
+          "throughput_per_s": 5.2364765035692695
+        }
+      ],
+      "gosemsim": [
+        {
+          "n": 6,
+          "median_s": 3.604,
+          "throughput_per_s": 1.664816870144284
+        }
+      ]
+    },
+    "go3_speedup_vs_goatools": [
+      {
+        "n": 6,
+        "speedup": 11.367181148131303,
+        "label": "go3_vs_goatools"
+      }
+    ],
+    "go3_speedup_summary": {
+      "n_points": 1,
+      "median_x": 11.367181148131303,
+      "min_x": 11.367181148131303,
+      "max_x": 11.367181148131303
+    }
+  }
+}

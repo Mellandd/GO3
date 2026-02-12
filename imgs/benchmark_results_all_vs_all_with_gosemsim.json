@@ -1,0 +1,172 @@
+{
+  "profile": "default",
+  "namespace": "BP",
+  "term_pair_sizes": [
+    100,
+    1000,
+    5000,
+    10000
+  ],
+  "gene_pair_sizes": [
+    25,
+    50,
+    100,
+    200
+  ],
+  "matrix_gene_sizes": [
+    8,
+    12,
+    16
+  ],
+  "term_method": "lin",
+  "gene_method": "lin",
+  "seed": 42,
+  "warmup": 0,
+  "repeats": 1,
+  "threads": 8,
+  "min_gene_terms": 8,
+  "r_libs_user": "/home/mell/Universidad/GO3/.r_libs",
+  "gosemsim_measure": "wang",
+  "python": "3.14.2 (main, Jan 10 2026, 20:53:44) [GCC 15.2.1 20260103]",
+  "platform": "linux",
+  "cpu_count": 12,
+  "system_metadata": {
+    "timestamp_utc": "2026-02-11T13:59:36.507990+00:00",
+    "os": "Linux-6.18.9-2-cachyos-x86_64-with-glibc2.42",
+    "machine": "x86_64",
+    "processor": "AMD Ryzen 5 9600X 6-Core Processor",
+    "cpu_count_logical": 12,
+    "total_memory_gb": 30.340862274169922,
+    "python_version": "3.14.2 (main, Jan 10 2026, 20:53:44) [GCC 15.2.1 20260103]",
+    "go3_version": "0.2.4",
+    "goatools_version": "1.5.2",
+    "matplotlib_version": "3.10.8"
+  },
+  "gosemsim_anno_tsv": "imgs/gosemsim_goanno.tsv",
+  "all_vs_all_gene": {
+    "method": "lin",
+    "gene_sizes": [
+      8,
+      12,
+      16
+    ],
+    "candidate_selection": {
+      "min_gene_terms_requested": 8,
+      "min_gene_terms_used": 8,
+      "candidate_count": 23,
+      "eligible_before_cap": 5670
+    },
+    "runs": {
+      "go3": [
+        {
+          "n": 8,
+          "pair_count": 28,
+          "runs_s": [
+            0.23643174999961047
+          ],
+          "median_s": 0.23643174999961047,
+          "min_s": 0.23643174999961047,
+          "max_s": 0.23643174999961047,
+          "throughput_per_s": 118.42741087035108
+        },
+        {
+          "n": 12,
+          "pair_count": 66,
+          "runs_s": [
+            0.4810031640008674
+          ],
+          "median_s": 0.4810031640008674,
+          "min_s": 0.4810031640008674,
+          "max_s": 0.4810031640008674,
+          "throughput_per_s": 137.21323463036717
+        },
+        {
+          "n": 16,
+          "pair_count": 120,
+          "runs_s": [
+            1.6316522599991004
+          ],
+          "median_s": 1.6316522599991004,
+          "min_s": 1.6316522599991004,
+          "max_s": 1.6316522599991004,
+          "throughput_per_s": 73.54508245529361
+        }
+      ],
+      "goatools": [
+        {
+          "n": 8,
+          "pair_count": 28,
+          "runs_s": [
+            5.132844961000956
+          ],
+          "median_s": 5.132844961000956,
+          "min_s": 5.132844961000956,
+          "max_s": 5.132844961000956,
+          "throughput_per_s": 5.455064435560065
+        },
+        {
+          "n": 12,
+          "pair_count": 66,
+          "runs_s": [
+            10.707719182999426
+          ],
+          "median_s": 10.707719182999426,
+          "min_s": 10.707719182999426,
+          "max_s": 10.707719182999426,
+          "throughput_per_s": 6.163777632942388
+        },
+        {
+          "n": 16,
+          "pair_count": 120,
+          "runs_s": [
+            16.351241672997276
+          ],
+          "median_s": 16.351241672997276,
+          "min_s": 16.351241672997276,
+          "max_s": 16.351241672997276,
+          "throughput_per_s": 7.338892201573296
+        }
+      ],
+      "gosemsim": [
+        {
+          "n": 8,
+          "median_s": 22.824,
+          "throughput_per_s": 0.35050823694356814
+        },
+        {
+          "n": 12,
+          "median_s": 28.763,
+          "throughput_per_s": 0.4172026561902444
+        },
+        {
+          "n": 16,
+          "median_s": 44.707,
+          "throughput_per_s": 0.35788578969736284
+        }
+      ]
+    },
+    "go3_speedup_vs_goatools": [
+      {
+        "n": 8,
+        "speedup": 21.70962639750969,
+        "label": "go3_vs_goatools"
+      },
+      {
+        "n": 12,
+        "speedup": 22.261224009287634,
+        "label": "go3_vs_goatools"
+      },
+      {
+        "n": 16,
+        "speedup": 10.021278475725147,
+        "label": "go3_vs_goatools"
+      }
+    ],
+    "go3_speedup_summary": {
+      "n_points": 3,
+      "median_x": 21.70962639750969,
+      "min_x": 10.021278475725147,
+      "max_x": 22.261224009287634
+    }
+  }
+}

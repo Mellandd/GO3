@@ -4,13 +4,26 @@
 
 GO3 is a high-performance Python library (Rust backend) for Gene Ontology semantic similarity.
 
-It supports:
+Why GO3?
+--------
 
-- ontology and annotation loading
-- term-level similarity
-- term-set and gene-level similarity
-- high-throughput batch workflows
-- distance-matrix and embedding utilities
+Existing tools like `GOSemSim <https://bioconductor.org/packages/GOSemSim/>`_ (R) and `goatools <https://github.com/tanghaibao/goatools>`_ (Python) cover term-level semantic similarity, but many common operations in GO-based analyses — comparing sets of terms, computing gene-level similarity, building distance matrices, or generating embeddings — require writing ad-hoc glue code or switching between languages and packages. GO3 brings all of these into a single Python library:
+
+- **Term-level similarity** — 8 methods (IC-based, topological, and hybrid) in one place.
+- **Term-set and gene-level similarity** — compare two sets of GO terms or two genes directly, with 5 groupwise strategies.
+- **Batch operations** — compute thousands of term or gene pairs in a single call, parallelized automatically.
+- **All-vs-all distance matrices** — one function call for a full symmetric distance matrix over any gene list.
+- **Embeddings and visualization** — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.
+- **Speed** — 8–25x faster than pure-Python alternatives; the Rust core and Rayon parallelism eliminate interpreter overhead on large workloads.
+- **Minimal setup** — install with ``pip install go3``, load an OBO file (auto-downloadable) and a GAF file, and start computing.
+
+Highlights (v0.3)
+-----------------
+
+- TopoICSim and GraphIC hybrid methods
+- t-SNE / UMAP embedding helpers with plotting utilities
+- Thread-pool control via ``set_num_threads``
+- Pre-built wheels for Linux, macOS, and Windows
 
 .. toctree::
    :maxdepth: 2
@@ -19,6 +32,7 @@ It supports:
 
    introduction
    examples
+   faq
 
 .. toctree::
    :maxdepth: 2
@@ -26,6 +40,8 @@ It supports:
    :caption: Guides
 
    similarity
+   guide/choosing_methods
+   guide/architecture
    guide/performance
    guide/visualization
    benchmarks
@@ -45,7 +61,10 @@ Start Here
 
 - :doc:`introduction`
 - :doc:`examples`
+- :doc:`faq`
 - :doc:`similarity`
+- :doc:`guide/choosing_methods`
+- :doc:`guide/architecture`
 - :doc:`guide/performance`
 - :doc:`guide/visualization`
 - :doc:`benchmarks`

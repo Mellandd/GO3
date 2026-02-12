@@ -10,8 +10,16 @@ Setup
 
    import go3
 
+   # Load the GO directed acyclic graph from an OBO file.
+   # This caches the ontology globally -- call once per session.
    go3.load_go_terms("go-basic.obo")
+
+   # Parse a GAF file to build a gene-to-GO mapping.
+   # The returned list contains one GAFAnnotation per valid line.
    annots = go3.load_gaf("goa_human.gaf")
+
+   # Build annotation counts with ancestor propagation and compute IC values.
+   # The counter object is required by IC-based similarity methods.
    counter = go3.build_term_counter(annots)
 
 Term-to-term similarity
@@ -19,12 +27,14 @@ Term-to-term similarity
 
 .. code-block:: python
 
-   go1 = "GO:0006397"
-   go2 = "GO:0008380"
+   go1 = "GO:0006397"  # mRNA processing
+   go2 = "GO:0008380"  # RNA splicing
 
-   # Available methods include: resnik, lin, jc, simrel, iccoef, graphic, wang, topoicsim
+   # These two BP terms are closely related (splicing is part of mRNA processing),
+   # so we expect high similarity.
+   # Available methods: resnik, lin, jc, simrel, iccoef, graphic, wang, topoicsim
    sim = go3.semantic_similarity(go1, go2, "lin", counter)
-   print("Lin similarity:", sim)
+   print("Lin similarity:", sim)  # e.g. ~0.71
 
 Batch term similarity
 ---------------------
@@ -34,8 +44,10 @@ Batch term similarity
    list1 = ["GO:0006397", "GO:0008380", "GO:0008150"]
    list2 = ["GO:0008380", "GO:0006397", "GO:0009987"]
 
+   # Computes similarity for each aligned pair: (list1[0], list2[0]), (list1[1], list2[1]), ...
+   # Much faster than looping over semantic_similarity for large lists.
    scores = go3.batch_similarity(list1, list2, "resnik", counter)
-   print(scores)
+   print(scores)  # list of 3 floats
 
 The two lists must have the same length.
 
@@ -47,6 +59,7 @@ Term-set similarity
    terms_a = ["GO:0006397", "GO:0008380"]
    terms_b = ["GO:0008380", "GO:0009987"]
 
+   # Groupwise strategies aggregate pairwise term similarities into a single set-level score.
    sim_bma = go3.termset_similarity(terms_a, terms_b, term_similarity="lin", groupwise="bma", counter=counter)
    sim_max = go3.termset_similarity(terms_a, terms_b, term_similarity="lin", groupwise="max", counter=counter)
    sim_avg = go3.termset_similarity(terms_a, terms_b, term_similarity="lin", groupwise="avg", counter=counter)
@@ -60,8 +73,11 @@ Gene-to-gene similarity
 
 .. code-block:: python
 
+   # Compare two genes using their BP annotations.
+   # GO3 looks up each gene's annotated GO terms, then applies
+   # pairwise term similarity + groupwise aggregation.
    sim = go3.compare_genes("BRCA1", "CASP8", "BP", "lin", "bma", counter)
-   print(sim)
+   print(sim)  # e.g. ~0.30
 
 Batch gene similarity
 ---------------------
@@ -69,8 +85,48 @@ Batch gene similarity
 .. code-block:: python
 
    pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1"), ("GSDME", "NLRP1")]
+
+   # Batch gene comparison is parallelized internally -- much faster than
+   # calling compare_genes in a Python loop for hundreds/thousands of pairs.
    scores = go3.compare_gene_pairs_batch(pairs, "BP", "lin", "bma", counter)
-   print(scores)
+   print(scores)  # list of 3 floats
+
+Ontology traversal
+------------------
+
+.. code-block:: python
+
+   # Retrieve a term object by its GO ID
+   term = go3.get_term_by_id("GO:0006397")
+   print(term.name)       # "mRNA processing"
+   print(term.namespace)  # "biological_process"
+   print(term.depth)      # maximum distance to root
+   print(term.level)      # minimum distance to root
+
+   # Get all ancestors (includes the term itself)
+   ancs = go3.ancestors("GO:0006397")
+   print(len(ancs), "ancestors (including self)")
+
+   # Find the deepest common ancestor of two terms
+   dca = go3.deepest_common_ancestor("GO:0006397", "GO:0008380")
+   print("DCA:", dca)
+
+   # Common ancestors shared by both terms
+   common = go3.common_ancestor("GO:0006397", "GO:0008380")
+   print(len(common), "common ancestors")
+
+Inspecting IC values
+--------------------
+
+.. code-block:: python
+
+   # term_ic returns the Information Content for a single term.
+   # Higher IC means the term is more specific (fewer annotations).
+   ic_specific = go3.term_ic("GO:0006397", counter)   # mRNA processing
+   ic_general  = go3.term_ic("GO:0008150", counter)    # biological_process (root)
+
+   print(f"IC(mRNA processing) = {ic_specific:.4f}")   # high value (specific term)
+   print(f"IC(biological_process) = {ic_general:.4f}") # near 0 (root term)
 
 Distance matrix for downstream analysis
 ---------------------------------------
@@ -78,6 +134,9 @@ Distance matrix for downstream analysis
 .. code-block:: python
 
    genes = ["BRCA1", "CASP8", "TP53", "EGFR", "AKT1"]
+
+   # Build an all-vs-all distance matrix suitable for clustering or embedding.
+   # distance_transform converts similarity to distance (see Utilities docs).
    ordered_genes, dist = go3.gene_distance_matrix(
        genes,
        ontology="BP",
@@ -88,7 +147,7 @@ Distance matrix for downstream analysis
    )
 
    print(ordered_genes)
-   print(len(dist), len(dist[0]))
+   print(len(dist), len(dist[0]))  # 5x5 matrix
 
 Embedding helpers (t-SNE / UMAP)
 ---------------------------------
@@ -98,24 +157,26 @@ Embedding helpers (t-SNE / UMAP)
    # Requires go3[viz] extras
    genes = ["BRCA1", "CASP8", "TP53", "EGFR", "AKT1"]
 
+   # t-SNE embedding from GO semantic similarity distances
    genes, emb_tsne = go3.tsne_genes(
        genes,
        "BP",
        "lin",
        "bma",
        counter,
-       perplexity=2.0,
+       perplexity=2.0,   # must be < number of genes
        n_iter=500,
        random_state=42,
    )
 
+   # UMAP embedding from the same distances
    genes, emb_umap = go3.umap_genes(
        genes,
        "BP",
        "lin",
        "bma",
        counter,
-       n_neighbors=3,
+       n_neighbors=3,    # must be < number of genes
        random_state=42,
    )
 
@@ -133,7 +194,7 @@ Quick plotting helpers
        perplexity=2.0,
        n_iter=500,
        random_state=42,
-       annotate="auto",
+       annotate="auto",  # label points that don't overlap
        title="GO3 t-SNE",
    )
 
@@ -145,7 +206,8 @@ Thread control
 
 .. code-block:: python
 
-   # Call once before heavy batch workloads
+   # Initialize the Rayon thread pool before heavy batch workloads.
+   # Call once at startup -- the pool size cannot be changed after first use.
    go3.set_num_threads(8)
 
 Basic error handling patterns
@@ -160,4 +222,4 @@ Basic error handling patterns
        print("compare_genes error:", exc)
 
    # Missing term or cross-namespace term pairs return similarity 0.0
-   print(go3.semantic_similarity("GO:9999999", "GO:0006397", "lin", counter))
+   print(go3.semantic_similarity("GO:9999999", "GO:0006397", "lin", counter))  # 0.0

@@ -33,6 +33,9 @@ if (!ontology %in% c("BP", "MF", "CC")) {
 }
 
 missing_pkgs <- c()
+if (!suppressWarnings(requireNamespace("Rcpp", quietly = TRUE))) {
+  missing_pkgs <- c(missing_pkgs, "Rcpp")
+}
 if (!suppressWarnings(requireNamespace("GOSemSim", quietly = TRUE))) {
   missing_pkgs <- c(missing_pkgs, "GOSemSim")
 }
@@ -48,6 +51,9 @@ if (length(missing_pkgs) > 0) {
 }
 
 suppressPackageStartupMessages({
+  # Force-load Rcpp to make C-callables available for IC-based methods
+  # (Lin/Resnik/Jiang/Rel) used internally by GOSemSim.
+  library(Rcpp)
   library(GOSemSim)
 })
 

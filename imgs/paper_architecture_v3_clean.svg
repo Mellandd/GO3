@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2200" height="980" viewBox="0 0 2200 980">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="11" markerHeight="11" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1f2937"/>
+    </marker>
+    <style>
+      .bg { fill: #f8fafc; }
+      .title { font: 700 52px 'Helvetica', 'Arial', sans-serif; fill: #0f172a; text-anchor: middle; }
+      .subtitle { font: 500 26px 'Helvetica', 'Arial', sans-serif; fill: #334155; text-anchor: middle; }
+      .panel-title { font: 700 30px 'Helvetica', 'Arial', sans-serif; fill: #0f172a; text-anchor: middle; }
+      .line { font: 500 24px 'Helvetica', 'Arial', sans-serif; fill: #1f2937; }
+      .small { font: 500 21px 'Helvetica', 'Arial', sans-serif; fill: #475569; }
+      .panel { rx: 18; ry: 18; stroke-width: 2.8; }
+      .arrow { stroke: #1f2937; stroke-width: 3.6; fill: none; marker-end: url(#arrow); }
+      .note { font: 500 22px 'Helvetica', 'Arial', sans-serif; fill: #334155; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="2200" height="980"/>
+
+  <text class="title" x="1100" y="78">GO3 Updated Architecture</text>
+  <text class="subtitle" x="1100" y="120">Rust Core + Python API</text>
+
+  <rect class="panel" x="70" y="190" width="380" height="620" fill="#dfeefe" stroke="#6e9dc6"/>
+  <text class="panel-title" x="260" y="246">1. Inputs and Loading</text>
+  <text class="line" x="104" y="308">load_go_terms (OBO)</text>
+  <text class="line" x="104" y="356">load_gaf (GAF)</text>
+  <text class="line" x="104" y="404">build_term_counter</text>
+  <text class="small" x="104" y="472">ND / NOT filtering</text>
+  <text class="small" x="104" y="516">obsolete-term resolution</text>
+  <text class="small" x="104" y="560">parallel parsing (Rayon)</text>
+
+  <rect class="panel" x="500" y="190" width="420" height="620" fill="#e8f5eb" stroke="#78a88d"/>
+  <text class="panel-title" x="710" y="246">2. Core Cached State</text>
+  <text class="line" x="534" y="308">GO_TERMS_CACHE</text>
+  <text class="line" x="534" y="356">GENE2GO_CACHE</text>
+  <text class="line" x="534" y="404">ANCESTORS_CACHE</text>
+  <text class="line" x="534" y="452">DCA_CACHE</text>
+  <text class="line" x="534" y="500">TermCounter (counts, IC)</text>
+  <text class="small" x="534" y="568">ontology reload refreshes caches</text>
+
+  <rect class="panel" x="970" y="190" width="420" height="620" fill="#fdeedc" stroke="#c99864"/>
+  <text class="panel-title" x="1180" y="246">3. Semantic Engine</text>
+  <text class="line" x="1004" y="308">Term similarity:</text>
+  <text class="small" x="1004" y="350">resnik, lin, jc, simrel, iccoef</text>
+  <text class="small" x="1004" y="392">graphic, wang, topoicsim</text>
+  <text class="line" x="1004" y="462">Set/Gene similarity:</text>
+  <text class="small" x="1004" y="504">bma, max, avg, hausdorff, simgic</text>
+  <text class="small" x="1004" y="548">compare_genes / batch APIs</text>
+  <text class="small" x="1004" y="592">parallel batch compute (Rayon)</text>
+
+  <rect class="panel" x="1440" y="190" width="340" height="620" fill="#eef2f7" stroke="#8d97a3"/>
+  <text class="panel-title" x="1610" y="246">4. Matrix and Embedding</text>
+  <text class="line" x="1474" y="308">gene_distance_matrix</text>
+  <text class="line" x="1474" y="356">tsne_genes</text>
+  <text class="line" x="1474" y="404">umap_genes</text>
+  <text class="line" x="1474" y="452">plot_tsne_genes</text>
+  <text class="line" x="1474" y="500">plot_umap_genes</text>
+  <text class="small" x="1474" y="568">distance transforms</text>
+  <text class="small" x="1474" y="612">auto / one_minus / max_minus / reciprocal</text>
+
+  <rect class="panel" x="1830" y="190" width="300" height="620" fill="#f1f5f9" stroke="#9aa4b2"/>
+  <text class="panel-title" x="1980" y="246">5. Python Surface</text>
+  <text class="line" x="1860" y="308">PyO3 module: go3</text>
+  <text class="line" x="1860" y="356">Public Python API</text>
+  <text class="line" x="1860" y="404">Classes:</text>
+  <text class="small" x="1860" y="446">PyGOTerm</text>
+  <text class="small" x="1860" y="488">GAFAnnotation</text>
+  <text class="small" x="1860" y="530">TermCounter</text>
+  <text class="small" x="1860" y="600">Scores, matrices, embeddings</text>
+
+  <line class="arrow" x1="450" y1="500" x2="500" y2="500"/>
+  <line class="arrow" x1="920" y1="500" x2="970" y2="500"/>
+  <line class="arrow" x1="1390" y1="500" x2="1440" y2="500"/>
+  <line class="arrow" x1="1780" y1="500" x2="1830" y2="500"/>
+
+  <text class="note" x="1100" y="900">Designed for paper readability: fewer labels, larger typography, single left-to-right data flow.</text>
+</svg>
