@@ -54,30 +54,20 @@ Typical memory footprint:
 
 If memory is a concern, avoid loading multiple large GAF files in the same process. Reloading the ontology (`load_go_terms`) replaces the previous cache.
 
-## 5. Benchmark with warmups and medians
-
-For stable measurements:
-
-- include at least one warmup run
-- run multiple repeats
-- compare median wall time
-
-Use `scripts/benchmark_go3vsgoatools.py` for standardized runs.
-
-## 6. Choose realistic workload sizes
+## 5. Choose realistic workload sizes
 
 For tiny input sizes, fixed overhead can dominate and hide the true performance profile.
 
 To assess production behavior, benchmark with medium/large batches (hundreds to thousands of pairs) and matrix-style workloads.
 
-## 7. Gene matrix workloads scale quadratically
+## 6. Gene matrix workloads scale quadratically
 
 All-vs-all comparisons on `g` genes produce approximately `g^2 / 2` pairs.
 
 - memory and compute both increase quickly with `g`
 - prefer batched pair evaluation and subset/sampling strategies for exploratory phases
 
-## 8. Distance transforms for embedding pipelines
+## 7. Distance transforms for embedding pipelines
 
 `gene_distance_matrix` supports:
 
@@ -88,7 +78,7 @@ All-vs-all comparisons on `g` genes produce approximately `g^2 / 2` pairs.
 
 For normalized similarities (for example `lin`, `simrel`, `wang`), `auto` maps to `one_minus`.
 
-## 9. Input quality affects runtime and comparability
+## 8. Input quality affects runtime and comparability
 
 Runtime and similarity distributions depend on:
 
@@ -99,32 +89,3 @@ Runtime and similarity distributions depend on:
 - groupwise strategy (`bma`, `max`, `avg`, `hausdorff`, `simgic`)
 
 When reporting results, always include these settings.
-
-## 10. Suggested benchmark profile
-
-```bash
-./venv/bin/python scripts/benchmark_go3vsgoatools.py \
-  --namespace BP \
-  --term-method lin \
-  --gene-method lin \
-  --term-pair-sizes 1000,5000,20000 \
-  --gene-pair-sizes 25,50,100 \
-  --matrix-gene-sizes 8,12 \
-  --warmup 1 \
-  --repeats 2 \
-  --threads 8 \
-  --outdir imgs
-```
-
-This profile usually gives stable and interpretable comparisons for both throughput and memory.
-
-For publication-ready figures and metadata, use:
-
-```bash
-./venv/bin/python scripts/benchmark_go3vsgoatools.py \
-  --paper-ready \
-  --namespace BP \
-  --term-method lin \
-  --gene-method lin \
-  --outdir imgs
-```

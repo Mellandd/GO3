@@ -223,3 +223,25 @@ Basic error handling patterns
 
    # Missing term or cross-namespace term pairs return similarity 0.0
    print(go3.semantic_similarity("GO:9999999", "GO:0006397", "lin", counter))  # 0.0
+
+End-to-end notebook: Parkinson gene panel
+-----------------------------------------
+
+An end-to-end analysis is provided in ``scripts/Supplementary Notebook S2.ipynb``
+(`view on GitHub <https://github.com/Mellandd/go3/blob/master/scripts/Supplementary%20Notebook%20S2.ipynb>`_).
+It applies GO3 to the Genomics England *Parkinson Disease and Complex Parkinsonism*
+gene panel and walks through a full functional-genomics pipeline:
+
+1. **Load** the ontology and annotations.
+2. **Quantify redundancy** via all-vs-all term similarity (``go3.batch_similarity``).
+3. **Cluster** semantically overlapping BP terms with hierarchical clustering on the
+   Lin distance matrix and select the highest-IC representative per cluster
+   (~48% reduction in term count).
+4. **Compute gene-level similarity** with ``go3.gene_distance_matrix`` (Lin + BMA) and
+   rank the most functionally similar gene pairs.
+5. **Visualize** the functional landscape via ``go3.plot_tsne_genes``.
+
+The resulting groups recover known biology — the PINK1/PRKN/PARK7 mitophagy module,
+the GCH1/TH/SPR dopamine-synthesis axis, and metal-ion-transport genes
+(SLC30A10/SLC39A14/FTL) — demonstrating how GO3 can condense a large, redundant
+enrichment output into an interpretable summary in a single notebook.

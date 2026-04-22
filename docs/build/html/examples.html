@@ -6,9 +6,9 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="FAQ" href="faq.html"><link rel="prev" title="Installation" href="introduction.html">
         <link rel="prefetch" href="_static/avatar-go3.png" as="image">
 
-    <link rel="shortcut icon" href="_static/avatar-go3.png"><!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+    <link rel="shortcut icon" href="_static/avatar-go3.png"><!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Examples - GO3 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -271,7 +271,7 @@
 <p>This page shows practical GO3 workflows from initialization to large-scale comparisons.</p>
 <section id="setup">
 <h2>Setup<a class="headerlink" href="#setup" title="Link to this heading">¶</a></h2>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">go3</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">go3</span>
 
 <span class="c1"># Load the GO directed acyclic graph from an OBO file.</span>
 <span class="c1"># This caches the ontology globally -- call once per session.</span>
@@ -476,6 +476,27 @@
 </pre></div>
 </div>
 </section>
+<section id="end-to-end-notebook-parkinson-gene-panel">
+<h2>End-to-end notebook: Parkinson gene panel<a class="headerlink" href="#end-to-end-notebook-parkinson-gene-panel" title="Link to this heading">¶</a></h2>
+<p>An end-to-end analysis is provided in <code class="docutils literal notranslate"><span class="pre">scripts/Supplementary</span> <span class="pre">Notebook</span> <span class="pre">S2.ipynb</span></code>
+(<a class="reference external" href="https://github.com/Mellandd/go3/blob/master/scripts/Supplementary%20Notebook%20S2.ipynb">view on GitHub</a>).
+It applies GO3 to the Genomics England <em>Parkinson Disease and Complex Parkinsonism</em>
+gene panel and walks through a full functional-genomics pipeline:</p>
+<ol class="arabic simple">
+<li><p><strong>Load</strong> the ontology and annotations.</p></li>
+<li><p><strong>Quantify redundancy</strong> via all-vs-all term similarity (<code class="docutils literal notranslate"><span class="pre">go3.batch_similarity</span></code>).</p></li>
+<li><p><strong>Cluster</strong> semantically overlapping BP terms with hierarchical clustering on the
+Lin distance matrix and select the highest-IC representative per cluster
+(~48% reduction in term count).</p></li>
+<li><p><strong>Compute gene-level similarity</strong> with <code class="docutils literal notranslate"><span class="pre">go3.gene_distance_matrix</span></code> (Lin + BMA) and
+rank the most functionally similar gene pairs.</p></li>
+<li><p><strong>Visualize</strong> the functional landscape via <code class="docutils literal notranslate"><span class="pre">go3.plot_tsne_genes</span></code>.</p></li>
+</ol>
+<p>The resulting groups recover known biology — the PINK1/PRKN/PARK7 mitophagy module,
+the GCH1/TH/SPR dopamine-synthesis axis, and metal-ion-transport genes
+(SLC30A10/SLC39A14/FTL) — demonstrating how GO3 can condense a large, redundant
+enrichment output into an interpretable summary in a single notebook.</p>
+</section>
 </section>
 
         </article>
@@ -547,6 +568,7 @@
 <li><a class="reference internal" href="#quick-plotting-helpers">Quick plotting helpers</a></li>
 <li><a class="reference internal" href="#thread-control">Thread control</a></li>
 <li><a class="reference internal" href="#basic-error-handling-patterns">Basic error handling patterns</a></li>
+<li><a class="reference internal" href="#end-to-end-notebook-parkinson-gene-panel">End-to-end notebook: Parkinson gene panel</a></li>
 </ul>
 </li>
 </ul>
@@ -559,8 +581,8 @@
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="_static/doctools.js?v=fd6eb6e6"></script>
-    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="_static/copybutton.js?v=f281be69"></script>

@@ -31,14 +31,14 @@ GO3 is a high-performance GO semantic similarity library built on a **Rust core*
 
 ### Why GO3?
 
-Existing tools like [GOSemSim](https://bioconductor.org/packages/GOSemSim/) (R) and [goatools](https://github.com/tanghaibao/goatools) (Python) cover term-level semantic similarity, but many common operations in GO-based analyses — comparing sets of terms, computing gene-level similarity, building distance matrices, or generating embeddings — require writing ad-hoc glue code or switching between languages and packages. GO3 brings all of these into a single Python library:
+Existing tools like [GOATOOLS](https://github.com/tanghaibao/goatools) (Python), [FastSemSim](https://pypi.org/project/fastsemsim/) (Python), [GOSemSim](https://bioconductor.org/packages/GOSemSim/) (R), [simona](https://bioconductor.org/packages/simona/) (R), and [TaxaGO](https://github.com/TaxaGO/TaxaGO) (Rust CLI) cover term-level semantic similarity, but many common operations in GO-based analyses — comparing sets of terms, computing gene-level similarity, building distance matrices, or generating embeddings — require writing ad-hoc glue code or switching between languages and packages. GO3 brings all of these into a single Python library:
 
 - **Term-level similarity** — 8 methods (IC-based, topological, and hybrid) in one place.
 - **Term-set and gene-level similarity** — compare two sets of GO terms or two genes directly, with 5 groupwise strategies.
 - **Batch operations** — compute thousands of term or gene pairs in a single call, parallelized automatically.
 - **All-vs-all distance matrices** — one function call for a full symmetric distance matrix over any gene list.
 - **Embeddings and visualization** — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.
-- **Speed** — 8–25x faster than pure-Python alternatives; the Rust core and Rayon parallelism eliminate interpreter overhead on large workloads.
+- **Speed** — the fastest library in our benchmark: 3.6–12.5× faster initialization and 2–25× faster gene-level similarity than other Python/R libraries.
 - **Minimal setup** — load an OBO file (auto-downloadable) and a GAF file, and you're ready to compute.
 
 Preprint:
@@ -205,7 +205,7 @@ GO3's Rust core is compiled into a Python extension module via [PyO3](https://py
 
 Batch operations (`batch_similarity`, `compare_gene_pairs_batch`, `gene_distance_matrix`) are parallelized with [Rayon](https://github.com/rayon-rs/rayon), which distributes work across threads automatically. Unique pairs are deduplicated before computation to avoid redundant work.
 
-This architecture — native compiled code, global caching, and data-parallel execution — is what gives GO3 its **8–25x speedup** over pure-Python libraries on medium and large workloads.
+This architecture — native compiled code, global caching, and data-parallel execution — is what gives GO3 its order-of-magnitude speedups over Python and R libraries on medium and large workloads.
 
 ## Common Workflows
 
@@ -301,34 +301,44 @@ Example outputs:
 
 ## Performance and Benchmarks
 
-GO3 was benchmarked against [goatools](https://github.com/tanghaibao/goatools) (Python) and [GOSemSim](https://bioconductor.org/packages/GOSemSim/) (R/Bioconductor) on realistic workloads using the human GO annotation corpus (Biological Process, Lin similarity, BMA groupwise).
+GO3 was benchmarked against five established libraries — **GOATOOLS** (Python), **FastSemSim** (Python), **GOSemSim** (R), **simona** (R), and **TaxaGO** (Rust CLI) — on the human GO annotation corpus (Biological Process, Lin similarity, BMA groupwise). Hardware: Apple M3 Pro, 18 GB RAM, macOS.
 
-| Workload | GO3 vs goatools | GO3 vs GOSemSim |
+GO3 is the fastest library in every workload measured:
+
+| Workload | Fastest alternative | GO3 speedup range |
 |---|---|---|
-| Loading + IC computation | ~1.6x faster, ~2.9x less memory | — |
-| Batch term similarity (up to 20k pairs) | ~8.5x faster | comparable |
-| Batch gene similarity (up to 150 pairs) | ~24x faster | ~3x faster |
-| All-vs-all genes (up to 16 genes) | ~22x faster | ~3x faster |
+| Loading + IC computation | FastSemSim (5.44 s) | 3.6–12.5× over Python/R libraries |
+| Batch term similarity (5,050 pairs) | FastSemSim (10.4 ms) | 4× over FastSemSim; 24× over GOATOOLS; >6,000× over simona; ~4×10⁵ over GOSemSim |
+| Batch gene similarity (100 pairs, BMA) | FastSemSim (2.39 s) | 2× over FastSemSim; 5× over simona; 13× over GOATOOLS; 25× over GOSemSim; 25–119× over TaxaGO |
 
-The speedup grows with workload size. Exact numbers depend on hardware and dataset versions; see the plots below for detailed scaling behavior.
+Numerical validation across all libraries is provided in `scripts/Supplementary Notebook S2.ipynb`: GO3 and GOATOOLS agree near-perfectly (Pearson *r* > 0.97 at both term and gene level); the remaining libraries diverge moderately due to differences in ancestor traversal and MICA selection, which is expected behavior of each tool's published algorithm.
 
 ### Loading and memory
 
-![GO3 vs goatools loading benchmark](imgs/benchmark_loading_time_memory.png)
+![Loading time and peak memory comparison](imgs/benchmark_loading_time_memory.png)
+
+TaxaGO is excluded from the loading comparison because, as a standalone binary, its initialization semantics are not directly comparable to embeddable libraries.
 
 ### Batch GO-term similarity
 
-![GO3 vs goatools batch GO-term benchmark](imgs/benchmark_batch_similarity.png)
+![Batch term similarity scaling](imgs/benchmark_batch_similarity.png)
 
 ### Batch gene similarity
 
-![GO3 vs goatools batch gene benchmark](imgs/benchmark_gene_batch_similarity.png)
-
-### All-vs-all gene similarity
-
-![GO3 vs goatools all-vs-all gene benchmark](imgs/benchmark_all_vs_all_gene_similarity.png)
+![Batch gene similarity scaling](imgs/benchmark_gene_batch_similarity.png)
 
 For full methodology, reproducibility scripts, and raw data, see the [benchmark documentation](https://go3.readthedocs.io/en/latest/benchmarks.html).
+
+## End-to-end example notebook
+
+An end-to-end walkthrough is provided in [`scripts/Supplementary Notebook S2.ipynb`](scripts/Supplementary%20Notebook%20S2.ipynb), which applies GO3 to the Genomics England *Parkinson Disease and Complex Parkinsonism* gene panel to:
+
+1. Quantify GO annotation redundancy via all-vs-all term similarity.
+2. Cluster semantically overlapping BP terms and select the most informative representative per cluster (~48% reduction in term count).
+3. Compute a gene-by-gene BMA similarity matrix for the panel.
+4. Visualize the functional landscape with t-SNE.
+
+The notebook recovers known biology — PINK1/PRKN/PARK7 (mitophagy), GCH1/TH/SPR (dopamine biosynthesis), SLC30A10/SLC39A14/FTL (metal ion transport) — illustrating how GO3 can condense a large, redundant enrichment output into an interpretable functional summary.
 
 ## Documentation
 

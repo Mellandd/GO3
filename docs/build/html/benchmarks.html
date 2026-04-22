@@ -6,9 +6,9 @@
 <link rel="index" title="Index" href="genindex.html"><link rel="search" title="Search" href="search.html"><link rel="next" title="Ontology API" href="ontology.html"><link rel="prev" title="Visualization (t-SNE / UMAP)" href="guide/visualization.html">
         <link rel="prefetch" href="_static/avatar-go3.png" as="image">
 
-    <link rel="shortcut icon" href="_static/avatar-go3.png"><!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+    <link rel="shortcut icon" href="_static/avatar-go3.png"><!-- Generated with Sphinx 8.2.3 and Furo 2025.12.19 -->
         <title>Benchmarks - GO3 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=d111a655" />
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=acfd86a5" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo.css?v=7bdb33bb" />
     <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
     <link rel="stylesheet" type="text/css" href="_static/styles/furo-extensions.css?v=8dab3a3b" />
@@ -268,146 +268,228 @@
         <article role="main" id="furo-main-content">
           <section id="benchmarks">
 <h1>Benchmarks<a class="headerlink" href="#benchmarks" title="Link to this heading">¶</a></h1>
-<p>GO3 was benchmarked against <a class="reference external" href="https://github.com/tanghaibao/goatools">goatools</a> (Python) and <a class="reference external" href="https://bioconductor.org/packages/GOSemSim/">GOSemSim</a> (R/Bioconductor) on realistic workloads using the human GO annotation corpus (Biological Process, Lin similarity, BMA groupwise).</p>
+<p>GO3 was benchmarked against five established libraries covering the most commonly used
+implementations of GO semantic similarity:</p>
+<ul class="simple">
+<li><p><strong>GOATOOLS</strong> 1.3.11 (Python)</p></li>
+<li><p><strong>FastSemSim</strong> 1.0.0 (Python)</p></li>
+<li><p><strong>GOSemSim</strong> 2.36.0 (R / Bioconductor)</p></li>
+<li><p><strong>simona</strong> 1.8.1 (R / Bioconductor)</p></li>
+<li><p><strong>TaxaGO</strong> (Rust CLI; <code class="docutils literal notranslate"><span class="pre">semantic-similarity</span></code> binary)</p></li>
+</ul>
+<p>All workloads use the human GO annotation corpus, Biological Process sub-ontology, and
+Lin similarity. Gene-level benchmarks use the Best Match Average (BMA) groupwise strategy.</p>
+<section id="setup">
+<h2>Setup<a class="headerlink" href="#setup" title="Link to this heading">¶</a></h2>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Item</p></th>
+<th class="head"><p>Value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>GO ontology</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">releases/2026-03-25</span></code> (41,853 terms)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Annotations</p></td>
+<td><p>GOC human GAF, 2026-03-28 (879,127 annotations after filtering NOT/ND and propagating)</p></td>
+</tr>
+<tr class="row-even"><td><p>Namespace</p></td>
+<td><p>Biological Process (BP)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Term method</p></td>
+<td><p>Lin</p></td>
+</tr>
+<tr class="row-even"><td><p>Gene method</p></td>
+<td><p>Lin + BMA</p></td>
+</tr>
+<tr class="row-odd"><td><p>Hardware</p></td>
+<td><p>Apple M3 Pro (11 logical cores, 18 GB RAM)</p></td>
+</tr>
+<tr class="row-even"><td><p>OS / runtime</p></td>
+<td><p>macOS 26.2, Python 3.12.2, R 4.5.1</p></td>
+</tr>
+<tr class="row-odd"><td><p>Threads</p></td>
+<td><p>8 (where the tool supports parallelism)</p></td>
+</tr>
+<tr class="row-even"><td><p>Protocol</p></td>
+<td><p>2 warmup + 5 timed repetitions per size group; medians with bootstrap 95% CI</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
 <section id="summary">
 <h2>Summary<a class="headerlink" href="#summary" title="Link to this heading">¶</a></h2>
 <div class="table-wrapper colwidths-auto docutils container">
 <table class="docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"><p>Workload</p></th>
-<th class="head"><p>GO3 vs goatools</p></th>
-<th class="head"><p>GO3 vs GOSemSim</p></th>
+<th class="head"><p>GO3</p></th>
+<th class="head"><p>Fastest alternative</p></th>
+<th class="head"><p>Worst alternative</p></th>
 </tr>
 </thead>
 <tbody>
-<tr class="row-even"><td><p>Loading + IC computation</p></td>
-<td><p>~1.6x faster, ~2.9x less memory</p></td>
-<td><p>—</p></td>
+<tr class="row-even"><td><p>Loading + IC</p></td>
+<td><p><strong>1.53 s / 768 MB</strong></p></td>
+<td><p>FastSemSim 5.44 s</p></td>
+<td><p>simona 19.07 s</p></td>
 </tr>
-<tr class="row-odd"><td><p>Batch term similarity (up to 20k pairs)</p></td>
-<td><p>~8.5x faster</p></td>
-<td><p>comparable</p></td>
+<tr class="row-odd"><td><p>Term similarity, 5,050 pairs</p></td>
+<td><p><strong>2.8 ms</strong></p></td>
+<td><p>FastSemSim 10.4 ms (4× slower)</p></td>
+<td><p>GOSemSim 1,217 s (~4×10⁵ slower)</p></td>
 </tr>
-<tr class="row-even"><td><p>Batch gene similarity (up to 150 pairs)</p></td>
-<td><p>~24x faster</p></td>
-<td><p>~3x faster</p></td>
-</tr>
-<tr class="row-odd"><td><p>All-vs-all genes (up to 16 genes)</p></td>
-<td><p>~22x faster</p></td>
-<td><p>~3x faster</p></td>
+<tr class="row-even"><td><p>Gene similarity, 100 pairs (BMA)</p></td>
+<td><p><strong>1.02 s</strong></p></td>
+<td><p>FastSemSim 2.39 s (2× slower)</p></td>
+<td><p>TaxaGO 25.2 s (25× slower)</p></td>
 </tr>
 </tbody>
 </table>
 </div>
-<p>The speedup grows with workload size. Exact numbers depend on hardware and dataset versions; see the plots below for detailed scaling behavior.</p>
+<p>GO3 is the fastest library in every workload tested. Absolute numbers depend on
+hardware and dataset versions; see the plots below for scaling behaviour.</p>
 </section>
 <section id="loading-and-memory">
 <h2>Loading and memory<a class="headerlink" href="#loading-and-memory" title="Link to this heading">¶</a></h2>
-<p><img alt="Loading time and memory" src="_images/benchmark_loading_time_memory.png" /></p>
+<p><img alt="Loading time and peak memory" src="_images/benchmark_loading_time_memory.png" /></p>
+<p>TaxaGO is excluded from the loading comparison because, as a standalone binary, its
+initialization semantics are not directly comparable to embeddable libraries.</p>
+<p>GO3 achieves the fastest initialization (1.53 s). GOSemSim and FastSemSim use less peak
+memory (571 MB and 617 MB respectively) at the cost of substantially longer load times.
+GOATOOLS requires 2,659 MB — 3.5× more than GO3.</p>
 </section>
 <section id="batch-go-term-similarity">
 <h2>Batch GO-term similarity<a class="headerlink" href="#batch-go-term-similarity" title="Link to this heading">¶</a></h2>
 <p><img alt="Batch term similarity" src="_images/benchmark_batch_similarity.png" /></p>
+<p>At 5,050 term pairs (Lin, BP), GO3 is 4× faster than FastSemSim, 24× faster than
+GOATOOLS, &gt;6,000× faster than simona, and up to ~4×10⁵ faster than GOSemSim. TaxaGO’s
+curve is approximately flat because its per-invocation startup cost (OBO load ~0.27 s)
+dominates over the actual matrix computation for these term-set sizes.</p>
 </section>
 <section id="batch-gene-similarity">
 <h2>Batch gene similarity<a class="headerlink" href="#batch-gene-similarity" title="Link to this heading">¶</a></h2>
 <p><img alt="Batch gene similarity" src="_images/benchmark_gene_batch_similarity.png" /></p>
-</section>
-<section id="all-vs-all-gene-similarity">
-<h2>All-vs-all gene similarity<a class="headerlink" href="#all-vs-all-gene-similarity" title="Link to this heading">¶</a></h2>
-<p><img alt="All-vs-all gene similarity" src="_images/benchmark_all_vs_all_gene_similarity.png" /></p>
+<p>At 100 gene pairs (Lin + BMA, BP), GO3 is 2× faster than FastSemSim, 5× faster than
+simona, 13× faster than GOATOOLS, 25× faster than GOSemSim, and 25–119× faster than
+TaxaGO depending on batch size.</p>
 </section>
 <section id="reading-the-plots">
 <h2>Reading the plots<a class="headerlink" href="#reading-the-plots" title="Link to this heading">¶</a></h2>
 <ul class="simple">
-<li><p>Each panel shows absolute runtime curves (log-scale where appropriate).</p></li>
-<li><p>A speedup summary text box is included inside the plot.</p></li>
-<li><p>Speedup &gt; 1.0 means GO3 is faster.</p></li>
-<li><p>For very small inputs, Python overhead can dominate and reduce visible speedup. The practical advantage appears in medium and large workloads.</p></li>
+<li><p>All runtime axes are log-scale.</p></li>
+<li><p>Shaded bands show bootstrap 95% confidence intervals over 5 runs.</p></li>
+<li><p>For very small inputs, fixed per-call overhead can dominate; the practical advantage
+appears on medium and large workloads.</p></li>
+</ul>
+</section>
+<section id="numerical-validation">
+<h2>Numerical validation<a class="headerlink" href="#numerical-validation" title="Link to this heading">¶</a></h2>
+<p>Because every library uses a slightly different ancestor-traversal strategy and MICA
+selection, exact agreement between any two libraries is not expected. A pairwise
+numerical comparison is provided in
+<a class="reference external" href="https://github.com/Mellandd/go3/blob/master/scripts/Supplementary%20Notebook%20S2.ipynb"><code class="docutils literal notranslate"><span class="pre">scripts/Supplementary</span> <span class="pre">Notebook</span> <span class="pre">S2.ipynb</span></code></a>:</p>
+<ul class="simple">
+<li><p><strong>GO3 vs GOATOOLS</strong> — near-perfect agreement (Pearson <em>r</em> &gt; 0.97 at term and gene
+level). This confirms GO3’s IC and MICA pipeline matches the reference Python
+implementation.</p></li>
+<li><p><strong>FastSemSim / GOSemSim / simona</strong> — moderate agreement with GO3 (<em>r</em> ≈ 0.63–0.95
+depending on level and tool), due to alternative MICA-selection strategies documented
+in each tool’s literature.</p></li>
+<li><p><strong>TaxaGO</strong> — the largest divergence (<em>r</em> ≈ 0.20–0.48), consistent with its independent
+OBO parser and IC computation.</p></li>
+<li><p>At the gene level, BMA aggregation smooths term-level discrepancies, so agreement is
+uniformly higher than at the term level.</p></li>
 </ul>
 </section>
 <section id="methodology">
 <h2>Methodology<a class="headerlink" href="#methodology" title="Link to this heading">¶</a></h2>
 <section id="compared-libraries">
 <h3>Compared libraries<a class="headerlink" href="#compared-libraries" title="Link to this heading">¶</a></h3>
+<p>All libraries are invoked through dedicated <strong>runner adapters</strong> under
+<code class="docutils literal notranslate"><span class="pre">scripts/runners/</span></code>. Each adapter:</p>
 <ul class="simple">
-<li><p><strong>GO3</strong>: this package (Rust core, Python API).</p></li>
-<li><p><strong>goatools</strong>: Python-only baseline in the same runtime ecosystem.</p></li>
-<li><p><strong>GOSemSim</strong> (optional): R/Bioconductor reference. Included where available, but differences in ontology/annotation handling limit strict apples-to-apples comparison.</p></li>
+<li><p>reports whether the tool is available on the system;</p></li>
+<li><p>isolates the tool (subprocess for R / CLI tools) so import/parse costs are fully
+included in the loading timings;</p></li>
+<li><p>receives the <strong>same sampled inputs</strong> for every size point, so no tool gets a different
+workload.</p></li>
 </ul>
 </section>
 <section id="loading-benchmark">
 <h3>Loading benchmark<a class="headerlink" href="#loading-benchmark" title="Link to this heading">¶</a></h3>
-<p>Measured in isolated subprocesses per library to avoid cache carry-over:</p>
-<ol class="arabic simple">
-<li><p>Load ontology.</p></li>
-<li><p>Load annotations.</p></li>
-<li><p>Build term statistics / IC structures.</p></li>
-</ol>
-<p>Reported metrics: total wall-clock time and peak resident memory (RSS).</p>
-</section>
-<section id="pair-benchmarks-terms-and-genes">
-<h3>Pair benchmarks (terms and genes)<a class="headerlink" href="#pair-benchmarks-terms-and-genes" title="Link to this heading">¶</a></h3>
-<p>For each input size <em>n</em>:</p>
+<p>Each run spawns a fresh process, so import and parse costs are paid every repeat.
+Reported metrics:</p>
 <ul class="simple">
-<li><p>The same sampled pair set is used by all libraries.</p></li>
-<li><p>Warmup runs are excluded from timing.</p></li>
-<li><p>Median over repeated timed runs is reported.</p></li>
-<li><p>Throughput (pairs/second) and speedup (goatools_time / go3_time) are computed.</p></li>
+<li><p>median wall-clock time (5 runs)</p></li>
+<li><p>median peak resident memory (RSS)</p></li>
 </ul>
+</section>
+<section id="term-pair-benchmark">
+<h3>Term-pair benchmark<a class="headerlink" href="#term-pair-benchmark" title="Link to this heading">¶</a></h3>
+<p>Uses <strong>closed term sets</strong>: for each target pair count <em>P</em>, the smallest <em>N</em> with
+<code class="docutils literal notranslate"><span class="pre">C(N,2)</span> <span class="pre">≥</span> <span class="pre">P</span></code> is chosen, and every runner sees the same <em>N</em> terms. Reported <em>x</em>-axis is
+the actual number of pairs <code class="docutils literal notranslate"><span class="pre">C(N,2)</span></code>. This is required to accommodate TaxaGO, which
+takes a term set and returns the full <em>N</em>×<em>N</em> similarity matrix.</p>
+</section>
+<section id="gene-pair-benchmark">
+<h3>Gene-pair benchmark<a class="headerlink" href="#gene-pair-benchmark" title="Link to this heading">¶</a></h3>
+<p>Disjoint random samples of gene pairs (per size group), restricted to genes with at
+least 8 BP annotations. Every runner processes the same pair sets.</p>
 </section>
 <section id="all-vs-all-gene-benchmark">
 <h3>All-vs-all gene benchmark<a class="headerlink" href="#all-vs-all-gene-benchmark" title="Link to this heading">¶</a></h3>
-<p>For each cohort size <em>g</em>:</p>
-<ul class="simple">
-<li><p>All unique gene pairs are generated: <em>g</em>(g-1)/2*.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">go3.compare_gene_pairs_batch</span></code> is compared against a goatools-based BMA implementation.</p></li>
-<li><p>Median time, throughput, and speedup are reported.</p></li>
-</ul>
-<p>This workload reflects realistic quadratic scenarios often seen in clustering, network construction, or cohort-level exploratory analyses.</p>
+<p>For each cohort size <em>g</em>, all <code class="docutils literal notranslate"><span class="pre">g(g−1)/2</span></code> pairs are generated. This workload reflects
+realistic quadratic scenarios: clustering, network construction, or cohort-level
+exploratory analyses.</p>
 </section>
 <section id="fairness-notes">
 <h3>Fairness notes<a class="headerlink" href="#fairness-notes" title="Link to this heading">¶</a></h3>
 <ul class="simple">
-<li><p>All compared methods use the same ontology and GAF inputs.</p></li>
-<li><p>Gene-level goatools comparisons rely on an explicit BMA implementation, because goatools does not provide equivalent high-level gene batch APIs.</p></li>
-<li><p>Candidate selection favors biologically informative terms and genes (non-trivial IC/depth, sufficiently annotated), which better reflects real downstream analyses.</p></li>
+<li><p>All libraries receive the same OBO and GAF inputs.</p></li>
+<li><p>Gene-level BMA is not exposed natively by every library; where absent (e.g., TaxaGO),
+the adapter implements BMA on top of the library’s term-pair output, and the reported
+time covers the full end-to-end pipeline.</p></li>
+<li><p>Random seeds are fixed (<code class="docutils literal notranslate"><span class="pre">seed=42</span></code>) so samples are reproducible.</p></li>
 </ul>
 </section>
 </section>
 <section id="reproducing-the-benchmarks">
 <h2>Reproducing the benchmarks<a class="headerlink" href="#reproducing-the-benchmarks" title="Link to this heading">¶</a></h2>
-<p>The benchmark script is at <code class="docutils literal notranslate"><span class="pre">scripts/benchmark_go3vsgoatools.py</span></code>. Run from an environment where <code class="docutils literal notranslate"><span class="pre">go3</span></code> and <code class="docutils literal notranslate"><span class="pre">goatools</span></code> are installed:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/benchmark_go3vsgoatools.py<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--namespace<span class="w"> </span>BP<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--term-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--gene-method<span class="w"> </span>lin<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--term-pair-sizes<span class="w"> </span><span class="m">1000</span>,5000,20000<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--gene-pair-sizes<span class="w"> </span><span class="m">25</span>,50,100<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--matrix-gene-sizes<span class="w"> </span><span class="m">8</span>,12<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--warmup<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--repeats<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--threads<span class="w"> </span><span class="m">8</span><span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--outdir<span class="w"> </span>imgs
+<p>The orchestrator is <code class="docutils literal notranslate"><span class="pre">scripts/benchmark_all.py</span></code>. Discovery is automatic: every runner
+whose underlying tool is available on the system participates.</p>
+<p>Default profile:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/benchmark_all.py<span class="w"> </span>--outdir<span class="w"> </span>imgs
 </pre></div>
 </div>
-<p>To include GOSemSim (requires R with GOSemSim installed):</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/benchmark_go3vsgoatools.py<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--include-gosemsim<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--gosemsim-measure<span class="w"> </span>wang<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--r-libs-user<span class="w"> </span>./.r_libs<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span>--outdir<span class="w"> </span>imgs
+<p>Paper-ready profile (larger sizes, more repeats, SVG + PNG output):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/benchmark_all.py<span class="w"> </span>--paper-ready<span class="w"> </span>--outdir<span class="w"> </span>imgs
+</pre></div>
+</div>
+<p>Restrict to specific libraries:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/benchmark_all.py<span class="w"> </span>--only<span class="w"> </span>go3,goatools,fastsemsim<span class="w"> </span>--outdir<span class="w"> </span>imgs
+</pre></div>
+</div>
+<p>Exclude the heaviest tools:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/benchmark_all.py<span class="w"> </span>--exclude<span class="w"> </span>gosemsim,simona<span class="w"> </span>--outdir<span class="w"> </span>imgs
+</pre></div>
+</div>
+<p>Regenerate plots from an existing results file (no recomputation):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>scripts/benchmark_all.py<span class="w"> </span>--replot<span class="w"> </span>imgs/benchmark_results.json<span class="w"> </span>--outdir<span class="w"> </span>imgs
 </pre></div>
 </div>
 <section id="output-artifacts">
 <h3>Output artifacts<a class="headerlink" href="#output-artifacts" title="Link to this heading">¶</a></h3>
-<p>The script writes:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_loading_time_memory.png</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_batch_similarity.png</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_gene_batch_similarity.png</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_all_vs_all_gene_similarity.png</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_results.json</span></code> — raw runs, medians, throughput, and speedup summaries.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">imgs/benchmark_results.json</span></code> — raw timings, medians, confidence intervals, and full
+experimental metadata (OBO/GAF versions, system info, runner capabilities).</p></li>
 </ul>
 </section>
 </section>
@@ -469,16 +551,18 @@
           <div class="toc-tree">
             <ul>
 <li><a class="reference internal" href="#">Benchmarks</a><ul>
+<li><a class="reference internal" href="#setup">Setup</a></li>
 <li><a class="reference internal" href="#summary">Summary</a></li>
 <li><a class="reference internal" href="#loading-and-memory">Loading and memory</a></li>
 <li><a class="reference internal" href="#batch-go-term-similarity">Batch GO-term similarity</a></li>
 <li><a class="reference internal" href="#batch-gene-similarity">Batch gene similarity</a></li>
-<li><a class="reference internal" href="#all-vs-all-gene-similarity">All-vs-all gene similarity</a></li>
 <li><a class="reference internal" href="#reading-the-plots">Reading the plots</a></li>
+<li><a class="reference internal" href="#numerical-validation">Numerical validation</a></li>
 <li><a class="reference internal" href="#methodology">Methodology</a><ul>
 <li><a class="reference internal" href="#compared-libraries">Compared libraries</a></li>
 <li><a class="reference internal" href="#loading-benchmark">Loading benchmark</a></li>
-<li><a class="reference internal" href="#pair-benchmarks-terms-and-genes">Pair benchmarks (terms and genes)</a></li>
+<li><a class="reference internal" href="#term-pair-benchmark">Term-pair benchmark</a></li>
+<li><a class="reference internal" href="#gene-pair-benchmark">Gene-pair benchmark</a></li>
 <li><a class="reference internal" href="#all-vs-all-gene-benchmark">All-vs-all gene benchmark</a></li>
 <li><a class="reference internal" href="#fairness-notes">Fairness notes</a></li>
 </ul>
@@ -499,8 +583,8 @@
     </aside>
   </div>
 </div><script src="_static/documentation_options.js?v=5929fcd5"></script>
-    <script src="_static/doctools.js?v=fd6eb6e6"></script>
-    <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="_static/scripts/furo.js?v=46bd48cc"></script>
     <script src="_static/clipboard.min.js?v=a7894cd8"></script>
     <script src="_static/copybutton.js?v=f281be69"></script>

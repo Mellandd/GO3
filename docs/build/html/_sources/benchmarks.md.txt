@@ -1,118 +1,182 @@
 # Benchmarks
 
-GO3 was benchmarked against [goatools](https://github.com/tanghaibao/goatools) (Python) and [GOSemSim](https://bioconductor.org/packages/GOSemSim/) (R/Bioconductor) on realistic workloads using the human GO annotation corpus (Biological Process, Lin similarity, BMA groupwise).
+GO3 was benchmarked against five established libraries covering the most commonly used
+implementations of GO semantic similarity:
+
+- **GOATOOLS** 1.3.11 (Python)
+- **FastSemSim** 1.0.0 (Python)
+- **GOSemSim** 2.36.0 (R / Bioconductor)
+- **simona** 1.8.1 (R / Bioconductor)
+- **TaxaGO** (Rust CLI; `semantic-similarity` binary)
+
+All workloads use the human GO annotation corpus, Biological Process sub-ontology, and
+Lin similarity. Gene-level benchmarks use the Best Match Average (BMA) groupwise strategy.
+
+## Setup
+
+| Item | Value |
+|---|---|
+| GO ontology | `releases/2026-03-25` (41,853 terms) |
+| Annotations | GOC human GAF, 2026-03-28 (879,127 annotations after filtering NOT/ND and propagating) |
+| Namespace | Biological Process (BP) |
+| Term method | Lin |
+| Gene method | Lin + BMA |
+| Hardware | Apple M3 Pro (11 logical cores, 18 GB RAM) |
+| OS / runtime | macOS 26.2, Python 3.12.2, R 4.5.1 |
+| Threads | 8 (where the tool supports parallelism) |
+| Protocol | 2 warmup + 5 timed repetitions per size group; medians with bootstrap 95% CI |
 
 ## Summary
 
-| Workload | GO3 vs goatools | GO3 vs GOSemSim |
-|---|---|---|
-| Loading + IC computation | ~1.6x faster, ~2.9x less memory | — |
-| Batch term similarity (up to 20k pairs) | ~8.5x faster | comparable |
-| Batch gene similarity (up to 150 pairs) | ~24x faster | ~3x faster |
-| All-vs-all genes (up to 16 genes) | ~22x faster | ~3x faster |
+| Workload | GO3 | Fastest alternative | Worst alternative |
+|---|---|---|---|
+| Loading + IC | **1.53 s / 768 MB** | FastSemSim 5.44 s | simona 19.07 s |
+| Term similarity, 5,050 pairs | **2.8 ms** | FastSemSim 10.4 ms (4× slower) | GOSemSim 1,217 s (~4×10⁵ slower) |
+| Gene similarity, 100 pairs (BMA) | **1.02 s** | FastSemSim 2.39 s (2× slower) | TaxaGO 25.2 s (25× slower) |
 
-The speedup grows with workload size. Exact numbers depend on hardware and dataset versions; see the plots below for detailed scaling behavior.
+GO3 is the fastest library in every workload tested. Absolute numbers depend on
+hardware and dataset versions; see the plots below for scaling behaviour.
 
 ## Loading and memory
 
-![Loading time and memory](../../imgs/benchmark_loading_time_memory.png)
+![Loading time and peak memory](../../imgs/benchmark_loading_time_memory.png)
+
+TaxaGO is excluded from the loading comparison because, as a standalone binary, its
+initialization semantics are not directly comparable to embeddable libraries.
+
+GO3 achieves the fastest initialization (1.53 s). GOSemSim and FastSemSim use less peak
+memory (571 MB and 617 MB respectively) at the cost of substantially longer load times.
+GOATOOLS requires 2,659 MB — 3.5× more than GO3.
 
 ## Batch GO-term similarity
 
 ![Batch term similarity](../../imgs/benchmark_batch_similarity.png)
 
+At 5,050 term pairs (Lin, BP), GO3 is 4× faster than FastSemSim, 24× faster than
+GOATOOLS, >6,000× faster than simona, and up to ~4×10⁵ faster than GOSemSim. TaxaGO's
+curve is approximately flat because its per-invocation startup cost (OBO load ~0.27 s)
+dominates over the actual matrix computation for these term-set sizes.
+
 ## Batch gene similarity
 
 ![Batch gene similarity](../../imgs/benchmark_gene_batch_similarity.png)
 
-## All-vs-all gene similarity
-
-![All-vs-all gene similarity](../../imgs/benchmark_all_vs_all_gene_similarity.png)
+At 100 gene pairs (Lin + BMA, BP), GO3 is 2× faster than FastSemSim, 5× faster than
+simona, 13× faster than GOATOOLS, 25× faster than GOSemSim, and 25–119× faster than
+TaxaGO depending on batch size.
 
 ## Reading the plots
 
-- Each panel shows absolute runtime curves (log-scale where appropriate).
-- A speedup summary text box is included inside the plot.
-- Speedup > 1.0 means GO3 is faster.
-- For very small inputs, Python overhead can dominate and reduce visible speedup. The practical advantage appears in medium and large workloads.
+- All runtime axes are log-scale.
+- Shaded bands show bootstrap 95% confidence intervals over 5 runs.
+- For very small inputs, fixed per-call overhead can dominate; the practical advantage
+  appears on medium and large workloads.
+
+## Numerical validation
+
+Because every library uses a slightly different ancestor-traversal strategy and MICA
+selection, exact agreement between any two libraries is not expected. A pairwise
+numerical comparison is provided in
+[`scripts/Supplementary Notebook S2.ipynb`](https://github.com/Mellandd/go3/blob/master/scripts/Supplementary%20Notebook%20S2.ipynb):
+
+- **GO3 vs GOATOOLS** — near-perfect agreement (Pearson *r* > 0.97 at term and gene
+  level). This confirms GO3's IC and MICA pipeline matches the reference Python
+  implementation.
+- **FastSemSim / GOSemSim / simona** — moderate agreement with GO3 (*r* ≈ 0.63–0.95
+  depending on level and tool), due to alternative MICA-selection strategies documented
+  in each tool's literature.
+- **TaxaGO** — the largest divergence (*r* ≈ 0.20–0.48), consistent with its independent
+  OBO parser and IC computation.
+- At the gene level, BMA aggregation smooths term-level discrepancies, so agreement is
+  uniformly higher than at the term level.
 
 ## Methodology
 
 ### Compared libraries
 
-- **GO3**: this package (Rust core, Python API).
-- **goatools**: Python-only baseline in the same runtime ecosystem.
-- **GOSemSim** (optional): R/Bioconductor reference. Included where available, but differences in ontology/annotation handling limit strict apples-to-apples comparison.
+All libraries are invoked through dedicated **runner adapters** under
+`scripts/runners/`. Each adapter:
+
+- reports whether the tool is available on the system;
+- isolates the tool (subprocess for R / CLI tools) so import/parse costs are fully
+  included in the loading timings;
+- receives the **same sampled inputs** for every size point, so no tool gets a different
+  workload.
 
 ### Loading benchmark
 
-Measured in isolated subprocesses per library to avoid cache carry-over:
+Each run spawns a fresh process, so import and parse costs are paid every repeat.
+Reported metrics:
 
-1. Load ontology.
-2. Load annotations.
-3. Build term statistics / IC structures.
+- median wall-clock time (5 runs)
+- median peak resident memory (RSS)
 
-Reported metrics: total wall-clock time and peak resident memory (RSS).
+### Term-pair benchmark
 
-### Pair benchmarks (terms and genes)
+Uses **closed term sets**: for each target pair count *P*, the smallest *N* with
+`C(N,2) ≥ P` is chosen, and every runner sees the same *N* terms. Reported *x*-axis is
+the actual number of pairs `C(N,2)`. This is required to accommodate TaxaGO, which
+takes a term set and returns the full *N*×*N* similarity matrix.
 
-For each input size *n*:
+### Gene-pair benchmark
 
-- The same sampled pair set is used by all libraries.
-- Warmup runs are excluded from timing.
-- Median over repeated timed runs is reported.
-- Throughput (pairs/second) and speedup (goatools_time / go3_time) are computed.
+Disjoint random samples of gene pairs (per size group), restricted to genes with at
+least 8 BP annotations. Every runner processes the same pair sets.
 
 ### All-vs-all gene benchmark
 
-For each cohort size *g*:
-
-- All unique gene pairs are generated: *g*(g-1)/2*.
-- `go3.compare_gene_pairs_batch` is compared against a goatools-based BMA implementation.
-- Median time, throughput, and speedup are reported.
-
-This workload reflects realistic quadratic scenarios often seen in clustering, network construction, or cohort-level exploratory analyses.
+For each cohort size *g*, all `g(g−1)/2` pairs are generated. This workload reflects
+realistic quadratic scenarios: clustering, network construction, or cohort-level
+exploratory analyses.
 
 ### Fairness notes
 
-- All compared methods use the same ontology and GAF inputs.
-- Gene-level goatools comparisons rely on an explicit BMA implementation, because goatools does not provide equivalent high-level gene batch APIs.
-- Candidate selection favors biologically informative terms and genes (non-trivial IC/depth, sufficiently annotated), which better reflects real downstream analyses.
+- All libraries receive the same OBO and GAF inputs.
+- Gene-level BMA is not exposed natively by every library; where absent (e.g., TaxaGO),
+  the adapter implements BMA on top of the library's term-pair output, and the reported
+  time covers the full end-to-end pipeline.
+- Random seeds are fixed (`seed=42`) so samples are reproducible.
 
 ## Reproducing the benchmarks
 
-The benchmark script is at `scripts/benchmark_go3vsgoatools.py`. Run from an environment where `go3` and `goatools` are installed:
+The orchestrator is `scripts/benchmark_all.py`. Discovery is automatic: every runner
+whose underlying tool is available on the system participates.
+
+Default profile:
 
 ```bash
-python scripts/benchmark_go3vsgoatools.py \
-  --namespace BP \
-  --term-method lin \
-  --gene-method lin \
-  --term-pair-sizes 1000,5000,20000 \
-  --gene-pair-sizes 25,50,100 \
-  --matrix-gene-sizes 8,12 \
-  --warmup 1 \
-  --repeats 2 \
-  --threads 8 \
-  --outdir imgs
+python scripts/benchmark_all.py --outdir imgs
 ```
 
-To include GOSemSim (requires R with GOSemSim installed):
+Paper-ready profile (larger sizes, more repeats, SVG + PNG output):
 
 ```bash
-python scripts/benchmark_go3vsgoatools.py \
-  --include-gosemsim \
-  --gosemsim-measure wang \
-  --r-libs-user ./.r_libs \
-  --outdir imgs
+python scripts/benchmark_all.py --paper-ready --outdir imgs
+```
+
+Restrict to specific libraries:
+
+```bash
+python scripts/benchmark_all.py --only go3,goatools,fastsemsim --outdir imgs
+```
+
+Exclude the heaviest tools:
+
+```bash
+python scripts/benchmark_all.py --exclude gosemsim,simona --outdir imgs
+```
+
+Regenerate plots from an existing results file (no recomputation):
+
+```bash
+python scripts/benchmark_all.py --replot imgs/benchmark_results.json --outdir imgs
 ```
 
 ### Output artifacts
-
-The script writes:
 
 - `imgs/benchmark_loading_time_memory.png`
 - `imgs/benchmark_batch_similarity.png`
 - `imgs/benchmark_gene_batch_similarity.png`
 - `imgs/benchmark_all_vs_all_gene_similarity.png`
-- `imgs/benchmark_results.json` — raw runs, medians, throughput, and speedup summaries.
+- `imgs/benchmark_results.json` — raw timings, medians, confidence intervals, and full
+  experimental metadata (OBO/GAF versions, system info, runner capabilities).
