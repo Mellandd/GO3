@@ -460,6 +460,7 @@ def scores_taxago(
         outdir.mkdir(parents=True, exist_ok=True)
         cmd = [
             binary,
+            "-p",
             "-o", str(obo),
             "-t", str(terms_file),
             "-m", method_flag,

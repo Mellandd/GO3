@@ -282,10 +282,10 @@ def _analysis_text(rows: list[dict]) -> str:
       Resnik), with moderate Pearson r due to a different IC scale. After
       min-max normalisation the agreement improves substantially.
 
-    - TaxaGO shows the largest divergence from all other tools, likely due
-      to its independent OBO parser and IC computation pipeline. Pearson r
-      values of 0.30-0.48 indicate substantial scale differences, though
-      rank agreement is moderate (Spearman rho ~ 0.46-0.55).
+    - TaxaGO was invoked with `--propagate-counts` so that annotation counts are
+      propagated to parent terms, matching the IC computation approach used by all
+      other tools. Without this flag, TaxaGO would compute IC using only direct leaf
+      annotations, producing IC values that are not directly comparable.
 
     - At gene level, agreement is consistently higher than at term level
       for most tool pairs, because the Best Match Average (BMA) aggregation

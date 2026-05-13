@@ -148,6 +148,7 @@ class TaxagoRunner(Runner):
         terms_file.write_text("GO:0008150\n", encoding="utf-8")
         cmd = [
             binary,
+            "-p",
             "-o", str(obo),
             "-t", str(terms_file),
             "-m", "resnik",
@@ -211,6 +212,7 @@ class TaxagoRunner(Runner):
 
             cmd = [
                 binary,
+                "-p",
                 "-o", str(obo),
                 "-t", str(terms_file),
                 "-m", method_flag,
@@ -282,6 +284,7 @@ class TaxagoRunner(Runner):
 
             cmd = [
                 binary,
+                "-p",
                 "-o", str(obo),
                 "-t", str(terms_file),
                 "-m", method_flag,
