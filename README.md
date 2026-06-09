@@ -34,7 +34,7 @@ GO3 is a high-performance GO semantic similarity library built on a **Rust core*
 Existing tools like [GOATOOLS](https://github.com/tanghaibao/goatools) (Python), [FastSemSim](https://pypi.org/project/fastsemsim/) (Python), [GOSemSim](https://bioconductor.org/packages/GOSemSim/) (R), [simona](https://bioconductor.org/packages/simona/) (R), and [TaxaGO](https://github.com/TaxaGO/TaxaGO) (Rust CLI) cover term-level semantic similarity, but many common operations in GO-based analyses — comparing sets of terms, computing gene-level similarity, building distance matrices, or generating embeddings — require writing ad-hoc glue code or switching between languages and packages. GO3 brings all of these into a single Python library:
 
 - **Term-level similarity** — 8 methods (IC-based, topological, and hybrid) in one place.
-- **Term-set and gene-level similarity** — compare two sets of GO terms or two genes directly, with 5 groupwise strategies.
+- **Term-set, gene-level, and gene-set similarity** — compare GO-term sets, genes, or gene lists directly, with 5 groupwise strategies.
 - **Batch operations** — compute thousands of term or gene pairs in a single call, parallelized automatically.
 - **All-vs-all distance matrices** — one function call for a full symmetric distance matrix over any gene list.
 - **Embeddings and visualization** — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.
@@ -49,6 +49,7 @@ https://www.biorxiv.org/content/10.1101/2025.09.04.669468v1
 - **8 term-level similarity methods** — Resnik, Lin, Jiang-Conrath, SimRel, ICCoef, GraphIC, Wang, TopoICSim
 - **5 groupwise strategies** — BMA, MAX, AVG, Hausdorff, SimGIC
 - **Gene-level comparison** with namespace filtering (BP / MF / CC)
+- **Gene-set comparison** for enrichment and pathway-level workflows
 - **Batch and all-vs-all operations** parallelized with Rayon
 - **Distance matrices** from any similarity/groupwise combination
 - **t-SNE and UMAP embeddings** built on top of distance matrices
@@ -176,12 +177,16 @@ print(f"Gene similarity: {score:.4f}")
 |---|---|
 | `compare_genes(gene1, gene2, ontology, similarity, groupwise, counter)` | Similarity between two genes |
 | `compare_gene_pairs_batch(pairs, ontology, similarity, groupwise, counter)` | Parallel similarity for a list of gene pairs |
+| `compare_gene_sets(genes1, genes2, ontology, similarity, groupwise, counter)` | Similarity between two gene sets by aggregating pairwise gene similarities |
+| `compare_gene_set_pairs_batch(pairs, ontology, similarity, groupwise, counter)` | Parallel similarity for a list of gene-set pairs |
+| `compare_gene_set_profiles(genes1, genes2, ontology, similarity, groupwise, counter)` | Alternative weighted GO-profile similarity between two gene sets |
 
 ### Distance and Embeddings
 
 | Function | Description |
 |---|---|
 | `gene_distance_matrix(genes, ontology, similarity, groupwise, counter, distance_transform)` | All-vs-all distance matrix for a set of genes |
+| `gene_set_distance_matrix(gene_sets, ontology, similarity, groupwise, counter, distance_transform)` | All-vs-all distance matrix for named gene sets |
 | `tsne_genes(genes, ontology, similarity, groupwise, counter, ...)` | t-SNE embedding from a gene distance matrix |
 | `umap_genes(genes, ontology, similarity, groupwise, counter, ...)` | UMAP embedding from a gene distance matrix |
 
@@ -203,7 +208,7 @@ print(f"Gene similarity: {score:.4f}")
 
 GO3's Rust core is compiled into a Python extension module via [PyO3](https://pyo3.rs/) and [Maturin](https://www.maturin.rs/). The ontology graph, gene-to-GO mappings, ancestor sets, and IC values are stored in global caches (using fast hash maps from `rustc-hash`) so they are computed once and reused across all subsequent calls.
 
-Batch operations (`batch_similarity`, `compare_gene_pairs_batch`, `gene_distance_matrix`) are parallelized with [Rayon](https://github.com/rayon-rs/rayon), which distributes work across threads automatically. Unique pairs are deduplicated before computation to avoid redundant work.
+Batch operations (`batch_similarity`, `compare_gene_pairs_batch`, `compare_gene_set_pairs_batch`, `gene_distance_matrix`, `gene_set_distance_matrix`) are parallelized with [Rayon](https://github.com/rayon-rs/rayon), which distributes work across threads automatically. Unique pairs are deduplicated before computation to avoid redundant work.
 
 This architecture — native compiled code, global caching, and data-parallel execution — is what gives GO3 its order-of-magnitude speedups over Python and R libraries on medium and large workloads.
 
@@ -221,6 +226,32 @@ scores = go3.batch_similarity([a for a, _ in pairs], [b for _, b in pairs], "lin
 ```python
 gene_pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1")]
 scores = go3.compare_gene_pairs_batch(gene_pairs, "BP", "lin", "bma", counter)
+```
+
+### Gene-set similarity
+
+```python
+# Compare two gene lists directly. GO3 first computes pairwise gene
+# similarities, then applies the requested groupwise strategy across genes.
+set_a = ["TP53", "BRCA1", "ATM"]
+set_b = ["CASP8", "GSDME", "NLRP1"]
+sim = go3.compare_gene_sets(set_a, set_b, "BP", "lin", "bma", counter)
+
+# Build a distance matrix across named gene sets.
+names, dist = go3.gene_set_distance_matrix(
+    [
+        ("dna_repair", set_a),
+        ("cell_death", set_b),
+    ],
+    ontology="BP",
+    similarity="lin",
+    groupwise="bma",
+    counter=counter,
+)
+
+# Alternative mode: build a weighted GO-term profile for each gene set
+# and compare those profiles directly.
+profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "bma", counter)
 ```
 
 ### Term-set similarity

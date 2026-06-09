@@ -1,7 +1,7 @@
 Semantic Similarity
 ===================
 
-GO3 supports term-level and gene-level semantic similarity across multiple methods.
+GO3 supports term-level, gene-level, and gene-set semantic similarity across multiple methods.
 
 Background: IC and MICA
 ------------------------
@@ -144,6 +144,30 @@ Gene-level APIs
 - Fast path for large pair lists.
 - Missing/empty per-gene term mappings yield ``0.0`` for those pairs.
 
+Gene-set APIs
+-------------
+
+``compare_gene_sets(genes1, genes2, ontology="BP", similarity="lin", groupwise="bma", counter=...)``
+
+- Computes pairwise gene similarities between all genes in both sets.
+- Aggregates the gene-by-gene similarity matrix with ``groupwise``.
+- Uses the same groupwise method internally for each gene-pair GO-term comparison unless ``term_groupwise`` is supplied.
+- Direct gene-set aggregation supports ``bma``, ``max``, ``avg``, and ``hausdorff``.
+- Raises ``ValueError`` if any gene in either input set is missing from loaded annotations.
+- Genes with no terms in the requested ontology contribute zero pairwise similarity.
+
+``compare_gene_set_pairs_batch(pairs, ontology="BP", similarity="lin", groupwise="bma", counter=...)``
+
+- Fast path for many gene-set pairs.
+- ``pairs`` should contain ``(genes1, genes2)`` items, where each side is a list of gene symbols.
+- Missing genes are treated as unannotated in batch mode; pairs with no comparable annotated genes yield ``0.0``.
+
+``compare_gene_set_profiles(genes1, genes2, ontology="BP", similarity="lin", groupwise="bma", counter=...)``
+
+- Alternative profile-based method.
+- Converts each gene set to a weighted GO-term profile, where each term weight is the number of genes annotated to that term.
+- Compares the two weighted GO profiles directly with ``bma``, ``max``, ``avg``, ``hausdorff``, or weighted ``simgic``.
+
 Practical behavior and edge cases
 ---------------------------------
 
@@ -157,6 +181,7 @@ Distance-oriented workflow
 For clustering/embedding workflows, use:
 
 - ``gene_distance_matrix``
+- ``gene_set_distance_matrix``
 - ``tsne_genes``
 - ``umap_genes``
 
@@ -234,6 +259,6 @@ API reference
 -------------
 
 .. automodule:: go3
-   :members: term_ic, semantic_similarity, batch_similarity, termset_similarity, compare_genes, compare_gene_pairs_batch
+   :members: term_ic, semantic_similarity, batch_similarity, termset_similarity, compare_genes, compare_gene_pairs_batch, compare_gene_sets, compare_gene_set_pairs_batch, compare_gene_set_profiles, gene_set_distance_matrix
    :undoc-members:
    :show-inheritance:

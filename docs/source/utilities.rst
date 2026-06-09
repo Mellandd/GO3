@@ -29,6 +29,10 @@ Gene distance matrices
 
 Returns ``(gene_order, distance_matrix)``.
 
+``gene_set_distance_matrix(gene_sets, ontology="BP", similarity="lin", groupwise="bma", counter=..., distance_transform="auto", term_groupwise=None)``
+
+Returns ``(gene_set_names, distance_matrix)`` for named gene sets supplied as ``[(name, genes), ...]``. The matrix uses pairwise gene similarities aggregated across each gene-set pair; ``term_groupwise`` optionally controls the inner gene-to-gene GO-term aggregation.
+
 Distance transforms
 ~~~~~~~~~~~~~~~~~~~
 
@@ -126,7 +130,7 @@ API reference
 -------------
 
 .. automodule:: go3
-   :members: set_num_threads, term_ic, termset_similarity, compare_gene_pairs_batch, gene_distance_matrix, tsne_genes, umap_genes, plot_tsne_genes, plot_umap_genes, plot_embedding
+   :members: set_num_threads, term_ic, termset_similarity, compare_gene_pairs_batch, compare_gene_set_pairs_batch, compare_gene_set_profiles, gene_distance_matrix, gene_set_distance_matrix, tsne_genes, umap_genes, plot_tsne_genes, plot_umap_genes, plot_embedding
    :undoc-members:
    :show-inheritance:
    :no-index:

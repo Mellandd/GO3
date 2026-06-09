@@ -91,6 +91,29 @@ Batch gene similarity
    scores = go3.compare_gene_pairs_batch(pairs, "BP", "lin", "bma", counter)
    print(scores)  # list of 3 floats
 
+Gene-set similarity
+-------------------
+
+.. code-block:: python
+
+   # Compare gene lists directly, for example from enrichment or pathway analyses.
+   # GO3 computes pairwise gene similarities first, then aggregates across genes.
+   set_a = ["TP53", "BRCA1", "ATM"]
+   set_b = ["CASP8", "GSDME", "NLRP1"]
+
+   sim = go3.compare_gene_sets(set_a, set_b, "BP", "lin", "bma", counter)
+   print(sim)
+
+   named_sets = [
+       ("dna_repair", set_a),
+       ("cell_death", set_b),
+   ]
+   names, dist = go3.gene_set_distance_matrix(named_sets, "BP", "lin", "bma", counter)
+   print(names)
+
+   # Alternative: compare weighted GO-term profiles aggregated from each gene set.
+   profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "bma", counter)
+
 Ontology traversal
 ------------------
 

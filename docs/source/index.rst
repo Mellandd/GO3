@@ -10,7 +10,7 @@ Why GO3?
 Existing tools — `GOATOOLS <https://github.com/tanghaibao/goatools>`_ (Python), `FastSemSim <https://pypi.org/project/fastsemsim/>`_ (Python), `GOSemSim <https://bioconductor.org/packages/GOSemSim/>`_ (R), `simona <https://bioconductor.org/packages/simona/>`_ (R), and `TaxaGO <https://github.com/TaxaGO/TaxaGO>`_ (Rust CLI) — cover term-level semantic similarity, but many common operations in GO-based analyses (comparing sets of terms, gene-level similarity, distance matrices, embeddings) require writing glue code or switching between languages. GO3 brings all of these into a single Python library:
 
 - **Term-level similarity** — 8 methods (IC-based, topological, and hybrid) in one place.
-- **Term-set and gene-level similarity** — compare two sets of GO terms or two genes directly, with 5 groupwise strategies.
+- **Term-set, gene-level, and gene-set similarity** — compare GO-term sets, genes, or gene lists directly, with 5 groupwise strategies.
 - **Batch operations** — compute thousands of term or gene pairs in a single call, parallelized automatically.
 - **All-vs-all distance matrices** — one function call for a full symmetric distance matrix over any gene list.
 - **Embeddings and visualization** — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.
