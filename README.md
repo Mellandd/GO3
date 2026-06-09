@@ -41,8 +41,8 @@ Existing tools like [GOATOOLS](https://github.com/tanghaibao/goatools) (Python),
 - **Speed** — the fastest library in our benchmark: 3.6–12.5× faster initialization and 2–25× faster gene-level similarity than other Python/R libraries.
 - **Minimal setup** — load an OBO file (auto-downloadable) and a GAF file, and you're ready to compute.
 
-Preprint:
-https://www.biorxiv.org/content/10.1101/2025.09.04.669468v1
+Publised article:
+https://www.sciencedirect.com/science/article/pii/S2352711026002475
 
 ## Features
 
@@ -402,25 +402,19 @@ Please open an issue or pull request on [GitHub](https://github.com/Mellandd/go3
 
 ## Citation
 
-```text
-go3: A Fast and Lightweight Library for Semantic Similarity of GO Terms and Genes
-Jose L. Mellina-Andreu, Alejandro Cisterna-Garcia, Juan A. Botia
-bioRxiv 2025.09.04.669468; doi: https://doi.org/10.1101/2025.09.04.669468
-```
-
 BibTeX:
 
 ```bibtex
-@article {go3,
-  author = {Mellina-Andreu, Jose L. and Cisterna-Garcia, Alejandro and Botia, Juan A.},
-  title = {go3: A Fast and Lightweight Library for Semantic Similarity of GO Terms and Genes},
-  elocation-id = {2025.09.04.669468},
-  year = {2025},
-  doi = {10.1101/2025.09.04.669468},
-  publisher = {Cold Spring Harbor Laboratory},
-  URL = {https://www.biorxiv.org/content/early/2025/09/04/2025.09.04.669468},
-  eprint = {https://www.biorxiv.org/content/early/2025/09/04/2025.09.04.669468.full.pdf},
-  journal = {bioRxiv}
+@article{go3,
+title = {GO3: A fast and lightweight library for semantic similarity of GO terms and genes},
+journal = {SoftwareX},
+volume = {35},
+pages = {102755},
+year = {2026},
+issn = {2352-7110},
+doi = {https://doi.org/10.1016/j.softx.2026.102755},
+url = {https://www.sciencedirect.com/science/article/pii/S2352711026002475},
+author = {Jose L. Mellina-Andreu and Alejandro Cisterna-Garcia and Juan A. Botia},
 }
 ```
 
