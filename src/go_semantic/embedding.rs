@@ -44,7 +44,7 @@ pub fn tsne_genes(
     }
 
     let sklearn = py.import("sklearn.manifold").map_err(|_| {
-        PyImportError::new_err("scikit-learn is required for tsne_genes. Install with `pip install scikit-learn`.")
+        PyImportError::new_err("scikit-learn is required for tsne_genes. Install with `pip install 'go3[viz]'`.")
     })?;
     let tsne_class = sklearn.getattr("TSNE")?;
     let kwargs = PyDict::new(py);
@@ -116,7 +116,7 @@ pub fn umap_genes(
     }
 
     let umap_mod = py.import("umap").map_err(|_| {
-        PyImportError::new_err("umap-learn is required for umap_genes. Install with `pip install umap-learn`.")
+        PyImportError::new_err("umap-learn is required for umap_genes. Install with `pip install 'go3[viz]'`.")
     })?;
     let umap_class = umap_mod.getattr("UMAP")?;
     let kwargs = PyDict::new(py);
@@ -153,7 +153,7 @@ pub fn plot_embedding(
     ax: Option<Py<PyAny>>,
 ) -> PyResult<(Py<PyAny>, Py<PyAny>)> {
     let _plt = py.import("matplotlib.pyplot").map_err(|_| {
-        PyImportError::new_err("matplotlib is required for plot_embedding. Install with `pip install go3[viz]`.")
+        PyImportError::new_err("matplotlib is required for plot_embedding. Install with `pip install 'go3[viz]'`.")
     })?;
 
     let locals = PyDict::new(py);

@@ -68,8 +68,10 @@ Pre-built wheels are available for common platforms. Requires **Python >= 3.7**.
 For visualization support (matplotlib, scikit-learn, umap-learn):
 
 ```bash
-pip install go3[viz]
+pip install 'go3[viz]'
 ```
+
+The quotes avoid shell glob expansion in shells such as zsh.
 
 The `[viz]` extras enable `plot_tsne_genes`, `plot_umap_genes`, `plot_embedding`, and the `tsne_genes` / `umap_genes` embedding functions.
 

@@ -188,7 +188,7 @@ Embedding helpers (t-SNE / UMAP)
 
 .. code-block:: python
 
-   # Requires go3[viz] extras
+   # Requires pip install 'go3[viz]'
    genes = ["BRCA1", "CASP8", "TP53", "EGFR", "AKT1"]
 
    # t-SNE embedding from GO semantic similarity distances

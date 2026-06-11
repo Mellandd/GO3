@@ -5,8 +5,10 @@ GO3 can build gene-to-gene distance matrices from semantic similarity and use th
 ## Install extras
 
 ```bash
-pip install go3[viz]
+pip install 'go3[viz]'
 ```
+
+Quotes avoid shell glob expansion in shells such as zsh.
 
 ## End-to-end example
 

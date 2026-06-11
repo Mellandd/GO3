@@ -13,7 +13,9 @@ Optional visualization dependencies:
 
 .. code-block:: bash
 
-   pip install go3[viz]
+   pip install 'go3[viz]'
+
+Quote the extras spec to avoid shell glob expansion in shells such as zsh.
 
 Requirements
 ============
