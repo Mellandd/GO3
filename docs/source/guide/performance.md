@@ -39,8 +39,11 @@ Use batch/vectorized endpoints whenever possible:
 
 - term pairs: `batch_similarity(...)`
 - gene pairs: `compare_gene_pairs_batch(...)`
+- gene-set pairs: `compare_gene_set_pairs_batch(...)`
+- all-vs-all genes: `gene_distance_matrix(...)`
+- all-vs-all named gene sets: `gene_set_distance_matrix(...)`
 
-Python loops over single-pair calls (`semantic_similarity` or `compare_genes`) add interpreter overhead and reduce throughput.
+Python loops over scalar calls (`semantic_similarity`, `compare_genes`, or `compare_gene_sets`) add interpreter overhead and reduce throughput.
 
 ## 4. Memory usage
 
@@ -60,16 +63,17 @@ For tiny input sizes, fixed overhead can dominate and hide the true performance 
 
 To assess production behavior, benchmark with medium/large batches (hundreds to thousands of pairs) and matrix-style workloads.
 
-## 6. Gene matrix workloads scale quadratically
+## 6. Matrix workloads scale quadratically
 
 All-vs-all comparisons on `g` genes produce approximately `g^2 / 2` pairs.
 
 - memory and compute both increase quickly with `g`
 - prefer batched pair evaluation and subset/sampling strategies for exploratory phases
+- `gene_set_distance_matrix` has the same outer quadratic scaling over the number of named gene sets; each cell also computes pairwise gene similarities between the two sets.
 
 ## 7. Distance transforms for embedding pipelines
 
-`gene_distance_matrix` supports:
+`gene_distance_matrix` and `gene_set_distance_matrix` support:
 
 - `auto` (recommended default)
 - `one_minus`
@@ -87,5 +91,6 @@ Runtime and similarity distributions depend on:
 - ontology namespace (`BP`, `MF`, `CC`)
 - term similarity method (`lin`, `resnik`, `wang`, ...)
 - groupwise strategy (`bma`, `max`, `avg`, `hausdorff`, `simgic`)
+- for direct gene-set comparison, the outer gene-set strategy (`bma`, `max`, `avg`, `hausdorff`) and optional inner `term_groupwise`
 
 When reporting results, always include these settings.

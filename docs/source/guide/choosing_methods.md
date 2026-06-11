@@ -60,7 +60,7 @@ Use these when you want **both IC and topology**.
 
 ## Groupwise strategy selection
 
-When comparing genes (or term sets), individual pairwise term similarities must be aggregated into a single score. The choice of groupwise strategy affects what aspect of functional overlap you measure.
+When comparing term sets or genes, individual pairwise term similarities must be aggregated into a single score. The choice of groupwise strategy affects what aspect of functional overlap you measure.
 
 | Strategy    | Key          | What it measures                              | Best for                          |
 |-------------|--------------|-----------------------------------------------|-----------------------------------|
@@ -70,7 +70,18 @@ When comparing genes (or term sets), individual pairwise term similarities must 
 | SimGIC      | `simgic`     | IC-weighted Jaccard of shared ancestor sets   | IC-aware set overlap; good for clustering |
 | Hausdorff   | `hausdorff`  | Worst-case best-match                         | Worst-case guarantee; conservative |
 
-**General recommendation**: start with **BMA** (`bma`). It is the most widely used strategy and provides a balanced view of functional similarity. Use **SimGIC** when you want IC-weighted set overlap (especially useful for clustering and enrichment-adjacent tasks). Use **MAX** for a permissive "any shared function" signal.
+**General recommendation**: start with **BMA** (`bma`). It is the most widely used strategy and provides a balanced view of functional similarity. Use **SimGIC** when you want IC-weighted GO-term set overlap (especially useful for clustering and enrichment-adjacent tasks). Use **MAX** for a permissive "any shared function" signal.
+
+## Gene-set workflows
+
+GO3 exposes two gene-set modes:
+
+| Workflow | Function | Aggregation | Supports `simgic`? | Best for |
+|----------|----------|-------------|--------------------|----------|
+| Direct gene-set comparison | `compare_gene_sets` | gene-to-gene similarities, then groupwise across genes | No, outer aggregation is `bma`, `max`, `avg`, or `hausdorff` | Comparing two enrichments while preserving genes as the unit of comparison |
+| GO-profile comparison | `compare_gene_set_profiles` | weighted GO-term profiles compared directly | Yes | IC-weighted overlap of functional profiles |
+
+For direct gene-set comparison, `term_groupwise` optionally controls the inner gene-to-gene GO-term aggregation. If omitted, GO3 reuses the outer `groupwise` value for the inner gene comparison.
 
 ## Namespace guidance
 

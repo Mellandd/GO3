@@ -34,7 +34,7 @@ GO3 is a high-performance GO semantic similarity library built on a **Rust core*
 Existing tools like [GOATOOLS](https://github.com/tanghaibao/goatools) (Python), [FastSemSim](https://pypi.org/project/fastsemsim/) (Python), [GOSemSim](https://bioconductor.org/packages/GOSemSim/) (R), [simona](https://bioconductor.org/packages/simona/) (R), and [TaxaGO](https://github.com/TaxaGO/TaxaGO) (Rust CLI) cover term-level semantic similarity, but many common operations in GO-based analyses — comparing sets of terms, computing gene-level similarity, building distance matrices, or generating embeddings — require writing ad-hoc glue code or switching between languages and packages. GO3 brings all of these into a single Python library:
 
 - **Term-level similarity** — 8 methods (IC-based, topological, and hybrid) in one place.
-- **Term-set, gene-level, and gene-set similarity** — compare GO-term sets, genes, or gene lists directly, with 5 groupwise strategies.
+- **Term-set, gene-level, and gene-set similarity** — compare GO-term sets, genes, gene lists, or weighted GO profiles with configurable groupwise strategies.
 - **Batch operations** — compute thousands of term or gene pairs in a single call, parallelized automatically.
 - **All-vs-all distance matrices** — one function call for a full symmetric distance matrix over any gene list.
 - **Embeddings and visualization** — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.
@@ -177,8 +177,8 @@ print(f"Gene similarity: {score:.4f}")
 |---|---|
 | `compare_genes(gene1, gene2, ontology, similarity, groupwise, counter)` | Similarity between two genes |
 | `compare_gene_pairs_batch(pairs, ontology, similarity, groupwise, counter)` | Parallel similarity for a list of gene pairs |
-| `compare_gene_sets(genes1, genes2, ontology, similarity, groupwise, counter)` | Similarity between two gene sets by aggregating pairwise gene similarities |
-| `compare_gene_set_pairs_batch(pairs, ontology, similarity, groupwise, counter)` | Parallel similarity for a list of gene-set pairs |
+| `compare_gene_sets(genes1, genes2, ontology, similarity, groupwise, counter, term_groupwise=None)` | Similarity between two gene sets by aggregating pairwise gene similarities |
+| `compare_gene_set_pairs_batch(pairs, ontology, similarity, groupwise, counter, term_groupwise=None)` | Parallel similarity for a list of gene-set pairs |
 | `compare_gene_set_profiles(genes1, genes2, ontology, similarity, groupwise, counter)` | Alternative weighted GO-profile similarity between two gene sets |
 
 ### Distance and Embeddings
@@ -186,7 +186,7 @@ print(f"Gene similarity: {score:.4f}")
 | Function | Description |
 |---|---|
 | `gene_distance_matrix(genes, ontology, similarity, groupwise, counter, distance_transform)` | All-vs-all distance matrix for a set of genes |
-| `gene_set_distance_matrix(gene_sets, ontology, similarity, groupwise, counter, distance_transform)` | All-vs-all distance matrix for named gene sets |
+| `gene_set_distance_matrix(gene_sets, ontology, similarity, groupwise, counter, distance_transform, term_groupwise=None)` | All-vs-all distance matrix for named gene sets |
 | `tsne_genes(genes, ontology, similarity, groupwise, counter, ...)` | t-SNE embedding from a gene distance matrix |
 | `umap_genes(genes, ontology, similarity, groupwise, counter, ...)` | UMAP embedding from a gene distance matrix |
 
@@ -250,8 +250,8 @@ names, dist = go3.gene_set_distance_matrix(
 )
 
 # Alternative mode: build a weighted GO-term profile for each gene set
-# and compare those profiles directly.
-profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "bma", counter)
+# and compare those profiles directly. This mode supports weighted SimGIC.
+profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "simgic", counter)
 ```
 
 ### Term-set similarity

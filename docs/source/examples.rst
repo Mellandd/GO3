@@ -111,8 +111,19 @@ Gene-set similarity
    names, dist = go3.gene_set_distance_matrix(named_sets, "BP", "lin", "bma", counter)
    print(names)
 
+   # Optional: choose a different GO-term aggregation inside each gene-to-gene comparison.
+   sim_inner_bma = go3.compare_gene_sets(
+       set_a,
+       set_b,
+       ontology="BP",
+       similarity="lin",
+       groupwise="hausdorff",      # outer aggregation across genes
+       counter=counter,
+       term_groupwise="bma",       # inner aggregation across GO terms per gene pair
+   )
+
    # Alternative: compare weighted GO-term profiles aggregated from each gene set.
-   profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "bma", counter)
+   profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "simgic", counter)
 
 Ontology traversal
 ------------------

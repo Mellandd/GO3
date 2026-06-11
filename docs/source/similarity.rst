@@ -70,7 +70,7 @@ Quick reference
 Groupwise strategies
 --------------------
 
-When comparing sets of terms (or genes), a **groupwise strategy** aggregates pairwise term similarities into a single score.
+When comparing sets of terms or genes, a **groupwise strategy** aggregates pairwise similarities into a single score.
 
 .. list-table:: Groupwise strategies (``groupwise`` argument)
    :header-rows: 1
@@ -147,16 +147,17 @@ Gene-level APIs
 Gene-set APIs
 -------------
 
-``compare_gene_sets(genes1, genes2, ontology="BP", similarity="lin", groupwise="bma", counter=...)``
+``compare_gene_sets(genes1, genes2, ontology="BP", similarity="lin", groupwise="bma", counter=..., term_groupwise=None)``
 
 - Computes pairwise gene similarities between all genes in both sets.
 - Aggregates the gene-by-gene similarity matrix with ``groupwise``.
 - Uses the same groupwise method internally for each gene-pair GO-term comparison unless ``term_groupwise`` is supplied.
 - Direct gene-set aggregation supports ``bma``, ``max``, ``avg``, and ``hausdorff``.
+- Direct gene-set aggregation does not use ``simgic`` as the outer strategy, because ``simgic`` is a GO-term set/profile method rather than a pairwise gene-matrix aggregator.
 - Raises ``ValueError`` if any gene in either input set is missing from loaded annotations.
 - Genes with no terms in the requested ontology contribute zero pairwise similarity.
 
-``compare_gene_set_pairs_batch(pairs, ontology="BP", similarity="lin", groupwise="bma", counter=...)``
+``compare_gene_set_pairs_batch(pairs, ontology="BP", similarity="lin", groupwise="bma", counter=..., term_groupwise=None)``
 
 - Fast path for many gene-set pairs.
 - ``pairs`` should contain ``(genes1, genes2)`` items, where each side is a list of gene symbols.

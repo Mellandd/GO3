@@ -48,6 +48,18 @@ Minimal workflow
    score = go3.compare_genes("TP53", "BRCA1", "BP", "lin", "bma", counter)
    print(score)
 
+   # 6) Compare gene sets directly, e.g. enrichment or pathway gene lists.
+   # GO3 computes pairwise gene similarities first, then aggregates across genes.
+   gene_set_score = go3.compare_gene_sets(
+       ["TP53", "BRCA1", "ATM"],
+       ["CASP8", "GSDME", "NLRP1"],
+       "BP",
+       "lin",
+       "bma",
+       counter,
+   )
+   print(gene_set_score)
+
 Core concepts
 =============
 
@@ -56,6 +68,14 @@ The typical GO3 pipeline has three stages:
 1. **Load the ontology** -- ``load_go_terms`` parses an OBO file and caches the full GO directed acyclic graph (DAG) in memory, including parent/child edges, depths, and ancestor sets.
 2. **Load annotations** -- ``load_gaf`` parses a GAF file to build a mapping from genes (``db_object_symbol``) to their annotated GO terms. Obsolete terms are automatically remapped via ``replaced_by`` or ``consider`` fields when possible.
 3. **Build the counter** -- ``build_term_counter`` walks the annotations and computes per-term counts with ancestor propagation, then derives IC values for every term. The resulting ``TermCounter`` is passed to similarity functions.
+
+Gene sets
+---------
+
+GO3 supports two gene-set workflows:
+
+- ``compare_gene_sets`` compares all pairwise gene similarities between two gene lists, then applies a groupwise strategy across the gene-by-gene similarity matrix.
+- ``compare_gene_set_profiles`` builds one weighted GO-term profile per gene set and compares those profiles directly. This is the profile-based alternative and supports weighted ``simgic``.
 
 Information Content (IC)
 ------------------------
@@ -105,6 +125,8 @@ Troubleshooting
      - Terms may be in different namespaces, one or both IDs may be invalid, or the terms may have no common ancestor. Verify both terms belong to the same namespace.
    * - Wrong namespace in ``compare_genes``
      - The ``ontology`` argument (``BP``, ``MF``, ``CC``) filters which annotations are used. If a gene has no annotations in the chosen namespace, the result will be 0.0.
+   * - ``simgic`` in ``compare_gene_sets``
+     - Direct gene-set comparison aggregates pairwise gene similarities and supports ``bma``, ``max``, ``avg``, and ``hausdorff`` as the outer strategy. Use ``compare_gene_set_profiles(..., groupwise="simgic")`` for IC-weighted GO-profile overlap.
    * - Which OBO file to use?
      - Use ``go-basic.obo`` (recommended). The full ``go.obo`` includes cross-ontology links that may produce unexpected results.
 

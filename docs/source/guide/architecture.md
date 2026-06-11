@@ -15,13 +15,13 @@ OBO file ──parse──▶ GO graph cache (terms, edges, depths)
 GAF file ──parse──▶ gene-to-GO mapping ──propagate──▶ TermCounter (counts, IC)
                                                            │
                                                            ▼
-                                               similarity / batch / matrix APIs
+                                      term, gene, gene-set, batch, and matrix APIs
 ```
 
 1. **OBO parsing**: the OBO file is parsed into an in-memory directed acyclic graph. Each term stores its parents, children, depth, level, and metadata. Ancestor sets are precomputed and cached.
 2. **GAF parsing**: the GAF file is parsed to build a gene-to-GO mapping. Obsolete terms are resolved via `replaced_by` / `consider`. ND and NOT annotations are filtered.
 3. **Counter construction**: annotation counts are propagated up the DAG (each annotation increments the term and all its ancestors). IC is computed per term per namespace.
-4. **Similarity computation**: pairwise or batch similarity is computed using cached graphs, ancestor sets, and IC values.
+4. **Similarity computation**: pairwise, batch, matrix, and gene-set similarity are computed using cached graphs, ancestor sets, annotation mappings, and IC values.
 
 ## Key design decisions
 
@@ -39,7 +39,14 @@ Caching trades memory for speed. For a typical human analysis, total memory usag
 
 ### Rayon thread pool
 
-Batch operations (`batch_similarity`, `compare_gene_pairs_batch`, `gene_distance_matrix`) use [Rayon](https://docs.rs/rayon/) to parallelize pair evaluation across CPU cores. The thread pool is initialized once via `set_num_threads` and reused for all subsequent parallel work.
+Batch and matrix operations (`batch_similarity`, `compare_gene_pairs_batch`, `compare_gene_set_pairs_batch`, `gene_distance_matrix`, `gene_set_distance_matrix`) use [Rayon](https://docs.rs/rayon/) to parallelize pair evaluation across CPU cores. The thread pool is initialized once via `set_num_threads` and reused for all subsequent parallel work.
+
+Direct gene-set comparison has two aggregation layers:
+
+1. each gene pair is compared through its GO-term annotations;
+2. the resulting gene-by-gene similarity matrix is aggregated across the two gene sets.
+
+The alternative `compare_gene_set_profiles` path builds weighted GO-term profiles for each gene set and compares those profiles directly.
 
 ### FxHashMap
 
