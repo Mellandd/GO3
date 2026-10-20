@@ -18,6 +18,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
+
 jobs:
   linux:
     runs-on: ${{ matrix.platform.runner }}
@@ -40,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: "3.12"
 
       - name: Set CFLAGS for aarch64
         if: matrix.platform.target == 'aarch64'
@@ -76,7 +79,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: "3.12"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
@@ -103,7 +106,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: "3.12"
           architecture: ${{ matrix.platform.target }}
       - name: Build wheels
         uses: PyO3/maturin-action@v1
@@ -130,7 +133,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: 3.x
+          python-version: "3.12"
       - name: Build wheels
         uses: PyO3/maturin-action@v1
         with:
