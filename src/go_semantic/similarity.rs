@@ -703,3 +703,284 @@ pub fn batch_similarity(
 
     Ok(result)
 }
+
+/// Compute an all-vs-all symmetric semantic similarity matrix for a list of GO terms.
+///
+/// Arguments
+/// ---------
+/// terms : list of str
+///   List of GO term IDs.
+/// method : str
+///   Name of the similarity method (default: "lin").
+/// counter : TermCounter
+///   Precomputed IC values.
+///
+/// Returns
+/// -------
+/// (list[str], list[list[float]])
+///   Tuple with the term order and a square similarity matrix.
+#[pyfunction]
+#[pyo3(signature = (terms, method="lin", counter=None))]
+pub fn term_similarity_matrix(
+    terms: Vec<String>,
+    method: &str,
+    counter: Option<&TermCounter>,
+) -> PyResult<(Vec<String>, Vec<Vec<f64>>)> {
+    let counter = counter.ok_or_else(|| PyValueError::new_err("counter argument is required"))?;
+    let method_enum = SimilarityMethod::from_str(method)
+        .ok_or_else(|| PyValueError::new_err(format!("Unknown similarity method: {}", method)))?;
+
+    let n = terms.len();
+    if n == 0 {
+        return Ok((terms, Vec::new()));
+    }
+
+    let pairs: Vec<(usize, usize)> = (0..n).flat_map(|i| (i..n).map(move |j| (i, j))).collect();
+    let sims: Vec<f64> = pairs
+        .par_iter()
+        .map(|(i, j)| method_enum.compute(&terms[*i], &terms[*j], counter))
+        .collect();
+
+    let mut matrix = vec![vec![0.0; n]; n];
+    for ((i, j), sim) in pairs.into_iter().zip(sims.into_iter()) {
+        matrix[i][j] = sim;
+        matrix[j][i] = sim;
+    }
+
+    Ok((terms, matrix))
+}
+
+/// Compute an all-vs-all symmetric distance matrix for a list of GO terms.
+///
+/// Arguments
+/// ---------
+/// terms : list of str
+///   List of GO term IDs.
+/// method : str
+///   Name of the similarity method (default: "lin").
+/// counter : TermCounter
+///   Precomputed IC values.
+/// distance_transform : str
+///   How to convert similarity to distance. Options: "auto", "one_minus", "reciprocal", "max_minus".
+///
+/// Returns
+/// -------
+/// (list[str], list[list[float]])
+///   Tuple with the term order and a square distance matrix.
+#[pyfunction]
+#[pyo3(signature = (terms, method="lin", counter=None, distance_transform="auto"))]
+pub fn term_distance_matrix(
+    terms: Vec<String>,
+    method: &str,
+    counter: Option<&TermCounter>,
+    distance_transform: &str,
+) -> PyResult<(Vec<String>, Vec<Vec<f64>>)> {
+    let (ordered_terms, mut matrix) = term_similarity_matrix(terms, method, counter)?;
+    if ordered_terms.is_empty() {
+        return Ok((ordered_terms, matrix));
+    }
+
+    let is_normalized = matches!(
+        method.to_ascii_lowercase().as_str(),
+        "lin" | "wang" | "simrel" | "topoicsim"
+    );
+    let mode = match distance_transform.to_ascii_lowercase().as_str() {
+        "auto" => {
+            if is_normalized {
+                "one_minus"
+            } else {
+                "max_minus"
+            }
+        }
+        "one_minus" | "one-minus" | "1-sim" | "1_minus" => "one_minus",
+        "reciprocal" | "inv" | "inverse" => "reciprocal",
+        "max_minus" | "max-minus" | "max" => "max_minus",
+        _ => {
+            return Err(PyValueError::new_err(format!(
+                "Unknown distance_transform '{}'. Options: auto, one_minus, reciprocal, max_minus",
+                distance_transform
+            )))
+        }
+    };
+
+    match mode {
+        "max_minus" => {
+            let mut max_sim = 0.0_f64;
+            for row in &matrix {
+                for &v in row {
+                    if v.is_finite() && v > max_sim {
+                        max_sim = v;
+                    }
+                }
+            }
+            matrix.par_iter_mut().for_each(|row| {
+                for v in row.iter_mut() {
+                    let d = if v.is_finite() { max_sim - *v } else { 0.0 };
+                    *v = if d < 0.0 { 0.0 } else { d };
+                }
+            });
+        }
+        "one_minus" => {
+            matrix.par_iter_mut().for_each(|row| {
+                for v in row.iter_mut() {
+                    let d = 1.0 - *v;
+                    *v = if d < 0.0 { 0.0 } else { d };
+                }
+            });
+        }
+        "reciprocal" => {
+            matrix.par_iter_mut().for_each(|row| {
+                for v in row.iter_mut() {
+                    *v = if v.is_infinite() { 0.0 } else { 1.0 / (1.0 + *v) };
+                }
+            });
+        }
+        _ => unreachable!(),
+    }
+
+    for (i, row) in matrix.iter_mut().enumerate() {
+        row[i] = 0.0;
+    }
+
+    Ok((ordered_terms, matrix))
+}
+
+/// Group semantically redundant GO terms into clusters around their most informative representative.
+///
+/// Arguments
+/// ---------
+/// terms : list of str
+///   Input GO term IDs.
+/// threshold : float
+///   Similarity threshold above or equal to which two terms are considered redundant (default: 0.7).
+/// method : str
+///   Pairwise semantic similarity method (default: "lin").
+/// counter : TermCounter
+///   Precomputed IC values.
+/// scores : Optional[list[float]]
+///   Optional priority score per term (higher = preferred representative). If None, Information Content (IC) is used.
+///
+/// Returns
+/// -------
+/// dict[str, list[str]]
+///   Mapping from each representative GO term ID to the list of GO terms in its cluster (including itself).
+#[pyfunction]
+#[pyo3(signature = (terms, threshold=0.7, method="lin", counter=None, scores=None))]
+pub fn cluster_go_terms(
+    terms: Vec<String>,
+    threshold: f64,
+    method: &str,
+    counter: Option<&TermCounter>,
+    scores: Option<Vec<f64>>,
+) -> PyResult<std::collections::HashMap<String, Vec<String>>> {
+    let counter_ref =
+        counter.ok_or_else(|| PyValueError::new_err("counter argument is required"))?;
+    if threshold <= 0.0 {
+        return Err(PyValueError::new_err("threshold must be > 0.0"));
+    }
+    if let Some(ref sc) = scores {
+        if sc.len() != terms.len() {
+            return Err(PyValueError::new_err(
+                "scores length must match terms length",
+            ));
+        }
+    }
+
+    // Deduplicate while preserving first-seen index
+    let mut unique_terms: Vec<String> = Vec::with_capacity(terms.len());
+    let mut unique_scores: Vec<f64> = Vec::with_capacity(terms.len());
+    let mut seen: HashSet<String> = HashSet::default();
+    for (idx, t) in terms.into_iter().enumerate() {
+        if seen.insert(t.clone()) {
+            let priority = match scores {
+                Some(ref sc) => sc[idx],
+                None => term_ic(&t, counter_ref),
+            };
+            unique_terms.push(t);
+            unique_scores.push(priority);
+        }
+    }
+
+    let n = unique_terms.len();
+    if n == 0 {
+        return Ok(std::collections::HashMap::new());
+    }
+
+    let (_, sim_matrix) = term_similarity_matrix(unique_terms.clone(), method, Some(counter_ref))?;
+
+    // Order indices by descending priority score (ties broken by higher IC, then ID)
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_by(|&a, &b| {
+        unique_scores[b]
+            .partial_cmp(&unique_scores[a])
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                term_ic(&unique_terms[b], counter_ref)
+                    .partial_cmp(&term_ic(&unique_terms[a], counter_ref))
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .then_with(|| unique_terms[a].cmp(&unique_terms[b]))
+    });
+
+    let mut assigned = vec![false; n];
+    let mut clusters: std::collections::HashMap<String, Vec<String>> =
+        std::collections::HashMap::new();
+
+    for &i in &order {
+        if assigned[i] {
+            continue;
+        }
+        assigned[i] = true;
+        let mut members = vec![unique_terms[i].clone()];
+        for &j in &order {
+            if !assigned[j] && sim_matrix[i][j] >= threshold {
+                assigned[j] = true;
+                members.push(unique_terms[j].clone());
+            }
+        }
+        clusters.insert(unique_terms[i].clone(), members);
+    }
+
+    Ok(clusters)
+}
+
+/// Reduce a list of GO terms by removing semantically redundant terms above a similarity threshold.
+///
+/// Arguments
+/// ---------
+/// terms : list of str
+///   Input GO term IDs.
+/// threshold : float
+///   Similarity threshold above or equal to which two terms are considered redundant (default: 0.7).
+/// method : str
+///   Pairwise semantic similarity method (default: "lin").
+/// counter : TermCounter
+///   Precomputed IC values.
+/// scores : Optional[list[float]]
+///   Optional priority score per term (higher = preferred representative). If None, Information Content (IC) is used.
+///
+/// Returns
+/// -------
+/// list of str
+///   Non-redundant representative GO term IDs in their original relative order.
+#[pyfunction]
+#[pyo3(signature = (terms, threshold=0.7, method="lin", counter=None, scores=None))]
+pub fn reduce_redundant_terms(
+    terms: Vec<String>,
+    threshold: f64,
+    method: &str,
+    counter: Option<&TermCounter>,
+    scores: Option<Vec<f64>>,
+) -> PyResult<Vec<String>> {
+    let clusters = cluster_go_terms(terms.clone(), threshold, method, counter, scores)?;
+    let mut seen: HashSet<String> = HashSet::default();
+    let mut representatives = Vec::with_capacity(clusters.len());
+    for t in terms {
+        if clusters.contains_key(&t) && seen.insert(t.clone()) {
+            representatives.push(t);
+        }
+    }
+    Ok(representatives)
+}
+
+

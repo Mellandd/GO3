@@ -22,8 +22,20 @@ IC lookup
 
    ic = go3.term_ic("GO:0006397", counter)
 
-Gene distance matrices
-----------------------
+Term and Gene distance matrices
+-------------------------------
+
+``term_similarity_matrix(terms, method="lin", counter=...)``
+
+Returns ``(term_order, similarity_matrix)`` for a list of GO term IDs.
+
+``term_distance_matrix(terms, method="lin", counter=..., distance_transform="auto")``
+
+Returns ``(term_order, distance_matrix)`` for a list of GO term IDs.
+
+``reduce_redundant_terms(terms, threshold=0.7, method="lin", counter=..., scores=None)``
+
+Removes semantically redundant GO terms with similarity ``>= threshold``, keeping the most informative representative per cluster. Use ``cluster_go_terms`` to obtain the full ``{representative_id: [member_ids...]}`` mapping.
 
 ``gene_distance_matrix(genes=None, ontology="BP", similarity="lin", groupwise="bma", counter=..., distance_transform="auto")``
 
@@ -136,7 +148,7 @@ API reference
 -------------
 
 .. automodule:: go3
-   :members: set_num_threads, term_ic, termset_similarity, compare_genes, compare_gene_pairs_batch, compare_gene_sets, compare_gene_set_pairs_batch, compare_gene_set_profiles, gene_distance_matrix, gene_set_distance_matrix, tsne_genes, umap_genes, plot_tsne_genes, plot_umap_genes, plot_embedding
+   :members: set_num_threads, term_ic, term_similarity_matrix, term_distance_matrix, reduce_redundant_terms, cluster_go_terms, termset_similarity, compare_genes, compare_gene_pairs_batch, compare_gene_sets, compare_gene_set_pairs_batch, compare_gene_set_profiles, gene_distance_matrix, gene_set_distance_matrix, go_enrichment, EnrichmentResult, tsne_genes, umap_genes, plot_tsne_genes, plot_umap_genes, plot_embedding
    :undoc-members:
    :show-inheritance:
    :no-index:

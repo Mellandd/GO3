@@ -43,25 +43,25 @@ go3.load_go_terms("my_custom_ontology.obo")
 
 The same parsing and caching logic applies.
 
-## How do I filter by evidence code?
+## How do I filter by evidence code, aspect, or qualifier?
 
-GO3 automatically filters out `ND` (No biological Data) annotations and annotations with `NOT` qualifiers. For stricter filtering (e.g., excluding `IEA` to use only experimentally curated annotations), pre-filter your GAF file before passing it to `load_gaf`:
+Use `GAFParseOptions` when calling `load_gaf` (which also accepts `.gaf.gz` compressed files directly):
 
 ```python
-# Example: filter GAF to keep only experimental evidence codes
+import go3
+
+# Example: keep only experimental evidence codes on Biological Process
 experimental_codes = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP"}
+opts = go3.GAFParseOptions(
+    include_evidence=experimental_codes,
+    include_aspects={"P"},
+    exclude_qualifiers={"NOT"},
+    allow_obsolete_terms=False,
+    allow_nd_root_only=False,
+)
 
-with open("goa_human.gaf") as f:
-    with open("goa_human_experimental.gaf", "w") as out:
-        for line in f:
-            if line.startswith("!"):
-                out.write(line)
-                continue
-            fields = line.split("\t")
-            if len(fields) > 6 and fields[6] in experimental_codes:
-                out.write(line)
-
-annots = go3.load_gaf("goa_human_experimental.gaf")
+annots = go3.load_gaf("goa_human.gaf.gz", options=opts)
+counter = go3.build_term_counter(annots)
 ```
 
 ## set_num_threads doesn't seem to help

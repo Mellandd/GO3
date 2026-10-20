@@ -1,16 +1,34 @@
 use pyo3::prelude::*;
 use once_cell::sync::OnceCell;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use std::io::{BufReader, BufRead};
+use std::io::{BufReader, BufRead, Read};
 use std::fs::File;
 use parking_lot::RwLock;
 use std::path::Path;
 use std::fs;
 use reqwest::blocking::get;
 use rayon::prelude::*;
+use flate2::read::MultiGzDecoder;
+
+fn open_buf_reader(path: &str) -> std::io::Result<Box<dyn BufRead>> {
+    let file = File::open(path)?;
+    if path.to_ascii_lowercase().ends_with(".gz") {
+        Ok(Box::new(BufReader::new(MultiGzDecoder::new(file))))
+    } else {
+        Ok(Box::new(BufReader::new(file)))
+    }
+}
+
+fn read_file_to_string(path: &str) -> std::io::Result<String> {
+    let mut reader = open_buf_reader(path)?;
+    let mut contents = String::new();
+    reader.read_to_string(&mut contents)?;
+    Ok(contents)
+}
 
 use crate::go_ontology::{GOTerm, PyGOTerm, collect_ancestors, get_terms_or_error};
 pub static GO_TERMS_CACHE: OnceCell<RwLock<HashMap<String, GOTerm>>> = OnceCell::new();
+pub static OBSOLETE_TERMS_CACHE: OnceCell<RwLock<HashMap<String, GOTerm>>> = OnceCell::new();
 pub static GENE2GO_CACHE: OnceCell<RwLock<HashMap<String, Vec<String>>>> = OnceCell::new();
 pub static ANCESTORS_CACHE: OnceCell<RwLock<HashMap<String, HashSet<String>>>> = OnceCell::new();
 pub static DCA_CACHE: OnceCell<RwLock<HashMap<(String, String), String>>> = OnceCell::new();
@@ -23,25 +41,375 @@ fn set_or_replace_cache<T>(cell: &OnceCell<RwLock<T>>, value: T) {
     }
 }
 
-/// Struct representing a single annotation from a GAF file.
+fn extract_string_set(obj: &Bound<'_, PyAny>) -> PyResult<std::collections::HashSet<String>> {
+    let mut set = std::collections::HashSet::new();
+    for item in obj.try_iter()? {
+        let s: String = item?.extract()?;
+        set.insert(s.trim().to_string());
+    }
+    Ok(set)
+}
+
+fn normalize_aspect_token(s: &str) -> String {
+    match s.trim().to_ascii_uppercase().as_str() {
+        "BP" | "BIOLOGICAL_PROCESS" => "P".to_string(),
+        "MF" | "MOLECULAR_FUNCTION" => "F".to_string(),
+        "CC" | "CELLULAR_COMPONENT" => "C".to_string(),
+        other => other.to_string(),
+    }
+}
+
+/// Structured filter options applied during GAF/GPAD annotation parsing.
+#[pyclass]
+#[derive(Clone, Debug)]
+pub struct GAFParseOptions {
+    pub include_evidence: Option<std::collections::HashSet<String>>,
+    pub exclude_evidence: std::collections::HashSet<String>,
+    pub include_aspects: Option<std::collections::HashSet<String>>,
+    pub exclude_qualifiers: std::collections::HashSet<String>,
+    #[pyo3(get, set)]
+    pub allow_obsolete_terms: bool,
+    #[pyo3(get, set)]
+    pub allow_nd_root_only: bool,
+}
+
+impl Default for GAFParseOptions {
+    fn default() -> Self {
+        let mut exclude_qualifiers = std::collections::HashSet::new();
+        exclude_qualifiers.insert("NOT".to_string());
+        Self {
+            include_evidence: None,
+            exclude_evidence: std::collections::HashSet::new(),
+            include_aspects: None,
+            exclude_qualifiers,
+            allow_obsolete_terms: false,
+            allow_nd_root_only: false,
+        }
+    }
+}
+
+#[pymethods]
+impl GAFParseOptions {
+    #[new]
+    #[pyo3(signature = (
+        include_evidence=None,
+        exclude_evidence=None,
+        include_aspects=None,
+        exclude_qualifiers=None,
+        allow_obsolete_terms=false,
+        allow_nd_root_only=false
+    ))]
+    pub fn new(
+        include_evidence: Option<&Bound<'_, PyAny>>,
+        exclude_evidence: Option<&Bound<'_, PyAny>>,
+        include_aspects: Option<&Bound<'_, PyAny>>,
+        exclude_qualifiers: Option<&Bound<'_, PyAny>>,
+        allow_obsolete_terms: bool,
+        allow_nd_root_only: bool,
+    ) -> PyResult<Self> {
+        let inc_ev = match include_evidence {
+            Some(obj) => Some(
+                extract_string_set(obj)?
+                    .into_iter()
+                    .map(|s| s.to_ascii_uppercase())
+                    .collect(),
+            ),
+            None => None,
+        };
+        let exc_ev = match exclude_evidence {
+            Some(obj) => extract_string_set(obj)?
+                .into_iter()
+                .map(|s| s.to_ascii_uppercase())
+                .collect(),
+            None => std::collections::HashSet::new(),
+        };
+        let inc_asp = match include_aspects {
+            Some(obj) => Some(
+                extract_string_set(obj)?
+                    .into_iter()
+                    .map(|s| normalize_aspect_token(&s))
+                    .collect(),
+            ),
+            None => None,
+        };
+        let exc_qual = match exclude_qualifiers {
+            Some(obj) => extract_string_set(obj)?
+                .into_iter()
+                .map(|s| s.to_ascii_uppercase())
+                .collect(),
+            None => {
+                let mut def = std::collections::HashSet::new();
+                def.insert("NOT".to_string());
+                def
+            }
+        };
+
+        Ok(Self {
+            include_evidence: inc_ev,
+            exclude_evidence: exc_ev,
+            include_aspects: inc_asp,
+            exclude_qualifiers: exc_qual,
+            allow_obsolete_terms,
+            allow_nd_root_only,
+        })
+    }
+
+    #[getter]
+    pub fn include_evidence(&self) -> Option<std::collections::HashSet<String>> {
+        self.include_evidence.clone()
+    }
+
+    #[setter]
+    pub fn set_include_evidence(&mut self, val: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        self.include_evidence = match val {
+            Some(obj) => Some(
+                extract_string_set(obj)?
+                    .into_iter()
+                    .map(|s| s.to_ascii_uppercase())
+                    .collect(),
+            ),
+            None => None,
+        };
+        Ok(())
+    }
+
+    #[getter]
+    pub fn exclude_evidence(&self) -> std::collections::HashSet<String> {
+        self.exclude_evidence.clone()
+    }
+
+    #[setter]
+    pub fn set_exclude_evidence(&mut self, val: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        self.exclude_evidence = match val {
+            Some(obj) => extract_string_set(obj)?
+                .into_iter()
+                .map(|s| s.to_ascii_uppercase())
+                .collect(),
+            None => std::collections::HashSet::new(),
+        };
+        Ok(())
+    }
+
+    #[getter]
+    pub fn include_aspects(&self) -> Option<std::collections::HashSet<String>> {
+        self.include_aspects.clone()
+    }
+
+    #[setter]
+    pub fn set_include_aspects(&mut self, val: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        self.include_aspects = match val {
+            Some(obj) => Some(
+                extract_string_set(obj)?
+                    .into_iter()
+                    .map(|s| normalize_aspect_token(&s))
+                    .collect(),
+            ),
+            None => None,
+        };
+        Ok(())
+    }
+
+    #[getter]
+    pub fn exclude_qualifiers(&self) -> std::collections::HashSet<String> {
+        self.exclude_qualifiers.clone()
+    }
+
+    #[setter]
+    pub fn set_exclude_qualifiers(&mut self, val: Option<&Bound<'_, PyAny>>) -> PyResult<()> {
+        self.exclude_qualifiers = match val {
+            Some(obj) => extract_string_set(obj)?
+                .into_iter()
+                .map(|s| s.to_ascii_uppercase())
+                .collect(),
+            None => std::collections::HashSet::new(),
+        };
+        Ok(())
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "GAFParseOptions(include_evidence={:?}, exclude_evidence={:?}, include_aspects={:?}, exclude_qualifiers={:?}, allow_obsolete_terms={}, allow_nd_root_only={})",
+            self.include_evidence,
+            self.exclude_evidence,
+            self.include_aspects,
+            self.exclude_qualifiers,
+            self.allow_obsolete_terms,
+            self.allow_nd_root_only
+        )
+    }
+}
+
+/// Struct representing a single annotation from a GAF 2.2 file.
 ///
 /// Fields
 /// ------
+/// db : str
+///   Database source (e.g., UniProtKB).
 /// db_object_id : str
 ///   The gene product identifier (e.g., UniProt ID).
-/// go_term : str
-///   The GO term ID (e.g., GO:0008150).
+/// db_object_symbol : str
+///   Gene product symbol (e.g., TP53).
+/// qualifiers : list of str
+///   Annotation qualifiers (e.g., ["enables"] or ["NOT", "involved_in"]).
+/// go_id : str
+///   The GO term ID (e.g., GO:0008150). Also accessible via `.go_term`.
+/// references : list of str
+///   Database references supporting the annotation (e.g., ["PMID:21873635"]).
 /// evidence : str
-///   The evidence code for the annotation (e.g., IEA).
+///   The evidence code for the annotation (e.g., IEA, IDA).
+/// with_from : list of str
+///   With/From field values.
+/// aspect : str
+///   Ontology aspect ("P", "F", or "C").
+/// db_object_name : str
+///   Full name of the gene product.
+/// db_object_synonyms : list of str
+///   Synonyms for the gene product.
+/// db_object_type : str
+///   Type of gene product (e.g., protein).
+/// taxon : list of str
+///   Taxon identifiers (e.g., ["taxon:9606"]).
+/// date : str
+///   Date of annotation (YYYYMMDD).
+/// assigned_by : str
+///   Database which made the annotation.
+/// annotation_extensions : list of str
+///   Cross-links to other ontologies/terms.
+/// gene_product_form_id : str
+///   Specific isoform or post-translationally modified form ID.
+/// is_negated : bool
+///   True if the annotation is negated ("NOT" in qualifiers).
 #[pyclass]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct GAFAnnotation {
+    #[pyo3(get)]
+    pub db: String,
     #[pyo3(get)]
     pub db_object_id: String,
     #[pyo3(get)]
-    pub go_term: String,
+    pub db_object_symbol: String,
+    #[pyo3(get)]
+    pub qualifiers: Vec<String>,
+    #[pyo3(get)]
+    pub go_id: String,
+    #[pyo3(get)]
+    pub references: Vec<String>,
     #[pyo3(get)]
     pub evidence: String,
+    #[pyo3(get)]
+    pub with_from: Vec<String>,
+    #[pyo3(get)]
+    pub aspect: String,
+    #[pyo3(get)]
+    pub db_object_name: String,
+    #[pyo3(get)]
+    pub db_object_synonyms: Vec<String>,
+    #[pyo3(get)]
+    pub db_object_type: String,
+    #[pyo3(get)]
+    pub taxon: Vec<String>,
+    #[pyo3(get)]
+    pub date: String,
+    #[pyo3(get)]
+    pub assigned_by: String,
+    #[pyo3(get)]
+    pub annotation_extensions: Vec<String>,
+    #[pyo3(get)]
+    pub gene_product_form_id: String,
+    #[pyo3(get)]
+    pub is_negated: bool,
+}
+
+#[pymethods]
+impl GAFAnnotation {
+    #[new]
+    #[pyo3(signature = (
+        db_object_id,
+        go_id,
+        evidence,
+        db="".to_string(),
+        db_object_symbol="".to_string(),
+        qualifiers=Vec::new(),
+        references=Vec::new(),
+        with_from=Vec::new(),
+        aspect="".to_string(),
+        db_object_name="".to_string(),
+        db_object_synonyms=Vec::new(),
+        db_object_type="".to_string(),
+        taxon=Vec::new(),
+        date="".to_string(),
+        assigned_by="".to_string(),
+        annotation_extensions=Vec::new(),
+        gene_product_form_id="".to_string(),
+        is_negated=None
+    ))]
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        db_object_id: String,
+        go_id: String,
+        evidence: String,
+        db: String,
+        db_object_symbol: String,
+        qualifiers: Vec<String>,
+        references: Vec<String>,
+        with_from: Vec<String>,
+        aspect: String,
+        db_object_name: String,
+        db_object_synonyms: Vec<String>,
+        db_object_type: String,
+        taxon: Vec<String>,
+        date: String,
+        assigned_by: String,
+        annotation_extensions: Vec<String>,
+        gene_product_form_id: String,
+        is_negated: Option<bool>,
+    ) -> Self {
+        let negated = is_negated.unwrap_or_else(|| {
+            qualifiers
+                .iter()
+                .any(|q| q.eq_ignore_ascii_case("NOT") || q.to_ascii_uppercase().starts_with("NOT|"))
+        });
+        Self {
+            db,
+            db_object_id,
+            db_object_symbol,
+            qualifiers,
+            go_id,
+            references,
+            evidence,
+            with_from,
+            aspect,
+            db_object_name,
+            db_object_synonyms,
+            db_object_type,
+            taxon,
+            date,
+            assigned_by,
+            annotation_extensions,
+            gene_product_form_id,
+            is_negated: negated,
+        }
+    }
+
+    /// Alias for `go_id` preserved for backwards compatibility.
+    #[getter]
+    pub fn go_term(&self) -> &str {
+        &self.go_id
+    }
+
+    fn __repr__(&self) -> String {
+        format!(
+            "GAFAnnotation(db='{}', db_object_id='{}', db_object_symbol='{}', qualifiers={:?}, go_id='{}', evidence='{}', aspect='{}', is_negated={})",
+            self.db,
+            self.db_object_id,
+            self.db_object_symbol,
+            self.qualifiers,
+            self.go_id,
+            self.evidence,
+            self.aspect,
+            self.is_negated
+        )
+    }
 }
 
 /// Struct holding annotation counts and information content (IC) for GO terms.
@@ -77,14 +445,32 @@ pub struct TermCounter {
 /// dict
 ///   Map of GO term IDs to term structs.
 pub fn parse_obo(path: &str) -> HashMap<String, GOTerm> {
-    let contents = fs::read_to_string(path).expect("Can't open OBO file");
+    let contents = read_file_to_string(path).expect("Can't open OBO file");
     let chunks = contents.split("[Term]");
 
-    let canonical_terms: Vec<GOTerm> = chunks
+    let all_parsed_terms: Vec<GOTerm> = chunks
         .par_bridge()
         .filter_map(parse_term_chunk)
-        .filter(|term| !term.is_obsolete)
         .collect();
+
+    let mut canonical_terms = Vec::with_capacity(all_parsed_terms.len());
+    let mut obsolete_map: HashMap<String, GOTerm> = HashMap::default();
+
+    for term in all_parsed_terms {
+        if term.is_obsolete {
+            let mut all_ids = term.alt_ids.clone();
+            all_ids.push(term.id.clone());
+            for id in &all_ids {
+                let mut clone = term.clone();
+                clone.id = id.clone();
+                clone.alt_ids = all_ids.clone();
+                obsolete_map.insert(id.clone(), clone);
+            }
+        } else {
+            canonical_terms.push(term);
+        }
+    }
+    set_or_replace_cache(&OBSOLETE_TERMS_CACHE, obsolete_map);
 
     let mut term_map: HashMap<String, GOTerm> =
         HashMap::with_capacity_and_hasher(canonical_terms.len() * 2, Default::default());
@@ -417,82 +803,243 @@ pub fn load_go_terms(path: Option<String>) -> PyResult<Vec<PyGOTerm>> {
     Ok(terms_vec)
 }
 
+#[inline]
+fn split_pipe(s: &str) -> Vec<String> {
+    let s = s.trim();
+    if s.is_empty() {
+        Vec::new()
+    } else {
+        s.split('|')
+            .map(str::trim)
+            .filter(|part| !part.is_empty())
+            .map(String::from)
+            .collect()
+    }
+}
+
+#[inline]
+pub(crate) fn is_root_term(go_id: &str, terms: &HashMap<String, GOTerm>) -> bool {
+    matches!(go_id, "GO:0008150" | "GO:0003674" | "GO:0005575")
+        || terms.get(go_id).map_or(false, |t| t.parents.is_empty())
+}
+
+#[inline]
+pub(crate) fn namespace_to_aspect(ns: &str) -> &'static str {
+    match ns {
+        "biological_process" => "P",
+        "molecular_function" => "F",
+        "cellular_component" => "C",
+        _ => "",
+    }
+}
+
+/// Apply `GAFParseOptions` filters and obsolete-term resolution to a candidate annotation.
+/// Returns `Some(resolved_go_id)` if the annotation passes all filters, or `None` if filtered out.
+pub(crate) fn filter_and_resolve_annotation(
+    raw_go_id: &str,
+    raw_qualifiers: &[String],
+    evidence: &str,
+    aspect: &str,
+    opts: &GAFParseOptions,
+    terms: &HashMap<String, GOTerm>,
+    obsolete_terms: Option<&HashMap<String, GOTerm>>,
+) -> Option<String> {
+    // 1. Resolve GO term and check obsolete status
+    let go_id = if let Some(term) = terms.get(raw_go_id) {
+        if term.is_obsolete {
+            if !opts.allow_obsolete_terms {
+                return None;
+            }
+            if let Some(ref replacement) = term.replaced_by {
+                if terms.contains_key(replacement) {
+                    replacement.clone()
+                } else {
+                    raw_go_id.to_string()
+                }
+            } else if let Some(first_valid) = term.consider.iter().find(|c| terms.contains_key(*c)) {
+                first_valid.clone()
+            } else {
+                raw_go_id.to_string()
+            }
+        } else {
+            raw_go_id.to_string()
+        }
+    } else if let Some(obs_term) = obsolete_terms.and_then(|m| m.get(raw_go_id)) {
+        if !opts.allow_obsolete_terms {
+            return None;
+        }
+        if let Some(ref replacement) = obs_term.replaced_by {
+            if terms.contains_key(replacement) {
+                replacement.clone()
+            } else {
+                raw_go_id.to_string()
+            }
+        } else if let Some(first_valid) = obs_term.consider.iter().find(|c| terms.contains_key(*c)) {
+            first_valid.clone()
+        } else {
+            raw_go_id.to_string()
+        }
+    } else {
+        return None;
+    };
+
+    // 2. Check aspect filter
+    if let Some(ref inc_aspects) = opts.include_aspects {
+        let effective_aspect = if !aspect.is_empty() {
+            normalize_aspect_token(aspect)
+        } else if let Some(t) = terms.get(&go_id) {
+            namespace_to_aspect(&t.namespace).to_string()
+        } else if let Some(t) = obsolete_terms.and_then(|m| m.get(&go_id)) {
+            namespace_to_aspect(&t.namespace).to_string()
+        } else {
+            String::new()
+        };
+        if !inc_aspects.contains(&effective_aspect) {
+            return None;
+        }
+    }
+
+    // 3. Check qualifier filter
+    if !opts.exclude_qualifiers.is_empty() {
+        for q in raw_qualifiers {
+            if opts.exclude_qualifiers.contains(&q.to_ascii_uppercase()) {
+                return None;
+            }
+        }
+    }
+
+    // 4. Check evidence filters
+    let ev_upper = evidence.trim().to_ascii_uppercase();
+    if opts.exclude_evidence.contains(&ev_upper) {
+        return None;
+    }
+    if let Some(ref inc_ev) = opts.include_evidence {
+        if !inc_ev.contains(&ev_upper) {
+            return None;
+        }
+    }
+
+    // 5. Handle ND (No biological Data)
+    if ev_upper == "ND" {
+        if opts.allow_nd_root_only {
+            if !is_root_term(&go_id, terms) {
+                return None;
+            }
+        } else {
+            return None;
+        }
+    }
+
+    Some(go_id)
+}
+
 /// Load a GAF annotation file and cache the gene-to-GO mapping.
 ///
 /// Arguments
 /// ---------
 /// path : str
 ///   Path to the GAF file.
+/// options : Optional[GAFParseOptions]
+///   Optional structured filter options applied during parsing.
 ///
 /// Returns
 /// -------
 /// list of GAFAnnotation
 ///   List of parsed GAF annotations.
 #[pyfunction]
-pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
-    let file = File::open(&path)
+#[pyo3(signature = (path, options=None))]
+pub fn load_gaf(path: String, options: Option<GAFParseOptions>) -> PyResult<Vec<GAFAnnotation>> {
+    let opts = options.unwrap_or_default();
+    let reader = open_buf_reader(&path)
         .map_err(|e| pyo3::exceptions::PyIOError::new_err(e.to_string()))?;
-    let reader = BufReader::new(file);
 
     // Get the loaded GO terms to check for obsolete terms
-    let terms = match crate::go_ontology::get_terms_or_error() {
-        Ok(t) => t,
-        Err(e) => return Err(e),
-    };
+    let terms = crate::go_ontology::get_terms_or_error()?;
+    let obsolete_guard = OBSOLETE_TERMS_CACHE.get().map(|lock| lock.read());
+    let obsolete_terms = obsolete_guard.as_deref();
 
     let mut annotations: Vec<GAFAnnotation> = Vec::new();
     let mut gene2go: HashMap<String, Vec<String>> = HashMap::default();
 
     for line in reader.lines().filter_map(Result::ok).filter(|l| !l.starts_with('!')) {
+        if line.trim().is_empty() {
+            continue;
+        }
         let cols: Vec<&str> = line.split('\t').collect();
         if cols.len() < 7 {
             continue;
         }
 
-        let db_object_id = cols[1].to_string();
-        let qualifier = cols[3].to_string();
-        let mut go_term = cols[4].to_string();
-        let evidence = cols[6].to_string();
-        let gene = cols[2].to_string();
+        let raw_go_id = cols[4].trim();
+        let evidence_str = cols[6].trim();
+        let aspect_str = cols.get(8).copied().unwrap_or("").trim();
+        let qualifiers = split_pipe(cols[3]);
 
-        // Filter out ND annotations
-        if evidence == "ND" {
+        let Some(go_id) = filter_and_resolve_annotation(
+            raw_go_id,
+            &qualifiers,
+            evidence_str,
+            aspect_str,
+            &opts,
+            &terms,
+            obsolete_terms,
+        ) else {
             continue;
-        }
+        };
 
-        // Skip NOT annotations
-        if qualifier.contains("NOT") {
-            continue;
-        }
-
-        // Resolve obsolete terms
-        if let Some(term) = terms.get(&go_term) {
-            if term.is_obsolete {
-                if let Some(ref replacement) = term.replaced_by {
-                    // Use the replacement term instead
-                    go_term = replacement.clone();
-                } else if !term.consider.is_empty() {
-                    // If there are "consider" terms, choose the first one
-                    go_term = term.consider[0].clone();
-                } else {
-                    // If no replacement, drop the annotation
-                    continue;
-                }
-            }
+        let db = cols[0].trim().to_string();
+        let db_object_id = cols[1].trim().to_string();
+        let db_object_symbol = cols[2].trim().to_string();
+        let references = cols.get(5).map(|s| split_pipe(s)).unwrap_or_default();
+        let evidence = evidence_str.to_string();
+        let with_from = cols.get(7).map(|s| split_pipe(s)).unwrap_or_default();
+        let aspect = if !aspect_str.is_empty() {
+            aspect_str.to_string()
+        } else if let Some(t) = terms.get(&go_id) {
+            namespace_to_aspect(&t.namespace).to_string()
         } else {
-            // GO term not found at all
-            continue;
-        }
+            String::new()
+        };
+        let db_object_name = cols.get(9).copied().unwrap_or("").trim().to_string();
+        let db_object_synonyms = cols.get(10).map(|s| split_pipe(s)).unwrap_or_default();
+        let db_object_type = cols.get(11).copied().unwrap_or("").trim().to_string();
+        let taxon = cols.get(12).map(|s| split_pipe(s)).unwrap_or_default();
+        let date = cols.get(13).copied().unwrap_or("").trim().to_string();
+        let assigned_by = cols.get(14).copied().unwrap_or("").trim().to_string();
+        let annotation_extensions = cols.get(15).map(|s| split_pipe(s)).unwrap_or_default();
+        let gene_product_form_id = cols.get(16).copied().unwrap_or("").trim().to_string();
+        let is_negated = qualifiers
+            .iter()
+            .any(|q| q.eq_ignore_ascii_case("NOT"));
 
-        // Add annotation
+        let gene_key = if !db_object_symbol.is_empty() {
+            db_object_symbol.clone()
+        } else {
+            db_object_id.clone()
+        };
+
         annotations.push(GAFAnnotation {
-            db_object_id: db_object_id.clone(),
-            go_term: go_term.clone(),
+            db,
+            db_object_id,
+            db_object_symbol,
+            qualifiers,
+            go_id: go_id.clone(),
+            references,
             evidence,
+            with_from,
+            aspect,
+            db_object_name,
+            db_object_synonyms,
+            db_object_type,
+            taxon,
+            date,
+            assigned_by,
+            annotation_extensions,
+            gene_product_form_id,
+            is_negated,
         });
 
-        // Update gene -> GO mapping
-        gene2go.entry(gene).or_default().push(go_term);
+        gene2go.entry(gene_key).or_default().push(go_id);
     }
 
     // Save in global cache
@@ -500,6 +1047,7 @@ pub fn load_gaf(path: String) -> PyResult<Vec<GAFAnnotation>> {
 
     Ok(annotations)
 }
+
 /// Build a term counter (counts, IC) from GAF annotations.
 ///
 /// Arguments
@@ -519,52 +1067,40 @@ pub fn build_term_counter(
     // Obtener los términos GO desde el caché global
     let terms = get_terms_or_error()?;
 
-    // Convertir las anotaciones de Py<GAFAnnotation> a GAFAnnotation (Rust)
-    let annotations: Vec<GAFAnnotation> = py_annotations
-        .into_iter()
-        .map(|py_ann| py_ann.extract(py))
-        .collect::<PyResult<_>>()?;
+    // Extraer únicamente (db_object_id, go_id) sin clonar todos los vectores de cada GAFAnnotation
+    let pairs: Vec<(String, String)> = py_annotations
+        .iter()
+        .map(|py_ann| {
+            let b = py_ann.borrow(py);
+            (b.db_object_id.clone(), b.go_id.clone())
+        })
+        .collect();
 
-    // Llamar a la función de conteo interna
-    Ok(_build_term_counter(&annotations, &terms))
+    Ok(_build_term_counter_pairs(&pairs, &terms))
 }
 
-/// Internal: Build a term counter from Rust GAFAnnotation and GOTerm.
-///
-/// Arguments
-/// ---------
-/// annotations : list of GAFAnnotation
-///   List of GAFAnnotation structs.
-/// terms : dict
-///   Map of GO terms.
-///
-/// Returns
-/// -------
-/// TermCounter
-///   Struct with counts and IC values.
-fn _build_term_counter(
-    annotations: &[GAFAnnotation],
+/// Internal: Build a term counter from (db_object_id, go_id) pairs and GOTerm map.
+fn _build_term_counter_pairs(
+    annotations: &[(String, String)],
     terms: &HashMap<String, GOTerm>,
 ) -> TermCounter {
-    // Hold a read lock on the ancestors cache once so we can read it without per-annotation locking.
     let ancestors_cache_guard = ANCESTORS_CACHE.get().map(|lock| lock.read());
     let ancestors_cache = ancestors_cache_guard.as_deref();
+    let obsolete_guard = OBSOLETE_TERMS_CACHE.get().map(|lock| lock.read());
+    let obsolete_terms = obsolete_guard.as_deref();
 
     // Parallel: build obj_to_terms without global locking
     let obj_to_terms: HashMap<&str, HashSet<String>> = annotations
         .par_iter()
-        .fold(HashMap::<&str, HashSet<String>>::default, |mut acc, ann| {
-            let go_id = ann.go_term.as_str();
-            let entry = acc.entry(ann.db_object_id.as_str()).or_default();
+        .fold(HashMap::<&str, HashSet<String>>::default, |mut acc, (db_obj_id, go_id_str)| {
+            let go_id = go_id_str.as_str();
+            let entry = acc.entry(db_obj_id.as_str()).or_default();
 
-            // Add the term itself plus its ancestors, but avoid cloning a whole HashSet only to
-            // re-hash all elements again when extending `entry`.
             entry.insert(go_id.to_string());
             if let Some(cache) = ancestors_cache {
                 if let Some(ancestors) = cache.get(go_id) {
                     entry.extend(ancestors.iter().cloned());
                 } else {
-                    // Should be rare (unknown GO ID), but keep a correct fallback.
                     entry.extend(collect_ancestors(go_id, terms).into_iter());
                 }
             } else {
@@ -593,6 +1129,9 @@ fn _build_term_counter(
                     if let Some(term) = terms.get(term_id.as_str()) {
                         *counts.entry(term_id.clone()).or_insert(0) += 1;
                         namespaces_seen.insert(term.namespace.as_str());
+                    } else if let Some(obs_term) = obsolete_terms.and_then(|m| m.get(term_id.as_str())) {
+                        *counts.entry(term_id.clone()).or_insert(0) += 1;
+                        namespaces_seen.insert(obs_term.namespace.as_str());
                     }
                 }
                 for ns in namespaces_seen {
@@ -617,11 +1156,19 @@ fn _build_term_counter(
             },
         );
 
-    // Calcular IC (secuencial, as it's fast)
+    // Calcular IC
     let mut ic: HashMap<String, f64> = HashMap::default();
     for (term_id, count) in &counts {
-        if let Some(term) = terms.get(term_id.as_str()) {
-            let total = total_by_ns.get(&term.namespace).copied().unwrap_or(1);
+        let ns_opt = terms
+            .get(term_id.as_str())
+            .map(|t| t.namespace.as_str())
+            .or_else(|| {
+                obsolete_terms
+                    .and_then(|m| m.get(term_id.as_str()))
+                    .map(|t| t.namespace.as_str())
+            });
+        if let Some(ns) = ns_opt {
+            let total = total_by_ns.get(ns).copied().unwrap_or(1);
             let freq = *count as f64 / total as f64;
             let info_content = if freq > 0.0 { -freq.ln() } else { 0.0 };
             ic.insert(term_id.clone(), info_content);

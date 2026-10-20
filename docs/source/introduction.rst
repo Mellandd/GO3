@@ -21,8 +21,8 @@ Requirements
 ============
 
 - **Python >= 3.7** (pre-built wheels are available for Linux, macOS, and Windows on common architectures).
-- A GO ontology file in OBO format (for example ``go-basic.obo``).
-- A GO annotation file in GAF format for your organism.
+- A GO ontology file in OBO format (for example ``go-basic.obo`` or ``go-basic.obo.gz``).
+- A GO annotation file in GAF 2.2 format for your organism (plain ``.gaf`` or compressed ``.gaf.gz``).
 
 If you call ``go3.load_go_terms()`` without a path, GO3 downloads ``go-basic.obo`` automatically.
 

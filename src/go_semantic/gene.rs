@@ -1041,3 +1041,264 @@ pub fn gene_set_distance_matrix(
 
     Ok((names, matrix))
 }
+
+/// Struct representing a single GO over-representation enrichment result.
+#[pyclass]
+#[derive(Clone, Debug)]
+pub struct EnrichmentResult {
+    #[pyo3(get)]
+    pub go_id: String,
+    #[pyo3(get)]
+    pub name: String,
+    #[pyo3(get)]
+    pub namespace: String,
+    #[pyo3(get)]
+    pub study_count: usize,
+    #[pyo3(get)]
+    pub study_total: usize,
+    #[pyo3(get)]
+    pub pop_count: usize,
+    #[pyo3(get)]
+    pub pop_total: usize,
+    #[pyo3(get)]
+    pub fold_enrichment: f64,
+    #[pyo3(get)]
+    pub p_value: f64,
+    #[pyo3(get)]
+    pub p_fdr_bh: f64,
+    #[pyo3(get)]
+    pub p_bonferroni: f64,
+    #[pyo3(get)]
+    pub study_genes: Vec<String>,
+}
+
+#[pymethods]
+impl EnrichmentResult {
+    fn __repr__(&self) -> String {
+        format!(
+            "EnrichmentResult(go_id='{}', name='{}', study={}/{}, pop={}/{}, fold={:.2}, p={:.3e}, fdr={:.3e})",
+            self.go_id,
+            self.name,
+            self.study_count,
+            self.study_total,
+            self.pop_count,
+            self.pop_total,
+            self.fold_enrichment,
+            self.p_value,
+            self.p_fdr_bh
+        )
+    }
+}
+
+fn hypergeometric_sf(k: usize, n: usize, k_pop: usize, n_pop: usize, ln_fact: &[f64]) -> f64 {
+    if k == 0 {
+        return 1.0;
+    }
+    let max_x = n.min(k_pop);
+    if k > max_x || n > n_pop || k_pop > n_pop {
+        return 0.0;
+    }
+    let ln_choose = |a: usize, b: usize| -> f64 {
+        if b > a {
+            f64::NEG_INFINITY
+        } else {
+            ln_fact[a] - ln_fact[b] - ln_fact[a - b]
+        }
+    };
+    let denom = ln_choose(n_pop, n);
+    let mut sum_p = 0.0_f64;
+    let min_x = k.max((n + k_pop).saturating_sub(n_pop));
+    for x in min_x..=max_x {
+        let log_p = ln_choose(k_pop, x) + ln_choose(n_pop - k_pop, n - x) - denom;
+        sum_p += log_p.exp();
+    }
+    sum_p.clamp(0.0, 1.0)
+}
+
+/// Perform Gene Ontology Over-Representation Analysis (one-sided Fisher's exact test + BH FDR).
+///
+/// Arguments
+/// ---------
+/// study_genes : list of str
+///   List of study/query gene symbols.
+/// background_genes : Optional[list of str]
+///   Optional background population gene symbols. If None, uses all genes in the loaded GAF.
+/// ontology : Optional[str]
+///   Optional subontology filter ("BP", "MF", or "CC"). If None, tests all namespaces.
+/// alpha : float
+///   Maximum Benjamini-Hochberg adjusted p-value (`p_fdr_bh`) to include in results (default: 0.05).
+/// min_overlap : int
+///   Minimum number of study genes annotated to a GO term to test it (default: 1).
+///
+/// Returns
+/// -------
+/// list of EnrichmentResult
+///   Enriched GO terms sorted by adjusted p-value (`p_fdr_bh`) ascending.
+#[pyfunction]
+#[pyo3(signature = (study_genes, background_genes=None, ontology=None, alpha=0.05, min_overlap=1))]
+pub fn go_enrichment(
+    study_genes: Vec<String>,
+    background_genes: Option<Vec<String>>,
+    ontology: Option<&str>,
+    alpha: f64,
+    min_overlap: usize,
+) -> PyResult<Vec<EnrichmentResult>> {
+    let terms = get_terms_or_error()?;
+    let gene2go = get_gene2go_or_error()?;
+    let ns_filter = match ontology {
+        Some(ont) => Some(ontology_namespace(ont)?),
+        None => None,
+    };
+
+    let pop_set: HashSet<String> = match background_genes {
+        Some(bg) => bg
+            .into_iter()
+            .filter(|g| gene2go.contains_key(g.as_str()))
+            .collect(),
+        None => gene2go.keys().cloned().collect(),
+    };
+
+    let study_set: HashSet<String> = study_genes
+        .into_iter()
+        .filter(|g| pop_set.contains(g.as_str()))
+        .collect();
+
+    let pop_total = pop_set.len();
+    let study_total = study_set.len();
+    if pop_total == 0 || study_total == 0 {
+        return Ok(Vec::new());
+    }
+
+    let ancestors_guard = crate::go_loader::ANCESTORS_CACHE.get().map(|l| l.read());
+    let ancestors_cache = ancestors_guard.as_deref();
+
+    // Propagate annotations for all population genes
+    let mut term_pop_counts: HashMap<String, usize> = HashMap::default();
+    let mut term_study_genes: HashMap<String, Vec<String>> = HashMap::default();
+
+    for gene in &pop_set {
+        let Some(direct_terms) = gene2go.get(gene.as_str()) else {
+            continue;
+        };
+        let mut all_gene_terms: HashSet<String> = HashSet::default();
+        for go_id in direct_terms {
+            // Canonicalize via terms map if alt_id
+            let canon_id = terms
+                .get(go_id.as_str())
+                .map(|t| t.id.as_str())
+                .unwrap_or(go_id.as_str());
+            all_gene_terms.insert(canon_id.to_string());
+            if let Some(cache) = ancestors_cache {
+                if let Some(ancs) = cache.get(canon_id) {
+                    all_gene_terms.extend(ancs.iter().cloned());
+                } else {
+                    all_gene_terms.extend(crate::go_ontology::collect_ancestors(canon_id, &terms));
+                }
+            } else {
+                all_gene_terms.extend(crate::go_ontology::collect_ancestors(canon_id, &terms));
+            }
+        }
+
+        let in_study = study_set.contains(gene);
+        for tid in all_gene_terms {
+            if let Some(t) = terms.get(tid.as_str()) {
+                if t.id != tid {
+                    continue; // only count canonical term IDs
+                }
+                if let Some(ns) = ns_filter {
+                    if !t.namespace.eq_ignore_ascii_case(ns) {
+                        continue;
+                    }
+                }
+                *term_pop_counts.entry(tid.clone()).or_insert(0) += 1;
+                if in_study {
+                    term_study_genes.entry(tid).or_default().push(gene.clone());
+                }
+            }
+        }
+    }
+
+    let min_k = min_overlap.max(1);
+    let candidate_terms: Vec<(String, Vec<String>, usize)> = term_study_genes
+        .into_iter()
+        .filter_map(|(go_id, mut s_genes)| {
+            if s_genes.len() < min_k {
+                return None;
+            }
+            s_genes.sort_unstable();
+            let pop_c = term_pop_counts.get(&go_id).copied().unwrap_or(s_genes.len());
+            Some((go_id, s_genes, pop_c))
+        })
+        .collect();
+
+    if candidate_terms.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    // Precompute log-factorials up to pop_total
+    let mut ln_fact = vec![0.0_f64; pop_total + 1];
+    for i in 1..=pop_total {
+        ln_fact[i] = ln_fact[i - 1] + (i as f64).ln();
+    }
+
+    let m_tests = candidate_terms.len();
+    let mut raw_results: Vec<EnrichmentResult> = candidate_terms
+        .par_iter()
+        .filter_map(|(go_id, s_genes, pop_c)| {
+            let term = terms.get(go_id.as_str())?;
+            let study_c = s_genes.len();
+            let p_val = hypergeometric_sf(study_c, study_total, *pop_c, pop_total, &ln_fact);
+            let fold = ((study_c as f64) / (study_total as f64))
+                / ((*pop_c as f64) / (pop_total as f64));
+            let p_bonf = (p_val * (m_tests as f64)).min(1.0);
+            Some(EnrichmentResult {
+                go_id: go_id.clone(),
+                name: term.name.clone(),
+                namespace: term.namespace.clone(),
+                study_count: study_c,
+                study_total,
+                pop_count: *pop_c,
+                pop_total,
+                fold_enrichment: fold,
+                p_value: p_val,
+                p_fdr_bh: 1.0,
+                p_bonferroni: p_bonf,
+                study_genes: s_genes.clone(),
+            })
+        })
+        .collect();
+
+    // Sort by p_value ascending for Benjamini-Hochberg step-up procedure
+    // Ties broken by fold_enrichment descending, then term depth descending (most specific first), then go_id.
+    raw_results.sort_by(|a, b| {
+        let depth_a = terms.get(&a.go_id).and_then(|t| t.depth).unwrap_or(0);
+        let depth_b = terms.get(&b.go_id).and_then(|t| t.depth).unwrap_or(0);
+        a.p_value
+            .partial_cmp(&b.p_value)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then_with(|| {
+                b.fold_enrichment
+                    .partial_cmp(&a.fold_enrichment)
+                    .unwrap_or(std::cmp::Ordering::Equal)
+            })
+            .then_with(|| depth_b.cmp(&depth_a))
+            .then_with(|| a.go_id.cmp(&b.go_id))
+    });
+
+    let m_f64 = raw_results.len() as f64;
+    let mut prev_bh = 1.0_f64;
+    for (idx, res) in raw_results.iter_mut().enumerate().rev() {
+        let rank = (idx + 1) as f64;
+        let bh = (res.p_value * m_f64 / rank).min(prev_bh).min(1.0);
+        res.p_fdr_bh = bh;
+        prev_bh = bh;
+    }
+
+    let filtered: Vec<EnrichmentResult> = raw_results
+        .into_iter()
+        .filter(|r| r.p_fdr_bh <= alpha)
+        .collect();
+
+    Ok(filtered)
+}
+

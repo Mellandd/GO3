@@ -113,6 +113,25 @@ Term-level APIs
 - Requires ``len(list1) == len(list2)``.
 - Raises ``ValueError`` if list sizes differ or method is unknown.
 
+``term_similarity_matrix(terms, method="lin", counter=...)``
+
+- Computes an all-vs-all symmetric similarity matrix in parallel for a list of GO term IDs.
+- Returns ``(terms, similarity_matrix)``.
+
+``term_distance_matrix(terms, method="lin", counter=..., distance_transform="auto")``
+
+- Computes an all-vs-all symmetric distance matrix for a list of GO term IDs.
+- Returns ``(terms, distance_matrix)``.
+
+``reduce_redundant_terms(terms, threshold=0.7, method="lin", counter=..., scores=None)``
+
+- Condenses a list of GO terms by grouping terms with pairwise similarity ``>= threshold`` and keeping the highest-IC (or highest custom ``scores``) representative per cluster.
+- Returns the non-redundant representative GO term IDs in their original relative order.
+
+``cluster_go_terms(terms, threshold=0.7, method="lin", counter=..., scores=None)``
+
+- Groups redundant GO terms around their most informative representative and returns ``dict[str, list[str]]`` mapping each representative GO ID to all member GO IDs in its cluster.
+
 Set-level API
 -------------
 
@@ -168,6 +187,15 @@ Gene-set APIs
 - Alternative profile-based method.
 - Converts each gene set to a weighted GO-term profile, where each term weight is the number of genes annotated to that term.
 - Compares the two weighted GO profiles directly with ``bma``, ``max``, ``avg``, ``hausdorff``, or weighted ``simgic``.
+
+GO Over-Representation Enrichment
+---------------------------------
+
+``go_enrichment(study_genes, background_genes=None, ontology=None, alpha=0.05, min_overlap=1)``
+
+- Performs one-sided Fisher's exact test (hypergeometric over-representation) with true-path ancestor propagation across all candidate GO terms annotated to ``study_genes``.
+- Computes Benjamini-Hochberg FDR (``p_fdr_bh``) and Bonferroni (``p_bonferroni``) adjusted p-values in parallel.
+- Returns a list of :class:`go3.EnrichmentResult` objects with ``p_fdr_bh <= alpha``, sorted by adjusted p-value ascending (breaking ties by fold enrichment and term depth).
 
 Practical behavior and edge cases
 ---------------------------------
@@ -260,6 +288,6 @@ API reference
 -------------
 
 .. automodule:: go3
-   :members: term_ic, semantic_similarity, batch_similarity, termset_similarity, compare_genes, compare_gene_pairs_batch, compare_gene_sets, compare_gene_set_pairs_batch, compare_gene_set_profiles, gene_set_distance_matrix
+   :members: term_ic, semantic_similarity, batch_similarity, term_similarity_matrix, term_distance_matrix, reduce_redundant_terms, cluster_go_terms, termset_similarity, compare_genes, compare_gene_pairs_batch, compare_gene_sets, compare_gene_set_pairs_batch, compare_gene_set_profiles, gene_set_distance_matrix, go_enrichment, EnrichmentResult
    :undoc-members:
    :show-inheritance:

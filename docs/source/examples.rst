@@ -125,8 +125,8 @@ Gene-set similarity
    # Alternative: compare weighted GO-term profiles aggregated from each gene set.
    profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "simgic", counter)
 
-Ontology traversal
-------------------
+Ontology traversal and gene-term queries
+----------------------------------------
 
 .. code-block:: python
 
@@ -137,9 +137,11 @@ Ontology traversal
    print(term.depth)      # maximum distance to root
    print(term.level)      # minimum distance to root
 
-   # Get all ancestors (includes the term itself)
-   ancs = go3.ancestors("GO:0006397")
+   # Get all ancestors and descendants (optionally traversing part_of edges)
+   ancs = go3.ancestors("GO:0006397", relations=["part_of"])
+   descs = go3.descendants("GO:0006396")
    print(len(ancs), "ancestors (including self)")
+   print(len(descs), "descendants (including self)")
 
    # Find the deepest common ancestor of two terms
    dca = go3.deepest_common_ancestor("GO:0006397", "GO:0008380")
@@ -148,6 +150,32 @@ Ontology traversal
    # Common ancestors shared by both terms
    common = go3.common_ancestor("GO:0006397", "GO:0008380")
    print(len(common), "common ancestors")
+
+   # Direct gene <-> GO queries
+   bp_genes = go3.list_genes(ontology="BP")
+   tp53_terms = go3.get_terms_for_gene("TP53", ontology="BP")
+   mrna_genes = go3.get_genes_for_term("GO:0006397", include_descendants=True)
+
+GO Over-Representation Enrichment and redundancy reduction
+----------------------------------------------------------
+
+.. code-block:: python
+
+   study_genes = ["PINK1", "PRKN", "PARK7", "SNCA", "LRRK2"]
+
+   # 1) Perform GO Over-Representation Analysis (Fisher's exact test + BH FDR)
+   results = go3.go_enrichment(study_genes, ontology="BP", alpha=0.05)
+   for r in results[:5]:
+       print(r.go_id, r.name, f"FDR={r.p_fdr_bh:.2e}", f"fold={r.fold_enrichment:.1f}")
+
+   # 2) Condense redundant enriched GO terms
+   enriched_ids = [r.go_id for r in results]
+   representatives = go3.reduce_redundant_terms(
+       enriched_ids, threshold=0.7, method="lin", counter=counter
+   )
+   clusters = go3.cluster_go_terms(
+       enriched_ids, threshold=0.7, method="lin", counter=counter
+   )
 
 Inspecting IC values
 --------------------

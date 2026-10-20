@@ -8,7 +8,7 @@ Core functions
 
 ``load_go_terms(path=None)``
 
-- Loads GO terms from an OBO file.
+- Loads GO terms from an OBO file (plain ``.obo`` or compressed ``.obo.gz``).
 - If ``path`` is omitted, GO3 downloads ``go-basic.obo``.
 - Replaces the in-process ontology cache.
 
@@ -17,16 +17,23 @@ Core functions
 - Returns a :class:`go3.PyGOTerm` object.
 - Raises ``ValueError`` if the term does not exist.
 
-``ancestors(go_id)``
+``ancestors(go_id, relations=None)``
 
 - Returns all ancestors of ``go_id`` (including the term itself).
-- Traversal follows ``is_a`` relationships only (not ``part_of`` or other relationship types).
+- By default (``relations=None``), traversal follows ``is_a`` relationships using the precomputed cache.
+- Pass additional relationship types (e.g. ``relations=["part_of"]``) to also traverse those edges.
 
 .. note::
 
    The returned set **includes the query term itself**. For example,
    ``ancestors("GO:0006397")`` will contain ``"GO:0006397"`` plus all
    its ``is_a`` parents up to the root.
+
+``descendants(go_id, relations=None)``
+
+- Returns a sorted list of all descendant GO term IDs of ``go_id`` (including the term itself).
+- Optionally traverses additional relationship types such as ``relations=["part_of"]``.
+- Raises ``ValueError`` if ``go_id`` is not in the ontology.
 
 ``common_ancestor(go_id1, go_id2)``
 
@@ -36,6 +43,21 @@ Core functions
 
 - Returns the deepest common ancestor (MICA-like depth criterion).
 - Raises ``ValueError`` if either GO ID is missing.
+
+``list_genes(ontology=None)``
+
+- Returns a sorted list of all gene symbols loaded from the GAF file.
+- Optionally filters to genes with annotations in ``"BP"``, ``"MF"``, or ``"CC"``.
+
+``get_terms_for_gene(gene, ontology=None)``
+
+- Returns the unique sorted GO term IDs annotated to ``gene`` (optionally filtered by subontology).
+- Raises ``ValueError`` if ``gene`` is not found in the loaded mapping.
+
+``get_genes_for_term(go_id, include_descendants=True)``
+
+- Returns a sorted list of gene symbols annotated to ``go_id``.
+- When ``include_descendants=True`` (default), includes genes annotated to any descendant of ``go_id`` following the GO true-path rule.
 
 Depth vs. level
 ---------------
@@ -98,7 +120,7 @@ API reference
 -------------
 
 .. automodule:: go3
-   :members: load_go_terms, get_term_by_id, ancestors, common_ancestor, deepest_common_ancestor
+   :members: load_go_terms, get_term_by_id, ancestors, descendants, common_ancestor, deepest_common_ancestor, list_genes, get_terms_for_gene, get_genes_for_term
    :undoc-members:
    :show-inheritance:
    :no-index:

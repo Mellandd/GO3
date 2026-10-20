@@ -11,15 +11,22 @@ Existing tools — `GOATOOLS <https://github.com/tanghaibao/goatools>`_ (Python)
 
 - **Term-level similarity** — 8 methods (IC-based, topological, and hybrid) in one place.
 - **Term-set, gene-level, and gene-set similarity** — compare GO-term sets, genes, gene lists, or weighted GO profiles with configurable groupwise strategies.
+- **GO Over-Representation Enrichment** — native Fisher's exact test + Benjamini-Hochberg FDR in parallel Rust (``go_enrichment``).
+- **Semantic redundancy reduction** — cluster and condense redundant GO terms around their most informative representatives (``reduce_redundant_terms``, ``cluster_go_terms``).
 - **Batch operations** — compute thousands of term or gene pairs in a single call, parallelized automatically.
-- **All-vs-all distance matrices** — one function call for a full symmetric distance matrix over any gene list.
+- **All-vs-all distance and similarity matrices** — one function call for a full symmetric matrix over any term list, gene list, or gene-set list.
+- **Full GAF 2.2 model & native filtering** — structured parsing options (``GAFParseOptions``) and transparent ``.gz`` file support.
 - **Embeddings and visualization** — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.
 - **Speed** — the fastest library in our benchmark: 3.6–12.5× faster initialization and 2–25× faster gene-level similarity than other Python/R libraries. See :doc:`benchmarks`.
-- **Minimal setup** — install with ``pip install go3``, load an OBO file (auto-downloadable) and a GAF file, and start computing.
+- **Minimal setup** — install with ``pip install go3``, load an OBO file (auto-downloadable) and a GAF file (plain or ``.gz``), and start computing.
 
-Highlights (v0.3)
------------------
+Highlights
+----------
 
+- Full GAF 2.2 ``GAFAnnotation`` model and native ``GAFParseOptions`` parser filters
+- Transparent ``.gz`` support for OBO and GAF files
+- Native GO Over-Representation Enrichment (``go_enrichment``) and semantic redundancy reduction (``reduce_redundant_terms``, ``cluster_go_terms``)
+- Direct gene-term queries (``list_genes``, ``get_terms_for_gene``, ``get_genes_for_term``) and ``descendants`` traversal
 - TopoICSim and GraphIC hybrid methods
 - t-SNE / UMAP embedding helpers with plotting utilities
 - Thread-pool control via ``set_num_threads``
