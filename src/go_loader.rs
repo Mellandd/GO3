@@ -63,7 +63,7 @@ fn normalize_aspect_token(s: &str) -> String {
 }
 
 /// Structured filter options applied during GAF/GPAD annotation parsing.
-#[pyclass]
+#[pyclass(from_py_object)]
 #[derive(Clone, Debug)]
 pub struct GAFParseOptions {
     pub include_evidence: Option<std::collections::HashSet<String>>,

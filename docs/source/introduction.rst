@@ -4,7 +4,7 @@ Getting Started & Core Concepts
 Requirements & Installation
 ---------------------------
 
-- **Python >= 3.7** (pre-built wheels available for Linux, macOS, and Windows).
+- **Python >= 3.9** (pre-built wheels available for Linux, macOS, and Windows).
 - An ontology file in OBO format (``go-basic.obo`` or ``go-basic.obo.gz``). Calling ``go3.load_go_terms()`` with no arguments downloads ``go-basic.obo`` automatically.
 - An organism annotation file in GAF 2.2 format (plain ``.gaf`` or compressed ``.gaf.gz``).
 

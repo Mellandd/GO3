@@ -32,7 +32,7 @@ Optional visualization dependencies (`scikit-learn`, `umap-learn`, `matplotlib`)
 pip install 'go3[viz]'
 ```
 
-Requires **Python >= 3.7**. Pre-built wheels are provided for Linux, macOS, and Windows.
+Requires **Python >= 3.9**. Pre-built wheels are provided for Linux, macOS, and Windows.
 
 ---
 
