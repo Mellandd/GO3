@@ -1,293 +1,130 @@
-Semantic Similarity
-===================
+Similarity, Redundancy & Enrichment API
+=======================================
 
-GO3 supports term-level, gene-level, and gene-set semantic similarity across multiple methods.
+GO3 provides term-level, term-set, gene-level, and gene-set semantic similarity, semantic redundancy reduction, and Over-Representation Analysis (ORA).
 
-Background: IC and MICA
-------------------------
+Term Similarity Methods (``method`` / ``similarity``)
+-----------------------------------------------------
 
-Most similarity methods in GO3 rely on **Information Content (IC)** and the **Most Informative Common Ancestor (MICA)**. See :doc:`introduction` for full definitions.
-
-In brief:
-
-- **IC(t)** measures how specific a term is: ``IC(t) = -log(count(t) / total(namespace))``. Rare terms have high IC.
-- **MICA(t1, t2)** is the common ancestor of *t1* and *t2* with the highest IC -- i.e., the most specific shared concept.
-
-Methods that do **not** require IC (e.g., Wang) use graph topology instead.
-
-Quick reference
----------------
-
-.. list-table:: Similarity methods (``method`` argument)
+.. list-table::
    :header-rows: 1
+   :widths: 14 14 14 14 44
 
-   * - Method
-     - Key
+   * - Key
+     - Name
      - Family
-     - Typical range
-     - Description
-   * - Resnik
-     - ``resnik``
-     - IC-based
-     - ``>= 0``
-     - IC of the MICA; unbounded, corpus-dependent
-   * - Lin
-     - ``lin``
+     - Range
+     - Formula / Summary
+   * - ``lin``
+     - Lin
      - IC-based
      - ``[0, 1]``
-     - Normalized Resnik: ``2*IC(MICA) / (IC(t1)+IC(t2))``
-   * - Jiang-Conrath similarity
-     - ``jc``
+     - :math:`\frac{2\,IC(\mathrm{MICA})}{IC(t_1)+IC(t_2)}`
+   * - ``resnik``
+     - Resnik
      - IC-based
      - ``>= 0``
-     - Distance-derived: ``1 / (1 + IC(t1)+IC(t2) - 2*IC(MICA))``
-   * - SimRel
-     - ``simrel``
+     - :math:`IC(\mathrm{MICA}(t_1, t_2))`
+   * - ``simrel``
+     - SimRel
      - IC-based
      - ``[0, 1]``
-     - Lin weighted by MICA relevance: penalizes shallow ancestors
-   * - Information Coefficient
-     - ``iccoef``
+     - :math:`\mathrm{Sim}_{Lin}(t_1, t_2)\cdot\bigl(1-e^{-IC(\mathrm{MICA})}\bigr)`
+   * - ``jc``
+     - Jiang-Conrath
      - IC-based
-     - ``>= 0``
-     - IC-based coefficient combining ancestor information
-   * - GraphIC
-     - ``graphic``
-     - Hybrid
-     - ``>= 0``
-     - Combines IC values with graph-structural features
-   * - Wang
-     - ``wang``
+     - ``[0, 1]``
+     - :math:`\frac{1}{1 + IC(t_1) + IC(t_2) - 2\,IC(\mathrm{MICA})}`
+   * - ``iccoef``
+     - ICCoef
+     - IC-based
+     - ``[0, 1]``
+     - IC ratio relative to the minimum IC of the two terms
+   * - ``wang``
+     - Wang
      - Topological
      - ``[0, 1]``
-     - Weighted ancestor contributions from graph topology; no IC needed
-   * - TopoICSim
-     - ``topoicsim``
+     - Weighted DAG paths (``is_a = 0.8``, ``part_of = 0.6``); no IC needed
+   * - ``graphic``
+     - GraphIC
      - Hybrid
      - ``[0, 1]``
-     - Topology-aware paths weighted by IC; bounded and normalized
+     - Combines IC with ontology depth
+   * - ``topoicsim``
+     - TopoICSim
+     - Hybrid
+     - ``[0, 1]``
+     - Disjunctive common-ancestor paths weighted by IC
 
-Groupwise strategies
---------------------
+Groupwise Aggregation Strategies (``groupwise``)
+------------------------------------------------
 
-When comparing sets of terms or genes, a **groupwise strategy** aggregates pairwise similarities into a single score.
-
-.. list-table:: Groupwise strategies (``groupwise`` argument)
+.. list-table::
    :header-rows: 1
+   :widths: 15 25 60
 
-   * - Strategy
-     - Key
-     - Description
-   * - Best Match Average
-     - ``bma``
-     - Average of best matches from both directions; balanced and widely used
-   * - Maximum
-     - ``max``
-     - Highest pairwise similarity; captures strongest shared function
-   * - Average
-     - ``avg``
-     - Mean of all pairwise similarities; measures overall functional overlap
-   * - Hausdorff
-     - ``hausdorff``
-     - Worst-case best-match distance; guarantees a minimum similarity level
-   * - SimGIC
-     - ``simgic``
-     - IC-weighted Jaccard of shared ancestor sets; set-based, not pairwise
+   * - Key
+     - Name
+     - Summary
+   * - ``bma``
+     - Best-Match Average
+     - Symmetrical average of best matches in both directions (recommended default)
+   * - ``simgic``
+     - SimGIC
+     - IC-weighted Jaccard similarity over full ancestor sets
+   * - ``max``
+     - Maximum
+     - Highest similarity across all pairs
+   * - ``avg``
+     - Average
+     - Mean similarity across all pairs
+   * - ``hausdorff``
+     - Hausdorff
+     - Worst-case best match (:math:`\min` of directional maxima)
 
-Choosing a method
+Function Overview
 -----------------
 
-See :doc:`guide/choosing_methods` for a dedicated guide on selecting the right similarity method and groupwise strategy for your use case.
+Term & Term-Set Functions
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Term-level APIs
----------------
+- ``term_ic(go_id, counter)`` — Information Content of a single GO term.
+- ``semantic_similarity(id1, id2, method, counter)`` — Similarity between two GO terms.
+- ``batch_similarity(list1, list2, method, counter)`` — Parallel similarity for aligned lists of GO terms.
+- ``term_similarity_matrix(terms, method="lin", counter=None)`` — All-vs-all symmetric similarity matrix ``(terms, matrix)``.
+- ``reduce_redundant_terms(terms, threshold=0.7, method="lin", counter=None, scores=None)`` — Greedy semantic deduplication keeping the highest-IC (or highest custom ``scores``) representative per cluster.
+- ``cluster_go_terms(terms, threshold=0.7, method="lin", counter=None, scores=None)`` — Group redundant GO terms into ``{representative_id: [member_ids...]}``.
+- ``termset_similarity(terms1, terms2, term_similarity="lin", groupwise="bma", counter=None)`` — Similarity between two sets of GO terms.
 
-``semantic_similarity(id1, id2, method, counter)``
+Gene & Gene-Set Functions
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Computes one score for one term pair.
-- Raises ``ValueError`` if ``method`` is unknown.
+- ``compare_genes(gene1, gene2, ontology, similarity, groupwise, counter)`` — Similarity between two genes in ``"BP"``, ``"MF"``, or ``"CC"``.
+- ``compare_gene_pairs_batch(pairs, ontology, similarity, groupwise, counter)`` — Parallel similarity for ``(gene1, gene2)`` tuples.
+- ``compare_gene_sets(genes1, genes2, ontology="BP", similarity="lin", groupwise="bma", counter=None, term_groupwise=None)`` — Compare two gene lists by aggregating pairwise gene similarities (outer ``groupwise``: ``"bma"``, ``"max"``, ``"avg"``, ``"hausdorff"``).
+- ``compare_gene_set_pairs_batch(pairs, ontology="BP", similarity="lin", groupwise="bma", counter=None, term_groupwise=None)`` — Parallel evaluation for a list of ``(genes1, genes2)`` pairs.
+- ``compare_gene_set_profiles(genes1, genes2, ontology="BP", similarity="lin", groupwise="bma", counter=None)`` — Compare two gene lists via weighted GO-term profiles (supports ``"simgic"``).
 
-``batch_similarity(list1, list2, method, counter)``
+GO Over-Representation Enrichment (ORA)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- Computes one score per aligned pair.
-- Requires ``len(list1) == len(list2)``.
-- Raises ``ValueError`` if list sizes differ or method is unknown.
+``go_enrichment(study_genes, background_genes=None, ontology=None, alpha=0.05, min_overlap=1, method="bh")``
 
-``term_similarity_matrix(terms, method="lin", counter=...)``
+Runs a one-sided hypergeometric (Fisher's exact) over-representation test with true-path ancestor propagation across all candidate GO terms annotated to ``study_genes``.
 
-- Computes an all-vs-all symmetric similarity matrix in parallel for a list of GO term IDs.
-- Returns ``(terms, similarity_matrix)``.
+Supported ``method`` values for filtering (``<= alpha``):
 
-``term_distance_matrix(terms, method="lin", counter=..., distance_transform="auto")``
+- ``"bh"`` (or ``"fdr"``): Benjamini-Hochberg step-up False Discovery Rate (default).
+- ``"scs"`` (or ``"g:scs"``, ``"g_scs"``): Analytical **g:SCS** (*Set Counts and Sizes*) correction accounting for GO DAG hierarchy and discrete hypergeometric tail probabilities.
+- ``"bonferroni"`` (or ``"bonf"``): Family-wise Bonferroni correction.
+- ``"raw"`` (or ``"none"``): Unadjusted hypergeometric ``p_value``.
 
-- Computes an all-vs-all symmetric distance matrix for a list of GO term IDs.
-- Returns ``(terms, distance_matrix)``.
+Each returned :class:`go3.EnrichmentResult` object always provides ``p_value``, ``p_fdr_bh``, ``p_scs``, ``p_bonferroni``, ``fold_enrichment``, ``study_genes``, and ``to_dict()``.
 
-``reduce_redundant_terms(terms, threshold=0.7, method="lin", counter=..., scores=None)``
-
-- Condenses a list of GO terms by grouping terms with pairwise similarity ``>= threshold`` and keeping the highest-IC (or highest custom ``scores``) representative per cluster.
-- Returns the non-redundant representative GO term IDs in their original relative order.
-
-``cluster_go_terms(terms, threshold=0.7, method="lin", counter=..., scores=None)``
-
-- Groups redundant GO terms around their most informative representative and returns ``dict[str, list[str]]`` mapping each representative GO ID to all member GO IDs in its cluster.
-
-Set-level API
--------------
-
-``termset_similarity(terms1, terms2, term_similarity="lin", groupwise="bma", counter=...)``
-
-Groupwise strategies:
-
-- ``bma``
-- ``max``
-- ``avg``
-- ``hausdorff``
-- ``simgic``
-
-Notes:
-
-- ``simgic`` is set-based and does not use the pairwise method in the same way as other strategies.
-- For empty sets, GO3 returns ``0.0``.
-
-Gene-level APIs
----------------
-
-``compare_genes(gene1, gene2, ontology, similarity, groupwise, counter)``
-
-- Ontology must be one of ``BP``, ``MF``, ``CC``.
-- Raises ``ValueError`` if either gene is missing from loaded annotations.
-
-``compare_gene_pairs_batch(pairs, ontology, similarity, groupwise, counter)``
-
-- Fast path for large pair lists.
-- Missing/empty per-gene term mappings yield ``0.0`` for those pairs.
-
-Gene-set APIs
--------------
-
-``compare_gene_sets(genes1, genes2, ontology="BP", similarity="lin", groupwise="bma", counter=..., term_groupwise=None)``
-
-- Computes pairwise gene similarities between all genes in both sets.
-- Aggregates the gene-by-gene similarity matrix with ``groupwise``.
-- Uses the same groupwise method internally for each gene-pair GO-term comparison unless ``term_groupwise`` is supplied.
-- Direct gene-set aggregation supports ``bma``, ``max``, ``avg``, and ``hausdorff``.
-- Direct gene-set aggregation does not use ``simgic`` as the outer strategy, because ``simgic`` is a GO-term set/profile method rather than a pairwise gene-matrix aggregator.
-- Raises ``ValueError`` if any gene in either input set is missing from loaded annotations.
-- Genes with no terms in the requested ontology contribute zero pairwise similarity.
-
-``compare_gene_set_pairs_batch(pairs, ontology="BP", similarity="lin", groupwise="bma", counter=..., term_groupwise=None)``
-
-- Fast path for many gene-set pairs.
-- ``pairs`` should contain ``(genes1, genes2)`` items, where each side is a list of gene symbols.
-- Missing genes are treated as unannotated in batch mode; pairs with no comparable annotated genes yield ``0.0``.
-
-``compare_gene_set_profiles(genes1, genes2, ontology="BP", similarity="lin", groupwise="bma", counter=...)``
-
-- Alternative profile-based method.
-- Converts each gene set to a weighted GO-term profile, where each term weight is the number of genes annotated to that term.
-- Compares the two weighted GO profiles directly with ``bma``, ``max``, ``avg``, ``hausdorff``, or weighted ``simgic``.
-
-GO Over-Representation Enrichment
----------------------------------
-
-``go_enrichment(study_genes, background_genes=None, ontology=None, alpha=0.05, min_overlap=1)``
-
-- Performs one-sided Fisher's exact test (hypergeometric over-representation) with true-path ancestor propagation across all candidate GO terms annotated to ``study_genes``.
-- Computes Benjamini-Hochberg FDR (``p_fdr_bh``) and Bonferroni (``p_bonferroni``) adjusted p-values in parallel.
-- Returns a list of :class:`go3.EnrichmentResult` objects with ``p_fdr_bh <= alpha``, sorted by adjusted p-value ascending (breaking ties by fold enrichment and term depth).
-
-Practical behavior and edge cases
----------------------------------
-
-- Invalid or missing GO IDs in similarity calls generally return ``0.0``.
-- Terms from different namespaces produce ``0.0``.
-- For normalized methods (for example ``lin`` and ``wang``), self-similarity is typically near 1.0.
-
-Distance-oriented workflow
---------------------------
-
-For clustering/embedding workflows, use:
-
-- ``gene_distance_matrix``
-- ``gene_set_distance_matrix``
-- ``tsne_genes``
-- ``umap_genes``
-
-These functions convert similarity to distance using ``distance_transform`` rules (see :doc:`guide/visualization`).
-
-Mathematical definitions
-------------------------
-
-Resnik
-~~~~~~
-
-.. math::
-
-   \mathrm{Sim}_{Resnik}(t_1, t_2) = IC(\mathrm{MICA}(t_1, t_2))
-
-The simplest IC-based measure: the similarity between two terms equals the IC of their MICA. The result is unbounded and depends on the annotation corpus.
-
-Lin
-~~~
-
-.. math::
-
-   \mathrm{Sim}_{Lin}(t_1, t_2) = \frac{2\,IC(\mathrm{MICA}(t_1, t_2))}{IC(t_1)+IC(t_2)}
-
-Normalizes Resnik by the individual ICs, producing a score in [0, 1].
-
-Jiang-Conrath (distance-derived similarity)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. math::
-
-   d_{JC} = IC(t_1) + IC(t_2) - 2\,IC(\mathrm{MICA})
-
-.. math::
-
-   \mathrm{Sim}_{JC} = \frac{1}{1 + d_{JC}}
-
-Converts the JC distance into a similarity via the reciprocal transform.
-
-SimRel
-~~~~~~
-
-.. math::
-
-   \mathrm{Sim}_{Rel} = \left(\frac{2\,IC(\mathrm{MICA})}{IC(t_1)+IC(t_2)}\right)\left(1-e^{-IC(\mathrm{MICA})}\right)
-
-Combines Lin similarity with a relevance factor that penalizes shallow (low-IC) MICAs.
-
-Wang
-~~~~
-
-Wang similarity uses weighted ancestor contributions from GO graph topology and does not require annotation-based IC values.
-
-Each ancestor *a* of a term *t* receives a semantic value *S_A(a)* based on the path from *t* to *a*.  Edge weights decay by relationship type:
-
-- ``is_a`` edges contribute a weight of **0.8**
-- ``part_of`` edges contribute a weight of **0.6**
-
-The semantic value of *t* itself is 1. The overall similarity between two terms is the ratio of their shared semantic contributions to their total semantic values. Because it relies only on graph structure, Wang is useful when annotation data may be biased or incomplete.
-
-TopoICSim
-~~~~~~~~~
-
-TopoICSim combines topology-aware paths and IC-derived weights to produce a bounded similarity in [0, 1].
-
-It identifies the longest-information-content path between two terms through their common ancestors, weighting path segments by the IC of intermediate nodes. This captures both the structural distance in the DAG and the specificity of the connecting path, making it more discriminating than purely IC-based or purely topological methods.
-
-Bibliography
-------------
-
-.. bibliography::
-   :style: unsrt
-
-API reference
+API Reference
 -------------
 
 .. automodule:: go3
-   :members: term_ic, semantic_similarity, batch_similarity, term_similarity_matrix, term_distance_matrix, reduce_redundant_terms, cluster_go_terms, termset_similarity, compare_genes, compare_gene_pairs_batch, compare_gene_sets, compare_gene_set_pairs_batch, compare_gene_set_profiles, gene_set_distance_matrix, go_enrichment, EnrichmentResult
+   :members: term_ic, semantic_similarity, batch_similarity, term_similarity_matrix, reduce_redundant_terms, cluster_go_terms, termset_similarity, compare_genes, compare_gene_pairs_batch, compare_gene_sets, compare_gene_set_pairs_batch, compare_gene_set_profiles, go_enrichment, EnrichmentResult
    :undoc-members:
    :show-inheritance:

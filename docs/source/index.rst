@@ -2,35 +2,54 @@
 :math:`GO_3`
 =================
 
-GO3 is a high-performance Python library (Rust backend) for Gene Ontology semantic similarity.
+**GO3** is a high-performance Python library with a compiled **Rust core** for Gene Ontology (GO) semantic similarity, GAF 2.2 annotation filtering, semantic redundancy reduction, and Over-Representation Analysis (ORA).
 
-Why GO3?
---------
+Key Capabilities
+----------------
 
-Existing tools — `GOATOOLS <https://github.com/tanghaibao/goatools>`_ (Python), `FastSemSim <https://pypi.org/project/fastsemsim/>`_ (Python), `GOSemSim <https://bioconductor.org/packages/GOSemSim/>`_ (R), `simona <https://bioconductor.org/packages/simona/>`_ (R), and `TaxaGO <https://github.com/TaxaGO/TaxaGO>`_ (Rust CLI) — cover term-level semantic similarity, but many common operations in GO-based analyses (comparing sets of terms, gene-level similarity, distance matrices, embeddings) require writing glue code or switching between languages. GO3 brings all of these into a single Python library:
+- **8 Term Similarity Methods**: Resnik, Lin, Jiang-Conrath (`jc`), SimRel, ICCoef, GraphIC, Wang, and TopoICSim.
+- **5 Groupwise Strategies**: Best-Match Average (`bma`), `simgic`, `max`, `avg`, and `hausdorff`.
+- **Term, Gene, and Gene-Set Comparisons**: Compare individual terms, sets of terms, gene pairs, or entire gene lists in parallel across CPU cores.
+- **GO Enrichment Analysis (ORA)**: Fast hypergeometric over-representation (`go_enrichment`) with true-path propagation and choice of **Benjamini-Hochberg (`bh`)**, **g:Profiler `g:SCS` (`scs`)**, or **Bonferroni (`bonferroni`)** correction.
+- **Redundancy Reduction & Clustering**: Condense redundant GO terms into representative clusters (`reduce_redundant_terms`, `cluster_go_terms`).
+- **Native GAF 2.2 Filtering & `.gz` Support**: Parse `.obo`/`.obo.gz` and `.gaf`/`.gaf.gz` directly with structured filters (`GAFParseOptions`).
+- **Distances & Embeddings**: All-vs-all distance matrices and built-in t-SNE / UMAP visualization helpers.
 
-- **Term-level similarity** — 8 methods (IC-based, topological, and hybrid) in one place.
-- **Term-set, gene-level, and gene-set similarity** — compare GO-term sets, genes, gene lists, or weighted GO profiles with configurable groupwise strategies.
-- **GO Over-Representation Enrichment** — native Fisher's exact test + Benjamini-Hochberg FDR in parallel Rust (``go_enrichment``).
-- **Semantic redundancy reduction** — cluster and condense redundant GO terms around their most informative representatives (``reduce_redundant_terms``, ``cluster_go_terms``).
-- **Batch operations** — compute thousands of term or gene pairs in a single call, parallelized automatically.
-- **All-vs-all distance and similarity matrices** — one function call for a full symmetric matrix over any term list, gene list, or gene-set list.
-- **Full GAF 2.2 model & native filtering** — structured parsing options (``GAFParseOptions``) and transparent ``.gz`` file support.
-- **Embeddings and visualization** — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.
-- **Speed** — the fastest library in our benchmark: 3.6–12.5× faster initialization and 2–25× faster gene-level similarity than other Python/R libraries. See :doc:`benchmarks`.
-- **Minimal setup** — install with ``pip install go3``, load an OBO file (auto-downloadable) and a GAF file (plain or ``.gz``), and start computing.
+Installation
+------------
 
-Highlights
-----------
+.. code-block:: bash
 
-- Full GAF 2.2 ``GAFAnnotation`` model and native ``GAFParseOptions`` parser filters
-- Transparent ``.gz`` support for OBO and GAF files
-- Native GO Over-Representation Enrichment (``go_enrichment``) and semantic redundancy reduction (``reduce_redundant_terms``, ``cluster_go_terms``)
-- Direct gene-term queries (``list_genes``, ``get_terms_for_gene``, ``get_genes_for_term``) and ``descendants`` traversal
-- TopoICSim and GraphIC hybrid methods
-- t-SNE / UMAP embedding helpers with plotting utilities
-- Thread-pool control via ``set_num_threads``
-- Pre-built wheels for Linux, macOS, and Windows
+   pip install go3
+
+   # Optional visualization dependencies (scikit-learn, umap-learn, matplotlib):
+   pip install 'go3[viz]'
+
+Quick Start
+-----------
+
+.. code-block:: python
+
+   import go3
+
+   # 1. Load ontology (auto-downloads go-basic.obo if omitted) and GAF annotations
+   go3.load_go_terms("go-basic.obo")
+   annots = go3.load_gaf("goa_human.gaf.gz")
+   counter = go3.build_term_counter(annots)
+
+   # 2. Term and gene semantic similarity
+   term_sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
+   gene_sim = go3.compare_genes("TP53", "BRCA1", "BP", "lin", "bma", counter)
+
+   # 3. GO enrichment with g:SCS or BH correction
+   enriched = go3.go_enrichment(["PINK1", "PRKN", "PARK7", "SNCA", "LRRK2"], ontology="BP", method="scs")
+
+Documentation Map
+-----------------
+
+- **Getting Started**: :doc:`introduction` · :doc:`examples` · :doc:`faq`
+- **Method & Performance Guides**: :doc:`guide/choosing_methods` · :doc:`guide/visualization` · :doc:`guide/performance` · :doc:`guide/architecture` · :doc:`benchmarks`
+- **API Reference**: :doc:`ontology` · :doc:`goterm` · :doc:`annotations` · :doc:`similarity` · :doc:`utilities`
 
 .. toctree::
    :maxdepth: 2
@@ -46,11 +65,10 @@ Highlights
    :hidden:
    :caption: Guides
 
-   similarity
    guide/choosing_methods
-   guide/architecture
-   guide/performance
    guide/visualization
+   guide/performance
+   guide/architecture
    benchmarks
 
 .. toctree::
@@ -61,46 +79,5 @@ Highlights
    ontology
    goterm
    annotations
+   similarity
    utilities
-
-Start Here
-==========
-
-- :doc:`introduction`
-- :doc:`examples`
-- :doc:`faq`
-- :doc:`similarity`
-- :doc:`guide/choosing_methods`
-- :doc:`guide/architecture`
-- :doc:`guide/performance`
-- :doc:`guide/visualization`
-- :doc:`benchmarks`
-
-Install
-=======
-
-.. code-block:: bash
-
-   pip install go3
-
-Optional visualization extras:
-
-.. code-block:: bash
-
-   pip install 'go3[viz]'
-
-Quote the extras spec to avoid shell glob expansion in shells such as zsh.
-
-Quick example
-=============
-
-.. code-block:: python
-
-   import go3
-
-   go3.load_go_terms("go-basic.obo")
-   annots = go3.load_gaf("goa_human.gaf")
-   counter = go3.build_term_counter(annots)
-
-   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
-   print(sim)

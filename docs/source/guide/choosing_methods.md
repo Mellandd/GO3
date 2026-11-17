@@ -1,94 +1,47 @@
-# Choosing a Similarity Method
+# Choosing Similarity, Aggregation & Enrichment Methods
 
-This guide helps you select the right term-level similarity method and groupwise aggregation strategy for your use case.
+A quick reference to pick the right parameters for your biological analysis.
 
-## Term-level methods
+## 1. Term-Level Similarity (`method` / `similarity`)
 
-### IC-based methods (Resnik, Lin, JC, SimRel)
+| Use Case | Recommended Key | Why |
+|---|---|---|
+| **Standard analysis** (well-annotated organism like human/mouse) | `lin` | Normalized to `[0, 1]`, fast, and most widely benchmarked |
+| **Penalize broad/shallow common ancestors** | `simrel` | Multiplies Lin by `1 - exp(-IC(MICA))` so generic shared terms score near `0` |
+| **Sparse or biased annotations / cross-species baseline** | `wang` | Purely topological (`is_a=0.8`, `part_of=0.6`), independent of GAF corpus frequencies |
+| **Fine discrimination among closely related terms** | `topoicsim` | Hybrid metric combining IC with path topology |
+| **Raw specificity ranking** | `resnik` | Unbounded `IC(MICA)`; directly reflects the specificity of the shared ancestor |
 
-Use these when you have a **representative annotation corpus** (e.g., a well-curated GAF file for your organism).
+## 2. Groupwise Aggregation (`groupwise`)
 
-IC-based methods rely on annotation frequencies to determine how informative each term is. They work well when:
+When comparing two genes or two sets of terms, `groupwise` controls how pairwise term similarities are combined:
 
-- Your annotation corpus is large and representative of the biological domain you're studying.
-- You want scores that reflect functional specificity relative to known biology.
-- You need well-studied methods with established benchmarks in the literature.
+| Key | Strategy | Best For |
+|---|---|---|
+| `bma` | **Best-Match Average** | General gene-to-gene comparison (balanced precision + recall) |
+| `simgic` | **SimGIC** (IC-weighted Jaccard) | Discriminating pleiotropic genes or gene sets; downweights generic root terms and penalizes non-overlapping terms |
+| `max` | **Maximum** | Detecting whether two genes share *at least one* specific function |
+| `avg` | **Average** | Measuring global functional homogeneity across all annotated terms |
+| `hausdorff` | **Hausdorff** | Conservative worst-case matching |
 
-**Trade-offs**: scores depend on the annotation corpus. Different GAF versions or organisms produce different IC distributions and therefore different similarity scores. If your corpus is small or biased toward well-studied genes, IC estimates may be unreliable for less-annotated terms.
+## 3. Comparing Two Gene Lists (`compare_gene_sets` vs. `compare_gene_set_profiles`)
 
-| Method   | Range   | Best for                                                   |
-|----------|---------|------------------------------------------------------------|
-| `resnik` | >= 0    | Raw IC of shared ancestor; good for ranking, not comparing across datasets |
-| `lin`    | [0, 1]  | Normalized; most widely used IC-based method               |
-| `jc`     | >= 0    | Distance-derived; sensitive to small IC differences        |
-| `simrel` | [0, 1]  | Like Lin but penalizes shallow (uninformative) MICAs       |
+| Function | How It Works | Best For |
+|---|---|---|
+| `compare_gene_sets` | Computes the gene-by-gene similarity matrix and aggregates across genes (`bma`, `max`, `avg`, `hausdorff`) | Comparing two gene panels where each gene has equal weight |
+| `compare_gene_set_profiles` | Merges each gene list into a weighted GO-term profile and compares profiles directly (supports `simgic`) | Comparing disease/pathway signatures without dilution from ubiquitous housekeeping annotations |
 
-### Topological methods (Wang)
+> **Tip — Avoiding score compression with pleiotropic disease genes:**
+> Human disease genes often have 20–50 GO annotations including generic processes (apoptosis, stress response, signaling). Using double `bma` (`compare_gene_sets(..., groupwise="bma", term_groupwise="bma")`) with unfiltered `IEA` annotations can compress similarity scores into a narrow band (e.g. `0.55–0.65`). To maximize biological contrast:
+> 1. Exclude electronic annotations (`GAFParseOptions(exclude_evidence={"IEA"})`).
+> 2. Use `compare_gene_set_profiles(..., groupwise="simgic")` or `similarity="simrel"`.
+> 3. Or run `go_enrichment(..., method="scs")` on each gene list first and compare the enriched GO terms with `termset_similarity`.
 
-Use Wang when **annotation data may be biased or unavailable**.
+## 4. Multiple-Testing Correction in `go_enrichment` (`method`)
 
-Wang similarity uses only the GO graph structure (edge types and path weights) to compute similarity. It assigns weights of 0.8 for `is_a` edges and 0.6 for `part_of` edges, decaying as paths get longer.
-
-**Best for**:
-- Organisms with sparse or biased annotations.
-- Comparing results across different annotation versions without IC-induced variation.
-- When you want a stable, corpus-independent baseline.
-
-**Trade-off**: does not capture functional specificity from real annotation data.
-
-### Hybrid methods (GraphIC, TopoICSim)
-
-Use these when you want **both IC and topology**.
-
-- **GraphIC**: combines IC values with graph-structural features.
-- **TopoICSim**: weights topology-aware paths by IC, producing a normalized score in [0, 1]. It is more discriminating than purely IC-based methods for terms with similar IC but different graph positions.
-
-**Best for**:
-- Situations where both graph structure and annotation specificity matter.
-- Getting a single method that balances multiple sources of information.
-
-## Quick decision table
-
-| Use case                                    | Recommended method |
-|---------------------------------------------|--------------------|
-| General-purpose, well-annotated organism     | `lin`              |
-| Ranking by shared function (no normalization needed) | `resnik`   |
-| Sparse or biased annotations                | `wang`             |
-| Maximum discrimination between similar terms | `topoicsim`       |
-| Penalize shallow common ancestors            | `simrel`           |
-| Corpus-independent baseline                  | `wang`             |
-
-## Groupwise strategy selection
-
-When comparing term sets or genes, individual pairwise term similarities must be aggregated into a single score. The choice of groupwise strategy affects what aspect of functional overlap you measure.
-
-| Strategy    | Key          | What it measures                              | Best for                          |
-|-------------|--------------|-----------------------------------------------|-----------------------------------|
-| BMA         | `bma`        | Average of best matches from both directions  | Balanced comparison; most common  |
-| Maximum     | `max`        | Highest pairwise similarity                   | "Do these genes share any function?" |
-| Average     | `avg`        | Mean of all pairwise similarities             | Overall functional overlap        |
-| SimGIC      | `simgic`     | IC-weighted Jaccard of shared ancestor sets   | IC-aware set overlap; good for clustering |
-| Hausdorff   | `hausdorff`  | Worst-case best-match                         | Worst-case guarantee; conservative |
-
-**General recommendation**: start with **BMA** (`bma`). It is the most widely used strategy and provides a balanced view of functional similarity. Use **SimGIC** when you want IC-weighted GO-term set overlap (especially useful for clustering and enrichment-adjacent tasks). Use **MAX** for a permissive "any shared function" signal.
-
-## Gene-set workflows
-
-GO3 exposes two gene-set modes:
-
-| Workflow | Function | Aggregation | Supports `simgic`? | Best for |
-|----------|----------|-------------|--------------------|----------|
-| Direct gene-set comparison | `compare_gene_sets` | gene-to-gene similarities, then groupwise across genes | No, outer aggregation is `bma`, `max`, `avg`, or `hausdorff` | Comparing two enrichments while preserving genes as the unit of comparison |
-| GO-profile comparison | `compare_gene_set_profiles` | weighted GO-term profiles compared directly | Yes | IC-weighted overlap of functional profiles |
-
-For direct gene-set comparison, `term_groupwise` optionally controls the inner gene-to-gene GO-term aggregation. If omitted, GO3 reuses the outer `groupwise` value for the inner gene comparison.
-
-## Namespace guidance
-
-The Gene Ontology has three namespaces. Choose based on the biological question:
-
-- **BP (Biological Process)**: largest namespace with the most annotations. Best for characterizing overall gene function and pathway involvement. Most commonly used in literature benchmarks.
-- **MF (Molecular Function)**: describes biochemical activity (e.g., kinase activity, binding). More specific and smaller than BP. Best for molecular-level questions.
-- **CC (Cellular Component)**: describes subcellular localization (e.g., nucleus, membrane). Smallest namespace. Best for localization-related analyses.
-
-If unsure, start with **BP** -- it provides the broadest functional characterization and the most statistical power due to its size.
+| Key | Method | Stringency | When to Use |
+|---|---|---|---|
+| `bh` | Benjamini-Hochberg FDR | Permissive | Exploratory analysis; controls expected proportion of false discoveries |
+| `scs` | **g:SCS** (*Set Counts & Sizes*) | **Balanced (Recommended)** | Matches `g:Profiler` philosophy: accounts for GO DAG hierarchy and discrete hypergeometric tail probabilities |
+| `bonferroni` | Bonferroni FWER | Strict | High-confidence core terms only (assumes all tested terms are independent) |
+| `raw` | Unadjusted `p_value` | None | Custom downstream filtering or ranking |

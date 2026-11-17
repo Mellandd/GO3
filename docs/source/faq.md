@@ -1,103 +1,51 @@
-# FAQ
+# FAQ & Troubleshooting
 
-Common questions and troubleshooting for GO3.
+Common questions and quick fixes when working with GO3.
 
-## Gene not found
+## Troubleshooting Common Errors
 
-**Error**: `ValueError: gene "XYZ" not found`
+| Issue / Error | Cause & Solution |
+|---|---|
+| `FileNotFoundError` loading OBO/GAF | Check the file path, or call `go3.load_go_terms()` with no arguments to auto-download `go-basic.obo`. Both plain and `.gz` files are supported. |
+| `ValueError: Gene 'XYZ' not found in mapping` | Gene symbols must match column 3 (`db_object_symbol`) of your GAF file (case-sensitive). Use `go3.list_genes()` to inspect available symbols. |
+| Similarity score is `0.0` | Either the two terms belong to different namespaces (`BP` vs. `MF` vs. `CC`), a GO ID is not in the ontology, or a gene has no annotations in the requested `ontology`. |
+| `ValueError: simgic is not valid for direct gene-set aggregation` | In `compare_gene_sets`, the outer gene-matrix aggregator supports `bma`, `max`, `avg`, or `hausdorff`. To use `simgic`, either pass `term_groupwise="simgic"` or use `compare_gene_set_profiles(..., groupwise="simgic")`. |
+| `set_num_threads` has no effect | The Rayon thread pool is initialized once per process. Call `go3.set_num_threads(n)` at the top of your script before any batch/matrix call. |
 
-Gene names must exactly match the `db_object_symbol` column in your GAF file (case-sensitive). Common causes:
+## Frequently Asked Questions
 
-- Using an alias or old symbol instead of the current one.
-- The gene has no GO annotations in your GAF file.
-- Typos or extra whitespace in the gene name.
+### Which OBO file should I use?
 
-**Fix**: open your GAF file and search for the gene symbol. GAF files use tab-separated columns; `db_object_symbol` is column 3 (0-indexed: column 2).
+Use **`go-basic.obo`** (or `go-basic.obo.gz`). It is guaranteed to be acyclic across namespaces and is the standard file for semantic similarity and enrichment. Calling `go3.load_go_terms()` without arguments downloads `go-basic.obo` automatically.
 
-## Similarity is 0.0
+### How do I filter out `IEA` (electronic) annotations or keep only experimental evidence?
 
-A result of 0.0 typically means:
-
-- The two terms are in **different namespaces** (e.g., one is BP and the other is MF). Cross-namespace terms have no common ancestor.
-- One or both GO IDs are **invalid or not in the loaded ontology**.
-- The terms have **no common ancestor** with IC > 0 (very rare within the same namespace).
-- For gene comparisons: one or both genes have **no annotations** in the selected namespace.
-
-**Fix**: verify that both terms/genes exist and belong to the same namespace. Use `get_term_by_id` to inspect individual terms.
-
-## Which OBO file should I use?
-
-Use **`go-basic.obo`** (recommended). This is the standard filtered version that contains only `is_a` and `part_of` relationships within each namespace.
-
-The full `go.obo` includes cross-ontology links and additional relationship types that may produce unexpected similarity scores. Unless you specifically need those relationships, stick with `go-basic.obo`.
-
-If you call `go3.load_go_terms()` without a path, GO3 downloads `go-basic.obo` automatically.
-
-## Can I use a custom ontology?
-
-Yes. GO3 accepts any OBO-format file. If you have a custom or domain-specific ontology in OBO format, pass its path to `load_go_terms`:
-
-```python
-go3.load_go_terms("my_custom_ontology.obo")
-```
-
-The same parsing and caching logic applies.
-
-## How do I filter by evidence code, aspect, or qualifier?
-
-Use `GAFParseOptions` when calling `load_gaf` (which also accepts `.gaf.gz` compressed files directly):
+Pass `GAFParseOptions` to `load_gaf`:
 
 ```python
 import go3
 
-# Example: keep only experimental evidence codes on Biological Process
-experimental_codes = {"EXP", "IDA", "IPI", "IMP", "IGI", "IEP"}
 opts = go3.GAFParseOptions(
-    include_evidence=experimental_codes,
-    include_aspects={"P"},
+    exclude_evidence={"IEA"},
+    # Or restrict to experimental codes only:
+    # include_evidence={"EXP", "IDA", "IPI", "IMP", "IGI", "IEP"},
+    include_aspects={"P", "F", "C"},
     exclude_qualifiers={"NOT"},
-    allow_obsolete_terms=False,
-    allow_nd_root_only=False,
 )
-
 annots = go3.load_gaf("goa_human.gaf.gz", options=opts)
 counter = go3.build_term_counter(annots)
 ```
 
-## set_num_threads doesn't seem to help
+### How does `method="scs"` in `go_enrichment` compare to `bh` and `bonferroni`?
 
-The Rayon thread pool is **initialized once**. If you call `set_num_threads` after the pool has already been created (e.g., after a batch similarity call), the new value is ignored.
+Every `EnrichmentResult` returned by `go3.go_enrichment` includes all four p-values (`p_value`, `p_fdr_bh`, `p_scs`, `p_bonferroni`). The `method` argument selects which one is used to filter results (`<= alpha`):
+- `method="bh"` (Benjamini-Hochberg FDR) is the most permissive.
+- `method="scs"` (g:Profiler-style *Set Counts and Sizes*) accounts for parent-child overlap in the GO DAG and discrete hypergeometric tail probabilities, sitting between `bh` and `bonferroni` (`p_value <= p_scs <= p_bonferroni`).
+- `method="bonferroni"` is the most conservative.
 
-**Fix**: call `set_num_threads` at the very beginning of your script, before any batch operations:
+### Why are my `BMA` gene-set similarity differences small between different diseases?
 
-```python
-import go3
-go3.set_num_threads(8)  # Must be before any batch calls
-
-go3.load_go_terms("go-basic.obo")
-annots = go3.load_gaf("goa_human.gaf")
-counter = go3.build_term_counter(annots)
-# Now batch calls will use 8 threads
-```
-
-## Memory usage is high
-
-GO3 caches the ontology graph, gene-to-GO mapping, ancestor sets, DCA results, and IC values **globally in-process**. This is by design -- caching eliminates redundant computation and is the main reason GO3 is fast.
-
-Typical memory for a human analysis (`go-basic.obo` + `goa_human.gaf`): ~100--200 MB.
-
-If memory is a concern:
-
-- Avoid loading multiple large GAF files in the same process.
-- Reloading the ontology (`load_go_terms`) replaces the previous ontology cache.
-- For very large all-vs-all analyses, consider working in batches or subsets.
-
-## How do I reproduce results across runs?
-
-For reproducible similarity scores:
-
-- Pin your ontology version (use a specific `go-basic.obo` file, not auto-download).
-- Pin your GAF version.
-- For embeddings, set `random_state` in `tsne_genes` / `umap_genes`.
-
-Similarity scores are deterministic given the same ontology and annotation files.
+Well-annotated human genes are pleiotropic (often annotated to 20–50 GO terms, many of which are broad cellular processes shared across unrelated diseases). With `bma`, each gene pairs with its best match, creating a high baseline similarity (~0.55–0.65). To increase biological contrast:
+1. Filter out `IEA` annotations via `GAFParseOptions(exclude_evidence={"IEA"})`.
+2. Use `compare_gene_set_profiles(..., groupwise="simgic")` or `similarity="simrel"`.
+3. Or compute enriched terms with `go_enrichment(..., method="scs")` and compare the enriched GO IDs via `termset_similarity`.

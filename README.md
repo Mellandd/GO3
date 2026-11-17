@@ -1,4 +1,4 @@
-# GO3: Gene Ontology Semantic Similarity (Rust + Python)
+# GO3: Gene Ontology Semantic Similarity & Enrichment in Rust + Python
 
 ![Banner](imgs/readme-banner.svg)
 
@@ -6,64 +6,19 @@
 [![Documentation](https://readthedocs.org/projects/go3/badge/?version=latest)](https://go3.readthedocs.io/en/latest/)
 [![License](https://img.shields.io/github/license/Mellandd/go3)](LICENSE)
 
-## Table of Contents
+**GO3** is a high-performance Python library powered by a **Rust core** (via PyO3 and Rayon) for Gene Ontology (GO) semantic similarity, annotation filtering, redundancy reduction, and Over-Representation Analysis (ORA).
 
-- [Introduction](#introduction)
-- [Features](#features)
-- [Installation](#installation)
-- [Input Data](#input-data)
-- [Quick Start](#quick-start)
-- [Similarity Methods](#similarity-methods)
-- [API Overview](#api-overview)
-- [How It Works](#how-it-works)
-- [Common Workflows](#common-workflows)
-- [Performance and Benchmarks](#performance-and-benchmarks)
-- [Documentation](#documentation)
-- [Contributing](#contributing)
-- [Citation](#citation)
-- [License](#license)
+Published in *SoftwareX*: [https://doi.org/10.1016/j.softx.2026.102755](https://www.sciencedirect.com/science/article/pii/S2352711026002475)
 
-## Introduction
+---
 
-Gene Ontology (GO) semantic similarity measures how functionally related two GO terms or gene products are, based on their positions and relationships within the GO hierarchy. It is widely used in bioinformatics for gene clustering, functional module detection, disease-gene prioritization, and protein–protein interaction prediction.
+## Why GO3?
 
-GO3 is a high-performance GO semantic similarity library built on a **Rust core** exposed through a **Python API** (via PyO3). It provides 8 term-level similarity methods, 5 groupwise strategies, and parallelized batch operations, all accessible from a simple Python interface.
+- **All-in-one GO toolkit**: Compute term, term-set, gene, and gene-set similarity, run GO enrichment (`go_enrichment`), condense redundant terms (`reduce_redundant_terms`), and build t-SNE/UMAP embeddings in a single library.
+- **Native GAF 2.2 filtering & `.gz` support**: Load `.obo`/`.obo.gz` and `.gaf`/`.gaf.gz` directly, filtering by evidence codes, GO aspects, qualifiers, or obsolete terms at parse time in Rust.
+- **Order-of-magnitude speed**: 3.6–12.5× faster initialization and 2–25× faster gene-level similarity than existing Python and R packages, with automatic multi-core parallelism.
 
-### Why GO3?
-
-Existing tools like [GOATOOLS](https://github.com/tanghaibao/goatools) (Python), [FastSemSim](https://pypi.org/project/fastsemsim/) (Python), [GOSemSim](https://bioconductor.org/packages/GOSemSim/) (R), [simona](https://bioconductor.org/packages/simona/) (R), and [TaxaGO](https://github.com/TaxaGO/TaxaGO) (Rust CLI) cover term-level semantic similarity, but many common operations in GO-based analyses — comparing sets of terms, computing gene-level similarity, building distance matrices, or generating embeddings — require writing ad-hoc glue code or switching between languages and packages. GO3 brings all of these into a single Python library:
-
-- **Term-level similarity** — 8 methods (IC-based, topological, and hybrid) in one place.
-- **Term-set, gene-level, and gene-set similarity** — compare GO-term sets, genes, gene lists, or weighted GO profiles with configurable groupwise strategies.
-- **GO Over-Representation Enrichment** — native Fisher's exact test + Benjamini-Hochberg FDR in parallel Rust (`go_enrichment`).
-- **Semantic redundancy reduction** — cluster and condense redundant GO terms around their most informative representatives (`reduce_redundant_terms`, `cluster_go_terms`).
-- **Batch operations** — compute thousands of term or gene pairs in a single call, parallelized automatically.
-- **All-vs-all distance and similarity matrices** — one function call for symmetric matrices over any term list, gene list, or gene-set list.
-- **Full GAF 2.2 model & native filtering** — structured parsing options (`GAFParseOptions`) for evidence codes, aspects, qualifiers, `ND` root handling, and obsolete term resolution, with transparent `.gz` support.
-- **Embeddings and visualization** — built-in t-SNE, UMAP, and plotting helpers, no external pipeline needed.
-- **Speed** — the fastest library in our benchmark: 3.6–12.5× faster initialization and 2–25× faster gene-level similarity than other Python/R libraries.
-- **Minimal setup** — load an OBO file (auto-downloadable, plain or `.gz`) and a GAF file (plain or `.gz`), and you're ready to compute.
-
-Publised article:
-https://www.sciencedirect.com/science/article/pii/S2352711026002475
-
-## Features
-
-- **8 term-level similarity methods** — Resnik, Lin, Jiang-Conrath, SimRel, ICCoef, GraphIC, Wang, TopoICSim
-- **5 groupwise strategies** — BMA, MAX, AVG, Hausdorff, SimGIC
-- **Full GAF 2.2 annotation model** (`GAFAnnotation`) and structured parser filters (`GAFParseOptions`)
-- **Transparent `.gz` support** for OBO and GAF files (`load_go_terms`, `load_gaf`)
-- **Ontology & gene-term queries** — `ancestors`, `descendants` (with optional `part_of` relations), `list_genes`, `get_terms_for_gene`, `get_genes_for_term`
-- **Term similarity & redundancy reduction** — `term_similarity_matrix`, `term_distance_matrix`, `reduce_redundant_terms`, `cluster_go_terms`
-- **Gene Ontology enrichment (ORA)** — `go_enrichment` with exact hypergeometric test, BH FDR, and Bonferroni correction
-- **Gene-level comparison** with namespace filtering (BP / MF / CC)
-- **Gene-set comparison** for enrichment and pathway-level workflows
-- **Batch and all-vs-all operations** parallelized with Rayon
-- **Distance matrices** from any similarity/groupwise combination
-- **t-SNE and UMAP embeddings** built on top of distance matrices
-- **Visualization helpers** (`plot_tsne_genes`, `plot_umap_genes`, `plot_embedding`)
-- **Thread control** via `set_num_threads`
-- **Auto-download** of the GO OBO file when no path is provided
+---
 
 ## Installation
 
@@ -71,415 +26,233 @@ https://www.sciencedirect.com/science/article/pii/S2352711026002475
 pip install go3
 ```
 
-Pre-built wheels are available for common platforms. Requires **Python >= 3.7**.
-
-For visualization support (matplotlib, scikit-learn, umap-learn):
+Optional visualization dependencies (`scikit-learn`, `umap-learn`, `matplotlib`):
 
 ```bash
 pip install 'go3[viz]'
 ```
 
-The quotes avoid shell glob expansion in shells such as zsh.
+Requires **Python >= 3.7**. Pre-built wheels are provided for Linux, macOS, and Windows.
 
-The `[viz]` extras enable `plot_tsne_genes`, `plot_umap_genes`, `plot_embedding`, and the `tsne_genes` / `umap_genes` embedding functions.
-
-## Input Data
-
-GO3 requires two input files:
-
-### OBO file (Gene Ontology structure)
-
-The OBO file defines the ontology: terms, their names, namespaces, and hierarchical relationships (is_a, part_of).
-
-- **Auto-download**: call `go3.load_go_terms()` with no arguments to download the latest `go-basic.obo` automatically.
-- **Manual download**: get it from the [Gene Ontology downloads page](http://purl.obolibrary.org/obo/go/go-basic.obo).
-
-### GAF file (Gene annotations)
-
-A Gene Annotation Format (GAF 2.2) file maps gene products to GO terms with evidence codes, qualifiers, references, and taxon metadata. Plain `.gaf` and compressed `.gaf.gz` files are supported directly. By default, GO3 excludes `ND` and `NOT`-negated annotations; custom filtering and obsolete-term resolution can be configured via `GAFParseOptions`.
-
-- **Download from UniProt-GOA**: annotation files for many organisms are available at [https://ftp.ebi.ac.uk/pub/databases/GO/goa/](https://ftp.ebi.ac.uk/pub/databases/GO/goa/) (e.g., `goa_human.gaf.gz` for human — can be passed directly to `go3.load_gaf("goa_human.gaf.gz")`).
+---
 
 ## Quick Start
 
 ```python
 import go3
 
-# 1) Load the GO ontology (pass no argument to auto-download go-basic.obo)
+# 1. Load ontology (omit path to auto-download go-basic.obo; supports .obo and .obo.gz)
 go3.load_go_terms("go-basic.obo")
 
-# 2) Load gene annotations from a GAF file
-annots = go3.load_gaf("goa_human.gaf")
-
-# 3) Build a term counter: computes annotation counts and Information Content (IC)
+# 2. Load GAF 2.2 annotations (supports .gaf and .gaf.gz) and compute Information Content (IC)
+annots = go3.load_gaf("goa_human.gaf.gz")
 counter = go3.build_term_counter(annots)
 
-# 4) Term similarity — compare two GO terms using the Lin method
-sim = go3.semantic_similarity("GO:0008150", "GO:0009987", "lin", counter)
-print(f"Term similarity: {sim:.4f}")
+# 3. Term-to-term similarity
+sim_term = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
 
-# 5) Gene similarity — compare two genes on Biological Process using Lin + BMA
-score = go3.compare_genes("TP53", "BRCA1", "BP", "lin", "bma", counter)
-print(f"Gene similarity: {score:.4f}")
+# 4. Gene-to-gene similarity (BP, MF, or CC)
+sim_gene = go3.compare_genes("TP53", "BRCA1", "BP", "lin", "bma", counter)
+
+# 5. Gene-set similarity
+sim_set = go3.compare_gene_sets(["TP53", "BRCA1", "ATM"], ["CASP8", "GSDME"], "BP", "lin", "bma", counter)
+
+# 6. GO Over-Representation Enrichment (supports "bh", "scs" / g:SCS, and "bonferroni")
+enriched = go3.go_enrichment(["PINK1", "PRKN", "PARK7", "SNCA", "LRRK2"], ontology="BP", method="scs")
+for r in enriched[:3]:
+    print(r.go_id, r.name, f"p_scs={r.p_scs:.2e}", r.study_genes)
 ```
 
-## Similarity Methods
+---
 
-### Term-level methods
+## Core Workflows
 
-| Method | Key | Description |
-|---|---|---|
-| Resnik | `resnik` | Information Content (IC) of the Most Informative Common Ancestor (MICA) |
-| Lin | `lin` | Normalized Resnik: `2 * IC(MICA) / (IC(t1) + IC(t2))` |
-| Jiang-Conrath | `jc` | IC-based distance converted to similarity |
-| SimRel | `simrel` | Lin with a relevance correction factor |
-| ICCoef | `iccoef` | IC ratio relative to the minimum IC of the two terms |
-| GraphIC | `graphic` | IC normalized by graph depth |
-| Wang | `wang` | Topological method using weighted ancestor paths (no IC needed) |
-| TopoICSim | `topoicsim` | Hybrid topology + IC method using disjunctive common ancestors |
+### 1. Native GAF 2.2 Filtering & Inspection
 
-### Groupwise strategies (for term sets and genes)
-
-| Strategy | Key | Description |
-|---|---|---|
-| Best Match Average | `bma` | Average of best-match similarities in both directions |
-| Maximum | `max` | Maximum pairwise similarity across all pairs |
-| Average | `avg` | Mean of all pairwise similarities |
-| Hausdorff | `hausdorff` | Minimax-based similarity (worst best-match) |
-| SimGIC | `simgic` | IC-weighted Jaccard index over ancestor sets |
-
-## API Overview
-
-### Loading and Initialization
-
-| Function / Class | Description |
-|---|---|
-| `load_go_terms(path=None)` | Load GO terms from an OBO (`.obo` or `.obo.gz`) file; auto-downloads if no path given |
-| `load_gaf(path, options=None)` | Load gene annotations from a GAF 2.2 (`.gaf` or `.gaf.gz`) file with optional `GAFParseOptions` |
-| `GAFParseOptions(...)` | Structured filter options (`include_evidence`, `exclude_evidence`, `include_aspects`, `exclude_qualifiers`, `allow_obsolete_terms`, `allow_nd_root_only`) |
-| `GAFAnnotation` | Full 17-column GAF 2.2 annotation object (`db`, `db_object_id`, `db_object_symbol`, `qualifiers`, `go_id`, `references`, `evidence`, `with_from`, `aspect`, `taxon`, `date`, `assigned_by`, `annotation_extensions`, `gene_product_form_id`, `is_negated`) |
-| `build_term_counter(annotations)` | Compute annotation counts and IC values for all terms |
-
-### Ontology Traversal and Gene-Term Queries
-
-| Function | Description |
-|---|---|
-| `get_term_by_id(go_id)` | Retrieve a `PyGOTerm` object by its ID |
-| `ancestors(go_id, relations=None)` | Get all ancestor term IDs (via `is_a`, plus optional relations such as `["part_of"]`) |
-| `descendants(go_id, relations=None)` | Get all descendant term IDs (via `is_a`, plus optional relations such as `["part_of"]`) |
-| `common_ancestor(go_id1, go_id2)` | Get all common ancestors of two terms |
-| `deepest_common_ancestor(go_id1, go_id2)` | Get the most specific (deepest) common ancestor |
-| `list_genes(ontology=None)` | Get a sorted list of all loaded gene symbols (optionally filtered by `"BP"`, `"MF"`, or `"CC"`) |
-| `get_terms_for_gene(gene, ontology=None)` | Get unique sorted GO term IDs annotated to a gene (optionally filtered by subontology) |
-| `get_genes_for_term(go_id, include_descendants=True)` | Get all genes annotated to a GO term (including descendant terms by default) |
-
-### Term Similarity and Redundancy Reduction
-
-| Function | Description |
-|---|---|
-| `semantic_similarity(id1, id2, method, counter)` | Pairwise similarity between two GO terms |
-| `batch_similarity(list1, list2, method, counter)` | Parallel pairwise similarity for lists of term pairs |
-| `term_similarity_matrix(terms, method="lin", counter=None)` | All-vs-all symmetric similarity matrix for a list of GO terms |
-| `term_distance_matrix(terms, method="lin", counter=None, distance_transform="auto")` | All-vs-all symmetric distance matrix for a list of GO terms |
-| `reduce_redundant_terms(terms, threshold=0.7, method="lin", counter=None, scores=None)` | Remove semantically redundant GO terms, keeping the highest-IC (or highest-score) representative per cluster |
-| `cluster_go_terms(terms, threshold=0.7, method="lin", counter=None, scores=None)` | Group redundant GO terms into `{representative_id: [member_ids...]}` clusters |
-| `term_ic(go_id, counter)` | Information Content of a single GO term |
-
-### Set Similarity
-
-| Function | Description |
-|---|---|
-| `termset_similarity(terms1, terms2, method, groupwise, counter)` | Similarity between two sets of GO terms |
-
-### Gene Similarity and Enrichment
-
-| Function | Description |
-|---|---|
-| `compare_genes(gene1, gene2, ontology, similarity, groupwise, counter)` | Similarity between two genes |
-| `compare_gene_pairs_batch(pairs, ontology, similarity, groupwise, counter)` | Parallel similarity for a list of gene pairs |
-| `compare_gene_sets(genes1, genes2, ontology, similarity, groupwise, counter, term_groupwise=None)` | Similarity between two gene sets by aggregating pairwise gene similarities |
-| `compare_gene_set_pairs_batch(pairs, ontology, similarity, groupwise, counter, term_groupwise=None)` | Parallel similarity for a list of gene-set pairs |
-| `compare_gene_set_profiles(genes1, genes2, ontology, similarity, groupwise, counter)` | Alternative weighted GO-profile similarity between two gene sets |
-| `go_enrichment(study_genes, background_genes=None, ontology=None, alpha=0.05, min_overlap=1)` | GO Over-Representation Analysis (Fisher's exact test + BH FDR and Bonferroni correction) returning `EnrichmentResult` objects |
-
-### Distance and Embeddings
-
-| Function | Description |
-|---|---|
-| `gene_distance_matrix(genes, ontology, similarity, groupwise, counter, distance_transform)` | All-vs-all distance matrix for a set of genes |
-| `gene_set_distance_matrix(gene_sets, ontology, similarity, groupwise, counter, distance_transform, term_groupwise=None)` | All-vs-all distance matrix for named gene sets |
-| `tsne_genes(genes, ontology, similarity, groupwise, counter, ...)` | t-SNE embedding from a gene distance matrix |
-| `umap_genes(genes, ontology, similarity, groupwise, counter, ...)` | UMAP embedding from a gene distance matrix |
-
-### Visualization
-
-| Function | Description |
-|---|---|
-| `plot_embedding(embedding, genes, ...)` | Plot a 2D embedding with matplotlib |
-| `plot_tsne_genes(genes, ontology, similarity, groupwise, counter, ...)` | Compute t-SNE and plot in one step |
-| `plot_umap_genes(genes, ontology, similarity, groupwise, counter, ...)` | Compute UMAP and plot in one step |
-
-### Configuration
-
-| Function | Description |
-|---|---|
-| `set_num_threads(n)` | Set the number of threads for parallel operations (0 = all cores) |
-
-## How It Works
-
-GO3's Rust core is compiled into a Python extension module via [PyO3](https://pyo3.rs/) and [Maturin](https://www.maturin.rs/). The ontology graph, gene-to-GO mappings, ancestor sets, and IC values are stored in global caches (using fast hash maps from `rustc-hash`) so they are computed once and reused across all subsequent calls.
-
-Batch operations (`batch_similarity`, `compare_gene_pairs_batch`, `compare_gene_set_pairs_batch`, `gene_distance_matrix`, `gene_set_distance_matrix`) are parallelized with [Rayon](https://github.com/rayon-rs/rayon), which distributes work across threads automatically. Unique pairs are deduplicated before computation to avoid redundant work.
-
-This architecture — native compiled code, global caching, and data-parallel execution — is what gives GO3 its order-of-magnitude speedups over Python and R libraries on medium and large workloads.
-
-## Common Workflows
-
-### Batch term similarity
-
-```python
-pairs = [("GO:0006397", "GO:0008380"), ("GO:0008150", "GO:0009987")]
-scores = go3.batch_similarity([a for a, _ in pairs], [b for _, b in pairs], "lin", counter)
-```
-
-### Batch gene similarity
-
-```python
-gene_pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1")]
-scores = go3.compare_gene_pairs_batch(gene_pairs, "BP", "lin", "bma", counter)
-```
-
-### Gene-set similarity
-
-```python
-# Compare two gene lists directly. GO3 first computes pairwise gene
-# similarities, then applies the requested groupwise strategy across genes.
-set_a = ["TP53", "BRCA1", "ATM"]
-set_b = ["CASP8", "GSDME", "NLRP1"]
-sim = go3.compare_gene_sets(set_a, set_b, "BP", "lin", "bma", counter)
-
-# Build a distance matrix across named gene sets.
-names, dist = go3.gene_set_distance_matrix(
-    [
-        ("dna_repair", set_a),
-        ("cell_death", set_b),
-    ],
-    ontology="BP",
-    similarity="lin",
-    groupwise="bma",
-    counter=counter,
-)
-
-# Alternative mode: build a weighted GO-term profile for each gene set
-# and compare those profiles directly. This mode supports weighted SimGIC.
-profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "simgic", counter)
-```
-
-### Term-set similarity
-
-```python
-# Compare two sets of GO terms directly (without gene lookup)
-set_a = ["GO:0006397", "GO:0008380", "GO:0000398"]
-set_b = ["GO:0006396", "GO:0010467"]
-sim = go3.termset_similarity(set_a, set_b, "lin", "bma", counter)
-print(f"Term-set similarity: {sim:.4f}")
-```
-
-### Ontology traversal and gene-term queries
-
-```python
-# Inspect a GO term
-term = go3.get_term_by_id("GO:0006397")
-print(term.name)        # "mRNA processing"
-print(term.namespace)   # "biological_process"
-print(term.parents)     # parent term IDs
-
-# Get ancestors, descendants (optionally traversing part_of), and deepest common ancestor
-anc = go3.ancestors("GO:0006397", relations=["part_of"])
-desc = go3.descendants("GO:0006396")
-dca = go3.deepest_common_ancestor("GO:0006397", "GO:0008380")
-print(f"Deepest common ancestor: {dca}")
-
-# Query gene-to-GO and GO-to-gene mappings directly
-tp53_bp_terms = go3.get_terms_for_gene("TP53", ontology="BP")
-mrna_genes = go3.get_genes_for_term("GO:0006397", include_descendants=True)
-all_bp_genes = go3.list_genes(ontology="BP")
-```
-
-### Native GAF filtering (`GAFParseOptions`) and `.gz` loading
+Filter annotations during Rust parsing with `GAFParseOptions`. Each returned `GAFAnnotation` exposes all 17 GAF 2.2 columns:
 
 ```python
 opts = go3.GAFParseOptions(
-    exclude_evidence={"IEA"},
+    exclude_evidence={"IEA"},       # or include_evidence={"EXP", "IDA", "IPI", "IMP", "IGI", "IEP"}
     include_aspects={"P", "F", "C"},
     exclude_qualifiers={"NOT"},
     allow_obsolete_terms=False,
-    allow_nd_root_only=True,
+    allow_nd_root_only=False,
 )
 
-# Load plain .gaf or compressed .gaf.gz directly with structured filters
 annots = go3.load_gaf("goa_human.gaf.gz", options=opts)
 counter = go3.build_term_counter(annots)
+
+# Inspect any annotation record
+a = annots[0]
+print(a.db_object_symbol, a.go_id, a.evidence, a.taxon, a.assigned_by)
 ```
 
-### GO Over-Representation Enrichment and redundancy reduction
+### 2. Ontology Navigation & Bidirectional Gene–Term Queries
 
 ```python
-# 1) Run GO enrichment (Fisher's exact test + Benjamini-Hochberg FDR)
-study_genes = ["PINK1", "PRKN", "PARK7", "SNCA", "LRRK2"]
-enriched = go3.go_enrichment(study_genes, ontology="BP", alpha=0.05)
-for res in enriched[:5]:
-    print(res.go_id, res.name, f"FDR={res.p_fdr_bh:.2e}", res.study_genes)
+term = go3.get_term_by_id("GO:0006397")
+print(term.name, term.namespace, term.depth, term.parents)
 
-# 2) Condense redundant enriched GO terms (REVIGO-style)
-enriched_ids = [r.go_id for r in enriched]
-representatives = go3.reduce_redundant_terms(
-    enriched_ids, threshold=0.7, method="lin", counter=counter
-)
-clusters = go3.cluster_go_terms(
-    enriched_ids, threshold=0.7, method="lin", counter=counter
-)
+# Traverse ancestors and descendants (optionally including "part_of" edges)
+anc = go3.ancestors("GO:0006397", relations=["part_of"])
+desc = go3.descendants("GO:0006397", relations=["part_of"])
+dca = go3.deepest_common_ancestor("GO:0006397", "GO:0008380")
+
+# Query genes and terms directly
+all_bp_genes = go3.list_genes(ontology="BP")
+tp53_terms = go3.get_terms_for_gene("TP53", ontology="BP")
+term_genes = go3.get_genes_for_term("GO:0006397", include_descendants=True)
 ```
 
-### Thread configuration
+### 3. GO Enrichment (ORA) & Semantic Redundancy Reduction
+
+Run exact hypergeometric enrichment with true-path propagation and multiple-testing correction (`"bh"`, `"scs"` / `g:SCS`, `"bonferroni"`, or `"raw"`), then collapse redundant terms:
 
 ```python
-# Use 4 threads for parallel operations
-go3.set_num_threads(4)
+import math
 
-# Use all available cores
-go3.set_num_threads(0)
+study = ["PINK1", "PRKN", "PARK7", "SNCA", "LRRK2"]
+results = go3.go_enrichment(study, ontology="BP", alpha=0.05, min_overlap=2, method="scs")
+
+# Prioritize most significant terms when reducing semantic redundancy
+terms = [r.go_id for r in results]
+scores = [-math.log10(max(r.p_scs, 1e-300)) for r in results]
+
+rep_terms = go3.reduce_redundant_terms(terms, threshold=0.7, method="lin", counter=counter, scores=scores)
+clusters = go3.cluster_go_terms(terms, threshold=0.7, method="lin", counter=counter, scores=scores)
 ```
 
-### Distance matrix + embedding
+### 4. Batch Comparisons, Gene Sets & Distance Matrices
+
+All batch and matrix operations run in parallel across CPU cores via Rayon:
+
+```python
+# Batch term pairs & gene pairs
+term_scores = go3.batch_similarity(["GO:0006397", "GO:0008150"], ["GO:0008380", "GO:0009987"], "lin", counter)
+gene_scores = go3.compare_gene_pairs_batch([("TP53", "BRCA1"), ("EGFR", "AKT1")], "BP", "lin", "bma", counter)
+
+# Compare gene sets via pairwise gene matrix ("bma", "max", "avg", "hausdorff")
+# or via weighted GO-term profiles (also supports "simgic")
+set_sim = go3.compare_gene_sets(["TP53", "BRCA1"], ["ATM", "CHEK2"], "BP", "lin", "bma", counter)
+prof_sim = go3.compare_gene_set_profiles(["TP53", "BRCA1"], ["ATM", "CHEK2"], "BP", "lin", "simgic", counter)
+
+# All-vs-all similarity and distance matrices
+terms, t_sim = go3.term_similarity_matrix(["GO:0006397", "GO:0008380", "GO:0000398"], "lin", counter)
+genes, g_dist = go3.gene_distance_matrix(["TP53", "BRCA1", "EGFR", "AKT1"], "BP", "lin", "bma", counter)
+```
+
+### 5. Embeddings & Visualization (`go3[viz]`)
 
 ```python
 genes = ["TP53", "BRCA1", "EGFR", "AKT1", "CASP8"]
 
-ordered, dist = go3.gene_distance_matrix(
-    genes,
-    ontology="BP",
-    similarity="lin",
-    groupwise="bma",
-    counter=counter,
-    distance_transform="auto",
-)
-
-ordered, emb_tsne = go3.tsne_genes(
-    genes, "BP", "lin", "bma", counter, perplexity=2.0, random_state=42
-)
-
-ordered, emb_umap = go3.umap_genes(
-    genes, "BP", "lin", "bma", counter, n_neighbors=3, random_state=42
-)
-```
-
-### Plot helpers
-
-```python
 ordered, emb_t, fig_t, ax_t = go3.plot_tsne_genes(
     genes, "BP", "lin", "bma", counter, perplexity=2.0, random_state=42, annotate="auto"
 )
-
 ordered, emb_u, fig_u, ax_u = go3.plot_umap_genes(
     genes, "BP", "lin", "bma", counter, n_neighbors=3, random_state=42, annotate="auto"
 )
 ```
 
-Example outputs:
+---
 
-![GO3 plot_tsne_genes example](imgs/plot_helper_tsne_example.png)
+## Similarity & Aggregation Reference
 
-![GO3 plot_umap_genes example](imgs/plot_helper_umap_example.png)
+### Term-Level Similarity (`method` / `similarity`)
 
-## Performance and Benchmarks
+| Key | Method | Range | Category | Description |
+|---|---|---|---|---|
+| `lin` | Lin | `[0, 1]` | IC-based | Normalized MICA similarity: `2 * IC(MICA) / (IC(t1) + IC(t2))` |
+| `resnik` | Resnik | `>= 0` | IC-based | Raw `IC(MICA)` of the Most Informative Common Ancestor |
+| `simrel` | SimRel | `[0, 1]` | IC-based | Lin weighted by `1 - exp(-IC(MICA))` to penalize shallow ancestors |
+| `jc` | Jiang-Conrath | `[0, 1]` | IC-based | Reciprocal of IC distance: `1 / (1 + IC(t1) + IC(t2) - 2*IC(MICA))` |
+| `iccoef` | ICCoef | `[0, 1]` | IC-based | Ratio relative to minimum term IC |
+| `wang` | Wang | `[0, 1]` | Topological | Graph topology path weights (`is_a=0.8`, `part_of=0.6`); no IC required |
+| `graphic` | GraphIC | `[0, 1]` | Hybrid | IC combined with graph depth |
+| `topoicsim` | TopoICSim | `[0, 1]` | Hybrid | Disjunctive common ancestor paths weighted by IC |
 
-GO3 was benchmarked against five established libraries — **GOATOOLS** (Python), **FastSemSim** (Python), **GOSemSim** (R), **simona** (R), and **TaxaGO** (Rust CLI) — on the human GO annotation corpus (Biological Process, Lin similarity, BMA groupwise). Hardware: Apple M3 Pro, 18 GB RAM, macOS.
+### Groupwise Aggregation (`groupwise`)
 
-GO3 is the fastest library in every workload measured:
-
-| Workload | Fastest alternative | GO3 speedup range |
+| Key | Strategy | Description |
 |---|---|---|
-| Loading + IC computation | FastSemSim (5.44 s) | 3.6–12.5× over Python/R libraries |
-| Batch term similarity (5,050 pairs) | FastSemSim (10.4 ms) | 4× over FastSemSim; 24× over GOATOOLS; >6,000× over simona; ~4×10⁵ over GOSemSim |
-| Batch gene similarity (100 pairs, BMA) | FastSemSim (2.39 s) | 2× over FastSemSim; 5× over simona; 13× over GOATOOLS; 25× over GOSemSim; 25–119× over TaxaGO |
+| `bma` | Best-Match Average | Symmetrical average of best matches between two sets (recommended default) |
+| `simgic` | SimGIC | IC-weighted Jaccard similarity over full ancestor sets |
+| `max` | Maximum | Maximum similarity across all pairs |
+| `avg` | Average | Mean similarity across all pairs |
+| `hausdorff` | Hausdorff | Conservative worst-case best match (`min` of directional maxima) |
 
-Numerical validation across all libraries is provided in [`imgs/validation/Supplementary Material S1.pdf`](imgs/validation/Supplementary%20Material%20S1.pdf) (generated by [`scripts/validate_cross_tool.py`](scripts/validate_cross_tool.py)): GO3 and GOATOOLS agree near-perfectly (Pearson *r* > 0.97 at both term and gene level); the remaining libraries diverge moderately due to differences in ancestor traversal and MICA selection, which is expected behavior of each tool's published algorithm. TaxaGO is invoked with `--propagate-counts` to ensure IC computation is consistent with all other libraries.
+---
 
-### Loading and memory
+## Complete API Summary
+
+| Category | Function / Class | Purpose |
+|---|---|---|
+| **Loading & IC** | `load_go_terms(path=None)` | Load OBO/OBO.gz ontology (auto-downloads `go-basic.obo` if omitted) |
+| | `load_gaf(path, options=None)` | Parse GAF/GAF.gz file with optional `GAFParseOptions`; returns `list[GAFAnnotation]` |
+| | `build_term_counter(annotations)` | Propagate counts up the GO DAG and compute per-term IC (`TermCounter`) |
+| **Ontology & Queries** | `get_term_by_id(go_id)` | Return `PyGOTerm` metadata (`name`, `namespace`, `parents`, `children`, `depth`, etc.) |
+| | `ancestors(go_id, relations=None)` | All ancestors of `go_id` (optionally including `["part_of"]`) |
+| | `descendants(go_id, relations=None)` | All descendants of `go_id` (optionally including `["part_of"]`) |
+| | `common_ancestor(id1, id2)` | Common ancestors of two GO terms |
+| | `deepest_common_ancestor(id1, id2)` | Deepest common ancestor of two GO terms |
+| | `list_genes(ontology=None)` | Sorted list of loaded gene symbols (optionally filtered by `"BP"`, `"MF"`, `"CC"`) |
+| | `get_terms_for_gene(gene, ontology=None)` | GO terms annotated to a gene |
+| | `get_genes_for_term(go_id, include_descendants=True)` | Genes annotated to a GO term (and its descendants by default) |
+| **Term Similarity** | `term_ic(go_id, counter)` | Information Content of a GO term |
+| | `semantic_similarity(id1, id2, method, counter)` | Similarity between two GO terms |
+| | `batch_similarity(list1, list2, method, counter)` | Parallel similarity for aligned lists of GO terms |
+| | `term_similarity_matrix(terms, method="lin", counter=None)` | All-vs-all similarity matrix for a list of GO terms |
+| | `term_distance_matrix(terms, method="lin", counter=None, ...)` | All-vs-all distance matrix for a list of GO terms |
+| | `reduce_redundant_terms(terms, threshold=0.7, ...)` | Keep one representative GO term per semantic cluster |
+| | `cluster_go_terms(terms, threshold=0.7, ...)` | Group GO terms into `{representative_id: [member_ids]}` clusters |
+| | `termset_similarity(terms1, terms2, method, groupwise, counter)` | Similarity between two sets of GO terms |
+| **Gene Similarity** | `compare_genes(gene1, gene2, ontology, similarity, groupwise, counter)` | Similarity between two genes |
+| | `compare_gene_pairs_batch(pairs, ontology, similarity, groupwise, counter)` | Parallel similarity for `(gene1, gene2)` pairs |
+| | `compare_gene_sets(genes1, genes2, ...)` | Compare two gene lists by aggregating pairwise gene similarities |
+| | `compare_gene_set_pairs_batch(pairs, ...)` | Parallel similarity for pairs of gene lists |
+| | `compare_gene_set_profiles(genes1, genes2, ...)` | Compare two gene lists via weighted GO-term profiles (supports `simgic`) |
+| **Enrichment (ORA)** | `go_enrichment(study_genes, ..., method="bh")` | Hypergeometric ORA with `"bh"`, `"scs"` (`g:SCS`), `"bonferroni"`, or `"raw"` |
+| **Distances & Viz** | `gene_distance_matrix(genes, ...)` | Symmetric distance matrix across genes |
+| | `gene_set_distance_matrix(gene_sets, ...)` | Symmetric distance matrix across named gene sets |
+| | `tsne_genes(...)` / `umap_genes(...)` | 2D embeddings from gene semantic distances |
+| | `plot_tsne_genes(...)` / `plot_umap_genes(...)` / `plot_embedding(...)` | Matplotlib scatter plots for embeddings |
+| **Runtime** | `set_num_threads(n)` | Configure Rayon thread pool size (`0` = all cores) |
+
+---
+
+## Performance Benchmarks
+
+Benchmarked on the human GO corpus (`goa_human.gaf`, Biological Process, Lin + BMA, Apple M3 Pro) against **GOATOOLS**, **FastSemSim**, **GOSemSim**, **simona**, and **TaxaGO**:
+
+| Workload | Fastest Alternative | GO3 Speedup |
+|---|---|---|
+| Loading + IC calculation | FastSemSim (5.44 s) | **3.6–12.5× faster** |
+| Batch term similarity (5,050 pairs) | FastSemSim (10.4 ms) | **4–24× faster** than Python tools; **>6,000× faster** than R tools |
+| Batch gene similarity (100 pairs) | FastSemSim (2.39 s) | **2–25× faster** than Python/R libraries |
 
 ![Loading time and peak memory comparison](imgs/benchmark_loading_time_memory.png)
 
-TaxaGO is excluded from the loading comparison because, as a standalone binary, its initialization semantics are not directly comparable to embeddable libraries.
+Full benchmark details and cross-tool validation are available in the [Documentation](https://go3.readthedocs.io/en/latest/benchmarks.html) and [`scripts/Supplementary Notebook S2.ipynb`](scripts/Supplementary%20Notebook%20S2.ipynb).
 
-### Batch GO-term similarity
-
-![Batch term similarity scaling](imgs/benchmark_batch_similarity.png)
-
-### Batch gene similarity
-
-![Batch gene similarity scaling](imgs/benchmark_gene_batch_similarity.png)
-
-For full methodology, reproducibility scripts, and raw data, see the [benchmark documentation](https://go3.readthedocs.io/en/latest/benchmarks.html).
-
-## End-to-end example notebook
-
-An end-to-end walkthrough is provided in [`scripts/Supplementary Notebook S2.ipynb`](scripts/Supplementary%20Notebook%20S2.ipynb), which applies GO3 to the Genomics England *Parkinson Disease and Complex Parkinsonism* gene panel to:
-
-1. Quantify GO annotation redundancy via all-vs-all term similarity.
-2. Cluster semantically overlapping BP terms and select the most informative representative per cluster (~48% reduction in term count).
-3. Compute a gene-by-gene BMA similarity matrix for the panel.
-4. Visualize the functional landscape with t-SNE.
-
-The notebook recovers known biology (PINK1/PRKN/PARK7 (mitophagy), GCH1/TH/SPR (dopamine biosynthesis), SLC30A10/SLC39A14/FTL (metal ion transport) ) illustrating how GO3 can condense a large, redundant enrichment output into an interpretable functional summary.
-
-## Documentation
-
-Full docs:
-
-- https://go3.readthedocs.io
-
-## Contributing
-
-Contributions are welcome! To set up a development environment:
-
-```bash
-# Clone the repository
-git clone https://github.com/Mellandd/go3.git
-cd go3
-
-# Create a virtual environment and install dev dependencies
-python -m venv .venv
-source .venv/bin/activate
-pip install maturin pytest
-
-# Build the Rust extension in development mode
-maturin develop
-
-# Run the tests
-pytest tests/
-```
-
-Please open an issue or pull request on [GitHub](https://github.com/Mellandd/go3).
+---
 
 ## Citation
 
-BibTeX:
-
 ```bibtex
 @article{go3,
-title = {GO3: A fast and lightweight library for semantic similarity of GO terms and genes},
-journal = {SoftwareX},
-volume = {35},
-pages = {102755},
-year = {2026},
-issn = {2352-7110},
-doi = {https://doi.org/10.1016/j.softx.2026.102755},
-url = {https://www.sciencedirect.com/science/article/pii/S2352711026002475},
-author = {Jose L. Mellina-Andreu and Alejandro Cisterna-Garcia and Juan A. Botia},
+  title   = {GO3: A fast and lightweight library for semantic similarity of GO terms and genes},
+  author  = {Jose L. Mellina-Andreu and Alejandro Cisterna-Garcia and Juan A. Botia},
+  journal = {SoftwareX},
+  volume  = {35},
+  pages   = {102755},
+  year    = {2026},
+  issn    = {2352-7110},
+  doi     = {https://doi.org/10.1016/j.softx.2026.102755},
+  url     = {https://www.sciencedirect.com/science/article/pii/S2352711026002475}
 }
 ```
 
 ## License
 
-MIT License (see `LICENSE`).
+MIT License — see [LICENSE](LICENSE).

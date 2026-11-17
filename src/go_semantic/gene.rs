@@ -1067,6 +1067,8 @@ pub struct EnrichmentResult {
     #[pyo3(get)]
     pub p_fdr_bh: f64,
     #[pyo3(get)]
+    pub p_scs: f64,
+    #[pyo3(get)]
     pub p_bonferroni: f64,
     #[pyo3(get)]
     pub study_genes: Vec<String>,
@@ -1076,7 +1078,7 @@ pub struct EnrichmentResult {
 impl EnrichmentResult {
     fn __repr__(&self) -> String {
         format!(
-            "EnrichmentResult(go_id='{}', name='{}', study={}/{}, pop={}/{}, fold={:.2}, p={:.3e}, fdr={:.3e})",
+            "EnrichmentResult(go_id='{}', name='{}', study={}/{}, pop={}/{}, fold={:.2}, p={:.3e}, fdr={:.3e}, scs={:.3e})",
             self.go_id,
             self.name,
             self.study_count,
@@ -1085,8 +1087,28 @@ impl EnrichmentResult {
             self.pop_total,
             self.fold_enrichment,
             self.p_value,
-            self.p_fdr_bh
+            self.p_fdr_bh,
+            self.p_scs
         )
+    }
+
+    /// Convert the enrichment result into a Python dict (e.g. for pandas DataFrame construction).
+    pub fn to_dict(&self, py: Python<'_>) -> PyResult<Py<pyo3::types::PyDict>> {
+        let d = pyo3::types::PyDict::new(py);
+        d.set_item("go_id", &self.go_id)?;
+        d.set_item("name", &self.name)?;
+        d.set_item("namespace", &self.namespace)?;
+        d.set_item("study_count", self.study_count)?;
+        d.set_item("study_total", self.study_total)?;
+        d.set_item("pop_count", self.pop_count)?;
+        d.set_item("pop_total", self.pop_total)?;
+        d.set_item("fold_enrichment", self.fold_enrichment)?;
+        d.set_item("p_value", self.p_value)?;
+        d.set_item("p_fdr_bh", self.p_fdr_bh)?;
+        d.set_item("p_scs", self.p_scs)?;
+        d.set_item("p_bonferroni", self.p_bonferroni)?;
+        d.set_item("study_genes", &self.study_genes)?;
+        Ok(d.into())
     }
 }
 
@@ -1115,7 +1137,147 @@ fn hypergeometric_sf(k: usize, n: usize, k_pop: usize, n_pop: usize, ln_fact: &[
     sum_p.clamp(0.0, 1.0)
 }
 
-/// Perform Gene Ontology Over-Representation Analysis (one-sided Fisher's exact test + BH FDR).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum EnrichmentCorrectionMethod {
+    Bh,
+    Scs,
+    Bonferroni,
+    Raw,
+}
+
+impl EnrichmentCorrectionMethod {
+    fn from_str(method: &str) -> PyResult<Self> {
+        match method.trim().to_ascii_lowercase().as_str() {
+            "bh" | "fdr" | "fdr_bh" => Ok(Self::Bh),
+            "scs" | "g_scs" | "g:scs" | "gscs" => Ok(Self::Scs),
+            "bonferroni" | "bonf" => Ok(Self::Bonferroni),
+            "raw" | "none" | "pvalue" | "p_value" => Ok(Self::Raw),
+            _ => Err(PyValueError::new_err(format!(
+                "Unknown multiple-testing correction method '{}'. Options: 'bh' (or 'fdr'), 'scs' (or 'g:scs'), 'bonferroni', 'raw'",
+                method
+            ))),
+        }
+    }
+
+    fn select_p(&self, r: &EnrichmentResult) -> f64 {
+        match self {
+            Self::Bh => r.p_fdr_bh,
+            Self::Scs => r.p_scs,
+            Self::Bonferroni => r.p_bonferroni,
+            Self::Raw => r.p_value,
+        }
+    }
+}
+
+/// Analytical g:SCS (Set Counts and Sizes) effective test multiplier.
+///
+/// Accounts for both:
+/// 1. Hierarchical dependency in the GO DAG (weighting each candidate term by the fraction of its
+///    population annotations not already covered by its largest tested child term).
+/// 2. Discrete hypergeometric tail probabilities across unique term sizes (Set Counts & Sizes) via
+///    binary search for the experiment-wide significance threshold `t` at `alpha_0 = 0.05`.
+fn compute_scs_multiplier(
+    candidate_terms: &[(String, Vec<String>, usize)],
+    terms: &HashMap<String, GOTerm>,
+    study_total: usize,
+    pop_total: usize,
+    min_k: usize,
+    ln_fact: &[f64],
+) -> f64 {
+    let m_tests = candidate_terms.len();
+    if m_tests <= 1 {
+        return 1.0;
+    }
+
+    let candidate_pop: HashMap<&str, usize> = candidate_terms
+        .iter()
+        .map(|(go_id, _, pop_c)| (go_id.as_str(), *pop_c))
+        .collect();
+
+    let mut max_child_pop: HashMap<&str, usize> = HashMap::default();
+    for (go_id, _, pop_c) in candidate_terms {
+        if let Some(term) = terms.get(go_id.as_str()) {
+            for parent_id in &term.parents {
+                if candidate_pop.contains_key(parent_id.as_str()) {
+                    let entry = max_child_pop.entry(parent_id.as_str()).or_insert(0);
+                    if *pop_c > *entry {
+                        *entry = *pop_c;
+                    }
+                }
+            }
+        }
+    }
+
+    let mut size_weights: HashMap<usize, f64> = HashMap::default();
+    for (go_id, _, pop_c) in candidate_terms {
+        if *pop_c == 0 {
+            continue;
+        }
+        let child_max = max_child_pop
+            .get(go_id.as_str())
+            .copied()
+            .unwrap_or(0)
+            .min(*pop_c);
+        let weight = ((*pop_c - child_max) as f64) / (*pop_c as f64);
+        if weight > 0.0 {
+            *size_weights.entry(*pop_c).or_insert(0.0) += weight;
+        }
+    }
+
+    if size_weights.is_empty() {
+        return 1.0;
+    }
+
+    // Precompute discrete hypergeometric tail probabilities for each unique term size K
+    let size_tails: Vec<(f64, Vec<f64>)> = size_weights
+        .into_iter()
+        .map(|(k_pop, weight)| {
+            let max_x = study_total.min(k_pop);
+            let start_x = min_k.max((study_total + k_pop).saturating_sub(pop_total));
+            let mut tails = Vec::new();
+            for x in start_x..=max_x {
+                let sf = hypergeometric_sf(x, study_total, k_pop, pop_total, ln_fact);
+                if sf > 0.0 {
+                    tails.push(sf);
+                }
+                if sf < 1e-16 {
+                    break;
+                }
+            }
+            (weight, tails)
+        })
+        .collect();
+
+    let alpha_0 = 0.05_f64;
+    let min_t = alpha_0 / (m_tests as f64);
+    let max_t = alpha_0;
+    let mut low = min_t.ln();
+    let mut high = max_t.ln();
+
+    for _ in 0..50 {
+        let mid = 0.5 * (low + high);
+        let t = mid.exp();
+        let mut ln_no_fp = 0.0_f64;
+        for (weight, tails) in &size_tails {
+            // Find the largest attainable discrete tail probability <= t
+            if let Some(&p_k) = tails.iter().find(|&&p| p <= t) {
+                let one_minus_p = (1.0 - p_k).max(1e-15);
+                ln_no_fp += weight * one_minus_p.ln();
+            }
+        }
+        let fwer = 1.0 - ln_no_fp.exp();
+        if fwer > alpha_0 {
+            high = mid;
+        } else {
+            low = mid;
+        }
+    }
+
+    let t_star = (0.5 * (low + high)).exp();
+    (alpha_0 / t_star).clamp(1.0, m_tests as f64)
+}
+
+/// Perform Gene Ontology Over-Representation Analysis (one-sided Fisher's exact / hypergeometric test).
 ///
 /// Arguments
 /// ---------
@@ -1126,23 +1288,29 @@ fn hypergeometric_sf(k: usize, n: usize, k_pop: usize, n_pop: usize, ln_fact: &[
 /// ontology : Optional[str]
 ///   Optional subontology filter ("BP", "MF", or "CC"). If None, tests all namespaces.
 /// alpha : float
-///   Maximum Benjamini-Hochberg adjusted p-value (`p_fdr_bh`) to include in results (default: 0.05).
+///   Maximum adjusted p-value (according to `method`) to include in results (default: 0.05).
 /// min_overlap : int
 ///   Minimum number of study genes annotated to a GO term to test it (default: 1).
+/// method : str
+///   Multiple-testing correction method used for filtering and sorting:
+///   `"bh"` (Benjamini-Hochberg FDR, default), `"scs"` (g:Profiler g:SCS Set Counts and Sizes),
+///   `"bonferroni"`, or `"raw"` (unadjusted p-value).
 ///
 /// Returns
 /// -------
 /// list of EnrichmentResult
-///   Enriched GO terms sorted by adjusted p-value (`p_fdr_bh`) ascending.
+///   Enriched GO terms sorted by the selected adjusted p-value ascending.
 #[pyfunction]
-#[pyo3(signature = (study_genes, background_genes=None, ontology=None, alpha=0.05, min_overlap=1))]
+#[pyo3(signature = (study_genes, background_genes=None, ontology=None, alpha=0.05, min_overlap=1, method="bh"))]
 pub fn go_enrichment(
     study_genes: Vec<String>,
     background_genes: Option<Vec<String>>,
     ontology: Option<&str>,
     alpha: f64,
     min_overlap: usize,
+    method: &str,
 ) -> PyResult<Vec<EnrichmentResult>> {
+    let corr_method = EnrichmentCorrectionMethod::from_str(method)?;
     let terms = get_terms_or_error()?;
     let gene2go = get_gene2go_or_error()?;
     let ns_filter = match ontology {
@@ -1242,6 +1410,15 @@ pub fn go_enrichment(
     }
 
     let m_tests = candidate_terms.len();
+    let scs_mult = compute_scs_multiplier(
+        &candidate_terms,
+        &terms,
+        study_total,
+        pop_total,
+        min_k,
+        &ln_fact,
+    );
+
     let mut raw_results: Vec<EnrichmentResult> = candidate_terms
         .par_iter()
         .filter_map(|(go_id, s_genes, pop_c)| {
@@ -1250,6 +1427,7 @@ pub fn go_enrichment(
             let p_val = hypergeometric_sf(study_c, study_total, *pop_c, pop_total, &ln_fact);
             let fold = ((study_c as f64) / (study_total as f64))
                 / ((*pop_c as f64) / (pop_total as f64));
+            let p_scs = (p_val * scs_mult).min(1.0);
             let p_bonf = (p_val * (m_tests as f64)).min(1.0);
             Some(EnrichmentResult {
                 go_id: go_id.clone(),
@@ -1262,6 +1440,7 @@ pub fn go_enrichment(
                 fold_enrichment: fold,
                 p_value: p_val,
                 p_fdr_bh: 1.0,
+                p_scs,
                 p_bonferroni: p_bonf,
                 study_genes: s_genes.clone(),
             })
@@ -1296,7 +1475,7 @@ pub fn go_enrichment(
 
     let filtered: Vec<EnrichmentResult> = raw_results
         .into_iter()
-        .filter(|r| r.p_fdr_bh <= alpha)
+        .filter(|r| corr_method.select_p(r) <= alpha)
         .collect();
 
     Ok(filtered)

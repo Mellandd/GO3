@@ -250,7 +250,25 @@ def test_go_enrichment(tmp_path):
     assert top.fold_enrichment == 5.0
     assert top.p_value < 1e-4
     assert top.p_fdr_bh < 1e-2
+    assert top.p_value <= top.p_scs <= top.p_bonferroni
     assert top.study_genes == sorted(study)
+    d = top.to_dict()
+    assert d["go_id"] == "GO:0006397"
+    assert "p_scs" in d and "p_fdr_bh" in d and "p_bonferroni" in d
+
+    res_scs = go3.go_enrichment(study, ontology="BP", alpha=0.05, method="scs")
+    assert len(res_scs) > 0 and res_scs[0].go_id == "GO:0006397"
+
+    res_gscs = go3.go_enrichment(study, ontology="BP", alpha=0.05, method="g:SCS")
+    assert len(res_gscs) == len(res_scs)
+
+    res_bonf = go3.go_enrichment(study, ontology="BP", alpha=0.05, method="bonferroni")
+    assert len(res_bonf) > 0 and res_bonf[0].go_id == "GO:0006397"
+    assert len(res_bonf) <= len(res_scs)
+
+    with pytest.raises(ValueError, match="Unknown multiple-testing correction method"):
+        go3.go_enrichment(study, ontology="BP", method="invalid_method")
+
 
 
 

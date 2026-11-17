@@ -1,309 +1,164 @@
-Examples
-========
+Cookbook & Workflows
+====================
 
-This page shows practical GO3 workflows from initialization to large-scale comparisons.
+Practical, copy-pasteable recipes for common GO3 tasks.
 
-Setup
------
+1. Setup & Native GAF Filtering
+-------------------------------
+
+Load ``.obo``/``.obo.gz`` and ``.gaf``/``.gaf.gz`` files directly. Use :class:`go3.GAFParseOptions` to filter annotations in Rust before building the IC counter:
 
 .. code-block:: python
 
    import go3
 
-   # Load the GO directed acyclic graph from an OBO file.
-   # This caches the ontology globally -- call once per session.
    go3.load_go_terms("go-basic.obo")
 
-   # Parse a GAF file to build a gene-to-GO mapping.
-   # The returned list contains one GAFAnnotation per valid line.
-   annots = go3.load_gaf("goa_human.gaf")
-
-   # Build annotation counts with ancestor propagation and compute IC values.
-   # The counter object is required by IC-based similarity methods.
+   # Keep only experimental/curated annotations (exclude IEA) on Biological Process
+   opts = go3.GAFParseOptions(
+       exclude_evidence={"IEA"},
+       include_aspects={"P", "F", "C"},
+       exclude_qualifiers={"NOT"},
+       allow_obsolete_terms=False,
+       allow_nd_root_only=False,
+   )
+   annots = go3.load_gaf("goa_human.gaf.gz", options=opts)
    counter = go3.build_term_counter(annots)
 
-Term-to-term similarity
------------------------
+2. Exploring the Ontology & Gene–Term Lookups
+---------------------------------------------
 
 .. code-block:: python
 
-   go1 = "GO:0006397"  # mRNA processing
-   go2 = "GO:0008380"  # RNA splicing
-
-   # These two BP terms are closely related (splicing is part of mRNA processing),
-   # so we expect high similarity.
-   # Available methods: resnik, lin, jc, simrel, iccoef, graphic, wang, topoicsim
-   sim = go3.semantic_similarity(go1, go2, "lin", counter)
-   print("Lin similarity:", sim)  # e.g. ~0.71
-
-Batch term similarity
----------------------
-
-.. code-block:: python
-
-   list1 = ["GO:0006397", "GO:0008380", "GO:0008150"]
-   list2 = ["GO:0008380", "GO:0006397", "GO:0009987"]
-
-   # Computes similarity for each aligned pair: (list1[0], list2[0]), (list1[1], list2[1]), ...
-   # Much faster than looping over semantic_similarity for large lists.
-   scores = go3.batch_similarity(list1, list2, "resnik", counter)
-   print(scores)  # list of 3 floats
-
-The two lists must have the same length.
-
-Term-set similarity
--------------------
-
-.. code-block:: python
-
-   terms_a = ["GO:0006397", "GO:0008380"]
-   terms_b = ["GO:0008380", "GO:0009987"]
-
-   # Groupwise strategies aggregate pairwise term similarities into a single set-level score.
-   sim_bma = go3.termset_similarity(terms_a, terms_b, term_similarity="lin", groupwise="bma", counter=counter)
-   sim_max = go3.termset_similarity(terms_a, terms_b, term_similarity="lin", groupwise="max", counter=counter)
-   sim_avg = go3.termset_similarity(terms_a, terms_b, term_similarity="lin", groupwise="avg", counter=counter)
-   sim_h   = go3.termset_similarity(terms_a, terms_b, term_similarity="lin", groupwise="hausdorff", counter=counter)
-   sim_gic = go3.termset_similarity(terms_a, terms_b, term_similarity="lin", groupwise="simgic", counter=counter)
-
-   print(sim_bma, sim_max, sim_avg, sim_h, sim_gic)
-
-Gene-to-gene similarity
------------------------
-
-.. code-block:: python
-
-   # Compare two genes using their BP annotations.
-   # GO3 looks up each gene's annotated GO terms, then applies
-   # pairwise term similarity + groupwise aggregation.
-   sim = go3.compare_genes("BRCA1", "CASP8", "BP", "lin", "bma", counter)
-   print(sim)  # e.g. ~0.30
-
-Batch gene similarity
----------------------
-
-.. code-block:: python
-
-   pairs = [("TP53", "BRCA1"), ("EGFR", "AKT1"), ("GSDME", "NLRP1")]
-
-   # Batch gene comparison is parallelized internally -- much faster than
-   # calling compare_genes in a Python loop for hundreds/thousands of pairs.
-   scores = go3.compare_gene_pairs_batch(pairs, "BP", "lin", "bma", counter)
-   print(scores)  # list of 3 floats
-
-Gene-set similarity
--------------------
-
-.. code-block:: python
-
-   # Compare gene lists directly, for example from enrichment or pathway analyses.
-   # GO3 computes pairwise gene similarities first, then aggregates across genes.
-   set_a = ["TP53", "BRCA1", "ATM"]
-   set_b = ["CASP8", "GSDME", "NLRP1"]
-
-   sim = go3.compare_gene_sets(set_a, set_b, "BP", "lin", "bma", counter)
-   print(sim)
-
-   named_sets = [
-       ("dna_repair", set_a),
-       ("cell_death", set_b),
-   ]
-   names, dist = go3.gene_set_distance_matrix(named_sets, "BP", "lin", "bma", counter)
-   print(names)
-
-   # Optional: choose a different GO-term aggregation inside each gene-to-gene comparison.
-   sim_inner_bma = go3.compare_gene_sets(
-       set_a,
-       set_b,
-       ontology="BP",
-       similarity="lin",
-       groupwise="hausdorff",      # outer aggregation across genes
-       counter=counter,
-       term_groupwise="bma",       # inner aggregation across GO terms per gene pair
-   )
-
-   # Alternative: compare weighted GO-term profiles aggregated from each gene set.
-   profile_sim = go3.compare_gene_set_profiles(set_a, set_b, "BP", "lin", "simgic", counter)
-
-Ontology traversal and gene-term queries
-----------------------------------------
-
-.. code-block:: python
-
-   # Retrieve a term object by its GO ID
+   # Inspect a GO term
    term = go3.get_term_by_id("GO:0006397")
-   print(term.name)       # "mRNA processing"
-   print(term.namespace)  # "biological_process"
-   print(term.depth)      # maximum distance to root
-   print(term.level)      # minimum distance to root
+   print(term.name, term.namespace, term.depth, term.parents)
 
-   # Get all ancestors and descendants (optionally traversing part_of edges)
+   # Traverse ancestors and descendants (optionally including part_of edges)
    ancs = go3.ancestors("GO:0006397", relations=["part_of"])
-   descs = go3.descendants("GO:0006396")
-   print(len(ancs), "ancestors (including self)")
-   print(len(descs), "descendants (including self)")
-
-   # Find the deepest common ancestor of two terms
+   descs = go3.descendants("GO:0006397", relations=["part_of"])
    dca = go3.deepest_common_ancestor("GO:0006397", "GO:0008380")
-   print("DCA:", dca)
 
-   # Common ancestors shared by both terms
-   common = go3.common_ancestor("GO:0006397", "GO:0008380")
-   print(len(common), "common ancestors")
-
-   # Direct gene <-> GO queries
+   # Bidirectional gene <-> GO queries
    bp_genes = go3.list_genes(ontology="BP")
    tp53_terms = go3.get_terms_for_gene("TP53", ontology="BP")
    mrna_genes = go3.get_genes_for_term("GO:0006397", include_descendants=True)
 
-GO Over-Representation Enrichment and redundancy reduction
-----------------------------------------------------------
+3. Term Similarity, Matrices & Redundancy Reduction
+---------------------------------------------------
 
 .. code-block:: python
+
+   # Single pair & batch aligned pairs
+   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
+   batch = go3.batch_similarity(
+       ["GO:0006397", "GO:0008150"],
+       ["GO:0008380", "GO:0009987"],
+       "lin",
+       counter,
+   )
+
+   # Compare two sets of GO terms
+   set_sim = go3.termset_similarity(
+       ["GO:0006397", "GO:0008380"],
+       ["GO:0000398", "GO:0006396"],
+       term_similarity="lin",
+       groupwise="bma",
+       counter=counter,
+   )
+
+   # All-vs-all term similarity and distance matrices
+   terms = ["GO:0006397", "GO:0008380", "GO:0000398", "GO:0007049"]
+   ordered_terms, sim_mat = go3.term_similarity_matrix(terms, method="lin", counter=counter)
+   ordered_terms, dist_mat = go3.term_distance_matrix(terms, method="lin", counter=counter)
+
+   # Condense redundant GO terms into non-redundant representatives
+   rep_terms = go3.reduce_redundant_terms(terms, threshold=0.7, method="lin", counter=counter)
+   clusters = go3.cluster_go_terms(terms, threshold=0.7, method="lin", counter=counter)
+
+4. Gene & Gene-Set Comparisons
+------------------------------
+
+.. code-block:: python
+
+   # Single gene pair & batch gene pairs
+   g_sim = go3.compare_genes("TP53", "BRCA1", "BP", "lin", "bma", counter)
+   g_batch = go3.compare_gene_pairs_batch(
+       [("TP53", "BRCA1"), ("EGFR", "AKT1")], "BP", "lin", "bma", counter
+   )
+
+   # Compare two gene sets (pairwise gene matrix vs. weighted GO profile)
+   dna_repair = ["TP53", "BRCA1", "ATM"]
+   apoptosis = ["CASP8", "GSDME", "NLRP1"]
+
+   sim_genes = go3.compare_gene_sets(dna_repair, apoptosis, "BP", "lin", "bma", counter)
+   sim_profile = go3.compare_gene_set_profiles(dna_repair, apoptosis, "BP", "lin", "simgic", counter)
+
+   # Batch comparison of multiple gene-set pairs (e.g., permutation/null background)
+   set_batch = go3.compare_gene_set_pairs_batch(
+       [(dna_repair, apoptosis)], "BP", "lin", "bma", counter
+   )
+
+5. GO Over-Representation Enrichment (ORA)
+------------------------------------------
+
+Run hypergeometric enrichment with choice of multiple-testing correction:
+
+- ``method="bh"``: Benjamini-Hochberg FDR (default)
+- ``method="scs"``: g:Profiler analytical ``g:SCS`` (*Set Counts and Sizes*)
+- ``method="bonferroni"``: Bonferroni correction
+- ``method="raw"``: unadjusted p-value
+
+.. code-block:: python
+
+   import math
 
    study_genes = ["PINK1", "PRKN", "PARK7", "SNCA", "LRRK2"]
 
-   # 1) Perform GO Over-Representation Analysis (Fisher's exact test + BH FDR)
-   results = go3.go_enrichment(study_genes, ontology="BP", alpha=0.05)
-   for r in results[:5]:
-       print(r.go_id, r.name, f"FDR={r.p_fdr_bh:.2e}", f"fold={r.fold_enrichment:.1f}")
-
-   # 2) Condense redundant enriched GO terms
-   enriched_ids = [r.go_id for r in results]
-   representatives = go3.reduce_redundant_terms(
-       enriched_ids, threshold=0.7, method="lin", counter=counter
-   )
-   clusters = go3.cluster_go_terms(
-       enriched_ids, threshold=0.7, method="lin", counter=counter
-   )
-
-Inspecting IC values
---------------------
-
-.. code-block:: python
-
-   # term_ic returns the Information Content for a single term.
-   # Higher IC means the term is more specific (fewer annotations).
-   ic_specific = go3.term_ic("GO:0006397", counter)   # mRNA processing
-   ic_general  = go3.term_ic("GO:0008150", counter)    # biological_process (root)
-
-   print(f"IC(mRNA processing) = {ic_specific:.4f}")   # high value (specific term)
-   print(f"IC(biological_process) = {ic_general:.4f}") # near 0 (root term)
-
-Distance matrix for downstream analysis
----------------------------------------
-
-.. code-block:: python
-
-   genes = ["BRCA1", "CASP8", "TP53", "EGFR", "AKT1"]
-
-   # Build an all-vs-all distance matrix suitable for clustering or embedding.
-   # distance_transform converts similarity to distance (see Utilities docs).
-   ordered_genes, dist = go3.gene_distance_matrix(
-       genes,
+   results = go3.go_enrichment(
+       study_genes,
        ontology="BP",
-       similarity="lin",
-       groupwise="bma",
-       counter=counter,
-       distance_transform="auto",
+       alpha=0.05,
+       min_overlap=2,
+       method="scs",
    )
 
-   print(ordered_genes)
-   print(len(dist), len(dist[0]))  # 5x5 matrix
+   for r in results[:5]:
+       print(
+           r.go_id,
+           r.name,
+           f"p_scs={r.p_scs:.2e}",
+           f"fdr={r.p_fdr_bh:.2e}",
+           f"fold={r.fold_enrichment:.1f}",
+       )
 
-Embedding helpers (t-SNE / UMAP)
----------------------------------
+   # Combine ORA with semantic redundancy reduction
+   enriched_ids = [r.go_id for r in results]
+   scores = [-math.log10(max(r.p_scs, 1e-300)) for r in results]
+   non_redundant = go3.reduce_redundant_terms(
+       enriched_ids, threshold=0.7, method="lin", counter=counter, scores=scores
+   )
+
+6. Distance Matrices & 2D Embeddings (t-SNE / UMAP)
+---------------------------------------------------
 
 .. code-block:: python
 
-   # Requires pip install 'go3[viz]'
    genes = ["BRCA1", "CASP8", "TP53", "EGFR", "AKT1"]
 
-   # t-SNE embedding from GO semantic similarity distances
-   genes, emb_tsne = go3.tsne_genes(
-       genes,
-       "BP",
-       "lin",
-       "bma",
-       counter,
-       perplexity=2.0,   # must be < number of genes
-       n_iter=500,
-       random_state=42,
+   ordered_genes, dist = go3.gene_distance_matrix(
+       genes, ontology="BP", similarity="lin", groupwise="bma", counter=counter
    )
 
-   # UMAP embedding from the same distances
-   genes, emb_umap = go3.umap_genes(
+   # Requires: pip install 'go3[viz]'
+   ordered_genes, emb, fig, ax = go3.plot_tsne_genes(
        genes,
-       "BP",
-       "lin",
-       "bma",
-       counter,
-       n_neighbors=3,    # must be < number of genes
-       random_state=42,
-   )
-
-Quick plotting helpers
-----------------------
-
-.. code-block:: python
-
-   genes, emb, fig, ax = go3.plot_tsne_genes(
-       genes=["BRCA1", "CASP8", "TP53", "EGFR", "AKT1"],
        ontology="BP",
        similarity="lin",
        groupwise="bma",
        counter=counter,
        perplexity=2.0,
-       n_iter=500,
        random_state=42,
-       annotate="auto",  # label points that don't overlap
-       title="GO3 t-SNE",
+       annotate="auto",
+       title="Gene Functional Landscape (t-SNE)",
    )
-
-   # Reuse generic plotting for custom embeddings
-   fig2, ax2 = go3.plot_embedding(emb, genes=genes, annotate="all", title="Custom plot")
-
-Thread control
---------------
-
-.. code-block:: python
-
-   # Initialize the Rayon thread pool before heavy batch workloads.
-   # Call once at startup -- the pool size cannot be changed after first use.
-   go3.set_num_threads(8)
-
-Basic error handling patterns
------------------------------
-
-.. code-block:: python
-
-   # Unknown gene in compare_genes -> ValueError
-   try:
-       go3.compare_genes("FAKE_GENE", "BRCA1", "BP", "lin", "bma", counter)
-   except ValueError as exc:
-       print("compare_genes error:", exc)
-
-   # Missing term or cross-namespace term pairs return similarity 0.0
-   print(go3.semantic_similarity("GO:9999999", "GO:0006397", "lin", counter))  # 0.0
-
-End-to-end notebook: Parkinson gene panel
------------------------------------------
-
-An end-to-end analysis is provided in ``scripts/Supplementary Notebook S2.ipynb``
-(`view on GitHub <https://github.com/Mellandd/go3/blob/master/scripts/Supplementary%20Notebook%20S2.ipynb>`_).
-It applies GO3 to the Genomics England *Parkinson Disease and Complex Parkinsonism*
-gene panel and walks through a full functional-genomics pipeline:
-
-1. **Load** the ontology and annotations.
-2. **Quantify redundancy** via all-vs-all term similarity (``go3.batch_similarity``).
-3. **Cluster** semantically overlapping BP terms with hierarchical clustering on the
-   Lin distance matrix and select the highest-IC representative per cluster
-   (~48% reduction in term count).
-4. **Compute gene-level similarity** with ``go3.gene_distance_matrix`` (Lin + BMA) and
-   rank the most functionally similar gene pairs.
-5. **Visualize** the functional landscape via ``go3.plot_tsne_genes``.
-
-The resulting groups recover known biology — the PINK1/PRKN/PARK7 mitophagy module,
-the GCH1/TH/SPR dopamine-synthesis axis, and metal-ion-transport genes
-(SLC30A10/SLC39A14/FTL) — demonstrating how GO3 can condense a large, redundant
-enrichment output into an interpretable summary in a single notebook.

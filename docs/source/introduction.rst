@@ -1,142 +1,71 @@
-Installation
-============
+Getting Started & Core Concepts
+===============================
 
-GO3 provides Python bindings for a Rust implementation of Gene Ontology semantic similarity.
+Requirements & Installation
+---------------------------
 
-Install from PyPI:
+- **Python >= 3.7** (pre-built wheels available for Linux, macOS, and Windows).
+- An ontology file in OBO format (``go-basic.obo`` or ``go-basic.obo.gz``). Calling ``go3.load_go_terms()`` with no arguments downloads ``go-basic.obo`` automatically.
+- An organism annotation file in GAF 2.2 format (plain ``.gaf`` or compressed ``.gaf.gz``).
 
 .. code-block:: bash
 
    pip install go3
+   pip install 'go3[viz]'  # Optional: t-SNE, UMAP, and matplotlib helpers
 
-Optional visualization dependencies:
+The 3-Step GO3 Pipeline
+-----------------------
 
-.. code-block:: bash
-
-   pip install 'go3[viz]'
-
-Quote the extras spec to avoid shell glob expansion in shells such as zsh.
-
-Requirements
-============
-
-- **Python >= 3.7** (pre-built wheels are available for Linux, macOS, and Windows on common architectures).
-- A GO ontology file in OBO format (for example ``go-basic.obo`` or ``go-basic.obo.gz``).
-- A GO annotation file in GAF 2.2 format for your organism (plain ``.gaf`` or compressed ``.gaf.gz``).
-
-If you call ``go3.load_go_terms()`` without a path, GO3 downloads ``go-basic.obo`` automatically.
-
-Minimal workflow
-================
+Every GO3 analysis starts with three steps executed once per Python session:
 
 .. code-block:: python
 
    import go3
 
-   # 1) Load the ontology graph into memory
+   # Step 1: Load the ontology DAG into memory
    go3.load_go_terms("go-basic.obo")
 
-   # 2) Parse annotations and build a gene-to-GO mapping
-   annots = go3.load_gaf("goa_human.gaf")
+   # Step 2: Load GAF 2.2 annotations (optionally filtered via GAFParseOptions)
+   annots = go3.load_gaf("goa_human.gaf.gz")
 
-   # 3) Compute annotation counts and IC values for every term
+   # Step 3: Propagate counts up the DAG and compute Information Content (IC)
    counter = go3.build_term_counter(annots)
 
-   # 4) Compute term-to-term similarity
-   sim = go3.semantic_similarity("GO:0006397", "GO:0008380", "lin", counter)
-   print(sim)
+1. **Ontology graph (``load_go_terms``)**: Parses the OBO file and caches terms, ``is_a``/``part_of`` relationships, depths, and ancestor sets in process memory.
+2. **Gene annotations (``load_gaf``)**: Maps gene symbols (``db_object_symbol``) to GO terms and returns ``GAFAnnotation`` objects. By default, ``ND`` and ``NOT`` annotations are excluded; custom filters (such as ``exclude_evidence={"IEA"}``) can be passed via :class:`go3.GAFParseOptions`.
+3. **Term counter (``build_term_counter``)**: Propagates annotation counts to ancestor terms (*true-path rule*) and computes Information Content (IC) for each term.
 
-   # 5) Compute gene-to-gene similarity (using BP namespace)
-   score = go3.compare_genes("TP53", "BRCA1", "BP", "lin", "bma", counter)
-   print(score)
+Core Concepts
+-------------
 
-   # 6) Compare gene sets directly, e.g. enrichment or pathway gene lists.
-   # GO3 computes pairwise gene similarities first, then aggregates across genes.
-   gene_set_score = go3.compare_gene_sets(
-       ["TP53", "BRCA1", "ATM"],
-       ["CASP8", "GSDME", "NLRP1"],
-       "BP",
-       "lin",
-       "bma",
-       counter,
-   )
-   print(gene_set_score)
+Namespaces (Sub-ontologies)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Core concepts
-=============
+Gene Ontology is partitioned into three independent namespaces:
 
-The typical GO3 pipeline has three stages:
+- ``"BP"`` — **Biological Process** (e.g., *mitophagy*, *mRNA processing*)
+- ``"MF"`` — **Molecular Function** (e.g., *ATP binding*, *protein kinase activity*)
+- ``"CC"`` — **Cellular Component** (e.g., *mitochondrion*, *spliceosomal complex*)
 
-1. **Load the ontology** -- ``load_go_terms`` parses an OBO file and caches the full GO directed acyclic graph (DAG) in memory, including parent/child edges, depths, and ancestor sets.
-2. **Load annotations** -- ``load_gaf`` parses a GAF file to build a mapping from genes (``db_object_symbol``) to their annotated GO terms. Obsolete terms are automatically remapped via ``replaced_by`` or ``consider`` fields when possible.
-3. **Build the counter** -- ``build_term_counter`` walks the annotations and computes per-term counts with ancestor propagation, then derives IC values for every term. The resulting ``TermCounter`` is passed to similarity functions.
+Terms from different namespaces do not share ancestors and always have similarity ``0.0``.
 
-Gene sets
----------
+Information Content (IC) & MICA
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-GO3 supports two gene-set workflows:
-
-- ``compare_gene_sets`` compares all pairwise gene similarities between two gene lists, then applies a groupwise strategy across the gene-by-gene similarity matrix.
-- ``compare_gene_set_profiles`` builds one weighted GO-term profile per gene set and compares those profiles directly. This is the profile-based alternative and supports weighted ``simgic``.
-
-Information Content (IC)
-------------------------
-
-Information Content quantifies how specific a GO term is within its namespace.  It is defined as:
+Information Content quantifies how specific a GO term *t* is within its namespace:
 
 .. math::
 
    IC(t) = -\log\!\left(\frac{\text{count}(t)}{\text{total}(\text{namespace})}\right)
 
-where ``count(t)`` is the number of annotations for term *t* (including propagated annotations from descendant terms) and ``total(namespace)`` is the total annotation count for that namespace.
+Broad terms near the root have many propagated annotations and low IC (~0), whereas specific leaf terms have few annotations and high IC.
 
-Intuitively, **rare terms have high IC** (they are more informative), while the root term -- which is an ancestor of every term -- has IC close to zero.
+The **Most Informative Common Ancestor (MICA)** of two terms :math:`t_1, t_2` is their shared ancestor with the highest IC. Most IC-based similarity metrics (Resnik, Lin, Jiang-Conrath, SimRel) are functions of :math:`IC(\text{MICA}(t_1, t_2))`, :math:`IC(t_1)`, and :math:`IC(t_2)`.
 
-MICA (Most Informative Common Ancestor)
-----------------------------------------
+Comparing Genes vs. Gene Sets
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Many IC-based methods compare two terms by finding their **Most Informative Common Ancestor (MICA)**: the common ancestor with the highest IC.  Since IC grows with specificity, the MICA is the most specific term that subsumes both query terms.
-
-For example, the Resnik similarity of two terms is simply ``IC(MICA)``, and Lin similarity normalizes it by the sum of individual ICs.
-
-Namespaces
-==========
-
-GO3 uses standard GO sub-ontologies:
-
-- ``BP``: Biological Process
-- ``MF``: Molecular Function
-- ``CC``: Cellular Component
-
-For gene-level APIs, select namespace explicitly via the ``ontology`` argument.
-
-Troubleshooting
-===============
-
-.. list-table::
-   :header-rows: 1
-   :widths: 30 70
-
-   * - Problem
-     - Solution
-   * - ``FileNotFoundError`` when loading OBO/GAF
-     - Verify the file path is correct. Omit the path in ``load_go_terms()`` to auto-download ``go-basic.obo``.
-   * - ``ValueError``: gene not found
-     - Gene names must match the ``db_object_symbol`` column in your GAF file exactly (case-sensitive). Check your GAF for the correct symbol.
-   * - Similarity is always 0.0
-     - Terms may be in different namespaces, one or both IDs may be invalid, or the terms may have no common ancestor. Verify both terms belong to the same namespace.
-   * - Wrong namespace in ``compare_genes``
-     - The ``ontology`` argument (``BP``, ``MF``, ``CC``) filters which annotations are used. If a gene has no annotations in the chosen namespace, the result will be 0.0.
-   * - ``simgic`` in ``compare_gene_sets``
-     - Direct gene-set comparison aggregates pairwise gene similarities and supports ``bma``, ``max``, ``avg``, and ``hausdorff`` as the outer strategy. Use ``compare_gene_set_profiles(..., groupwise="simgic")`` for IC-weighted GO-profile overlap.
-   * - Which OBO file to use?
-     - Use ``go-basic.obo`` (recommended). The full ``go.obo`` includes cross-ontology links that may produce unexpected results.
-
-Next steps
-==========
-
-- :doc:`examples` for end-to-end usage patterns
-- :doc:`similarity` for available methods and formulas
-- :doc:`guide/choosing_methods` for picking the right method
-- :doc:`guide/performance` for throughput-oriented workflows
-- :doc:`benchmarks` for reproducible comparisons
+- **Single gene pair (``compare_genes``)**: Looks up the GO terms of each gene in the chosen namespace (``BP``, ``MF``, or ``CC``) and aggregates pairwise term similarities using a groupwise strategy (``bma``, ``simgic``, ``max``, ``avg``, or ``hausdorff``).
+- **Gene lists (``compare_gene_sets`` vs. ``compare_gene_set_profiles``)**:
+  - ``compare_gene_sets`` computes the gene-by-gene similarity matrix between the two lists and aggregates across genes (``bma``, ``max``, ``avg``, ``hausdorff``).
+  - ``compare_gene_set_profiles`` merges each gene list into a weighted GO-term profile and compares the two profiles directly (supports weighted ``simgic``).
