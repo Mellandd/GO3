@@ -41,6 +41,7 @@ During parsing, GO3 applies biological filters that can be customized via :class
 - **Qualifiers (``exclude_qualifiers``)**: defaults to ``{"NOT"}`` so negated annotations are skipped. Pass ``exclude_qualifiers=set()`` to keep negated annotations (which will have ``ann.is_negated == True``).
 - **ND (No biological Data) & ``allow_nd_root_only``**: by default (``allow_nd_root_only=False``), all ``ND`` annotations are skipped. When ``allow_nd_root_only=True``, ``ND`` annotations on the root terms (``GO:0008150``, ``GO:0003674``, ``GO:0005575``) are retained while non-root ``ND`` annotations are excluded.
 - **Obsolete GO terms (``allow_obsolete_terms``)**: by default (``allow_obsolete_terms=False``), obsolete terms are skipped. When ``allow_obsolete_terms=True``, obsolete terms are automatically remapped via ``replaced_by`` or ``consider`` targets when available.
+- **Duplicate annotations (``remove_duplicates``)**: GAF files frequently annotate the same gene to the same GO term several times, with different evidence codes or references (about 60% of the rows in ``goa_human.gaf``). By default (``remove_duplicates=False``) all of them are kept. When ``remove_duplicates=True``, only the first annotation of each (gene, GO term) pair is returned and stored in the gene-to-GO mapping. The pair is checked after obsolete-term remapping, so two IDs that resolve to the same term also count as duplicates.
 
 .. code-block:: python
 
@@ -51,10 +52,40 @@ During parsing, GO3 applies biological filters that can be customized via :class
        exclude_qualifiers={"NOT"},
        allow_obsolete_terms=False,
        allow_nd_root_only=True,
+       remove_duplicates=True,
    )
    annotations = go3.load_gaf("goa_human.gaf.gz", options=opts)
 
 These rules affect both downstream similarity scores and Information Content (IC) deterministically.
+
+Duplicates do not change IC, because ``build_term_counter`` counts each gene once per term. They do change gene-level similarity: a term repeated three times in a gene's annotation list counts three times in ``bma`` or ``avg`` aggregation.
+
+Filtering annotations by Information Content
+--------------------------------------------
+
+``filter_annotations_by_ic(counter, ic_threshold)``
+
+- Keeps a gene's GO term only if ``IC(term) > ic_threshold``. This removes very generic terms (roots, ``binding``, ``cellular process``, ...) that carry little information and make unrelated genes look similar.
+- Changes the gene-to-GO mapping loaded by ``load_gaf``, so every gene-level function uses the filtered annotations afterwards: ``compare_genes``, ``compare_gene_sets``, ``gene_distance_matrix``, ``go_enrichment``, ``get_terms_for_gene``, ``list_genes``, embeddings, etc.
+- Genes left with no annotations are removed from the mapping and listed in the result.
+- Always starts from the mapping produced by ``load_gaf``: calling it again with another threshold replaces the previous filter instead of stacking on it, and ``ic_threshold=None`` restores the unfiltered mapping. Loading a new GAF also resets it.
+- Does not change the ``TermCounter``. IC needs a ``TermCounter``, which is built after parsing, so this filter is a separate step rather than a ``GAFParseOptions`` field. Build the counter from the full set of annotations so IC reflects the whole corpus.
+- Returns a dictionary with ``annotations_before``, ``annotations_after``, ``genes_before``, ``genes_after`` and ``removed_genes``.
+
+.. code-block:: python
+
+   annotations = go3.load_gaf("goa_human.gaf.gz", go3.GAFParseOptions(remove_duplicates=True))
+   counter = go3.build_term_counter(annotations)
+
+   summary = go3.filter_annotations_by_ic(counter, ic_threshold=2.0)
+   print(summary["annotations_before"], "->", summary["annotations_after"])
+   print(len(summary["removed_genes"]), "genes lost all their annotations")
+
+   score = go3.compare_genes("TP53", "MDM2", "BP", "lin", "bma", counter)
+
+   go3.filter_annotations_by_ic(counter, ic_threshold=None)  # back to all annotations
+
+``ic_threshold=0.0`` removes only terms with IC 0, i.e. terms annotated (directly or by propagation) to every gene in their namespace, such as the root terms. Inspect ``counter.ic`` to choose a threshold for your data.
 
 Annotation propagation
 ----------------------
@@ -171,6 +202,7 @@ Class reference
 - ``exclude_qualifiers`` -- set of qualifiers to exclude (default ``{"NOT"}``)
 - ``allow_obsolete_terms`` -- whether to allow and remap obsolete GO terms (default ``False``)
 - ``allow_nd_root_only`` -- whether to allow ``ND`` annotations on root GO terms (default ``False``)
+- ``remove_duplicates`` -- keep only the first annotation of each (gene, GO term) pair (default ``False``)
 
 ``TermCounter`` fields:
 
@@ -182,7 +214,7 @@ API reference
 -------------
 
 .. automodule:: go3
-   :members: load_gaf, build_term_counter, GAFAnnotation, GAFParseOptions, TermCounter
+   :members: load_gaf, build_term_counter, filter_annotations_by_ic, GAFAnnotation, GAFParseOptions, TermCounter
    :undoc-members:
    :show-inheritance:
    :no-index:

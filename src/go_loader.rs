@@ -30,6 +30,9 @@ use crate::go_ontology::{GOTerm, PyGOTerm, collect_ancestors, get_terms_or_error
 pub static GO_TERMS_CACHE: OnceCell<RwLock<HashMap<String, GOTerm>>> = OnceCell::new();
 pub static OBSOLETE_TERMS_CACHE: OnceCell<RwLock<HashMap<String, GOTerm>>> = OnceCell::new();
 pub static GENE2GO_CACHE: OnceCell<RwLock<HashMap<String, Vec<String>>>> = OnceCell::new();
+/// Unfiltered copy of `GENE2GO_CACHE`, saved the first time `filter_annotations_by_ic` runs
+/// after `load_gaf`, so later filters always start from the full mapping and can be undone.
+pub static GENE2GO_UNFILTERED_CACHE: OnceCell<RwLock<Option<HashMap<String, Vec<String>>>>> = OnceCell::new();
 pub static ANCESTORS_CACHE: OnceCell<RwLock<HashMap<String, HashSet<String>>>> = OnceCell::new();
 pub static DCA_CACHE: OnceCell<RwLock<HashMap<(String, String), String>>> = OnceCell::new();
 
@@ -71,6 +74,9 @@ pub struct GAFParseOptions {
     pub allow_obsolete_terms: bool,
     #[pyo3(get, set)]
     pub allow_nd_root_only: bool,
+    /// Keep only the first annotation of each (gene, GO term) pair.
+    #[pyo3(get, set)]
+    pub remove_duplicates: bool,
 }
 
 impl Default for GAFParseOptions {
@@ -84,6 +90,7 @@ impl Default for GAFParseOptions {
             exclude_qualifiers,
             allow_obsolete_terms: false,
             allow_nd_root_only: false,
+            remove_duplicates: false,
         }
     }
 }
@@ -97,7 +104,8 @@ impl GAFParseOptions {
         include_aspects=None,
         exclude_qualifiers=None,
         allow_obsolete_terms=false,
-        allow_nd_root_only=false
+        allow_nd_root_only=false,
+        remove_duplicates=false
     ))]
     pub fn new(
         include_evidence: Option<&Bound<'_, PyAny>>,
@@ -106,6 +114,7 @@ impl GAFParseOptions {
         exclude_qualifiers: Option<&Bound<'_, PyAny>>,
         allow_obsolete_terms: bool,
         allow_nd_root_only: bool,
+        remove_duplicates: bool,
     ) -> PyResult<Self> {
         let inc_ev = match include_evidence {
             Some(obj) => Some(
@@ -151,6 +160,7 @@ impl GAFParseOptions {
             exclude_qualifiers: exc_qual,
             allow_obsolete_terms,
             allow_nd_root_only,
+            remove_duplicates,
         })
     }
 
@@ -228,13 +238,14 @@ impl GAFParseOptions {
 
     fn __repr__(&self) -> String {
         format!(
-            "GAFParseOptions(include_evidence={:?}, exclude_evidence={:?}, include_aspects={:?}, exclude_qualifiers={:?}, allow_obsolete_terms={}, allow_nd_root_only={})",
+            "GAFParseOptions(include_evidence={:?}, exclude_evidence={:?}, include_aspects={:?}, exclude_qualifiers={:?}, allow_obsolete_terms={}, allow_nd_root_only={}, remove_duplicates={})",
             self.include_evidence,
             self.exclude_evidence,
             self.include_aspects,
             self.exclude_qualifiers,
             self.allow_obsolete_terms,
-            self.allow_nd_root_only
+            self.allow_nd_root_only,
+            self.remove_duplicates
         )
     }
 }
@@ -960,6 +971,8 @@ pub fn load_gaf(path: String, options: Option<GAFParseOptions>) -> PyResult<Vec<
 
     let mut annotations: Vec<GAFAnnotation> = Vec::new();
     let mut gene2go: HashMap<String, Vec<String>> = HashMap::default();
+    // (gene_key, go_id) pairs already emitted; only used when `remove_duplicates` is set.
+    let mut seen_pairs: HashSet<(String, String)> = HashSet::default();
 
     for line in reader.lines().filter_map(Result::ok).filter(|l| !l.starts_with('!')) {
         if line.trim().is_empty() {
@@ -987,9 +1000,19 @@ pub fn load_gaf(path: String, options: Option<GAFParseOptions>) -> PyResult<Vec<
             continue;
         };
 
-        let db = cols[0].trim().to_string();
         let db_object_id = cols[1].trim().to_string();
         let db_object_symbol = cols[2].trim().to_string();
+        let gene_key = if !db_object_symbol.is_empty() {
+            db_object_symbol.clone()
+        } else {
+            db_object_id.clone()
+        };
+
+        if opts.remove_duplicates && !seen_pairs.insert((gene_key.clone(), go_id.clone())) {
+            continue;
+        }
+
+        let db = cols[0].trim().to_string();
         let references = cols.get(5).map(|s| split_pipe(s)).unwrap_or_default();
         let evidence = evidence_str.to_string();
         let with_from = cols.get(7).map(|s| split_pipe(s)).unwrap_or_default();
@@ -1011,12 +1034,6 @@ pub fn load_gaf(path: String, options: Option<GAFParseOptions>) -> PyResult<Vec<
         let is_negated = qualifiers
             .iter()
             .any(|q| q.eq_ignore_ascii_case("NOT"));
-
-        let gene_key = if !db_object_symbol.is_empty() {
-            db_object_symbol.clone()
-        } else {
-            db_object_id.clone()
-        };
 
         annotations.push(GAFAnnotation {
             db,
@@ -1044,8 +1061,113 @@ pub fn load_gaf(path: String, options: Option<GAFParseOptions>) -> PyResult<Vec<
 
     // Save in global cache
     set_or_replace_cache(&GENE2GO_CACHE, gene2go);
+    // A fresh mapping invalidates any backup kept by `filter_annotations_by_ic`.
+    set_or_replace_cache(&GENE2GO_UNFILTERED_CACHE, None);
 
     Ok(annotations)
+}
+
+/// Keep only gene annotations whose GO term has an Information Content above a threshold.
+///
+/// Removes very generic GO terms (low IC, e.g. root terms or terms such as
+/// "binding" or "cellular process") from the gene-to-GO mapping loaded with
+/// `load_gaf`. Every function that reads gene annotations (`compare_genes`,
+/// `compare_gene_sets`, `gene_distance_matrix`, `go_enrichment`,
+/// `get_terms_for_gene`, `list_genes`, embeddings, ...) uses the filtered
+/// mapping afterwards. Genes left without annotations are removed.
+///
+/// The filter is always applied to the original mapping produced by `load_gaf`,
+/// so calling it again with a different threshold replaces the previous filter
+/// instead of stacking on top of it. Pass `ic_threshold=None` to restore the
+/// unfiltered mapping.
+///
+/// The `TermCounter` itself is not modified: build it from the full set of
+/// annotations before filtering so IC values reflect the whole corpus.
+///
+/// Arguments
+/// ---------
+/// counter : TermCounter
+///   Precomputed IC values (from `build_term_counter`).
+/// ic_threshold : Optional[float]
+///   Keep a gene-term annotation only if `IC(term) > ic_threshold`. Terms
+///   missing from `counter.ic` are treated as IC 0. `None` undoes the filter.
+///
+/// Returns
+/// -------
+/// dict
+///   Summary with keys `annotations_before`, `annotations_after`,
+///   `genes_before`, `genes_after` and `removed_genes` (sorted list).
+#[pyfunction]
+#[pyo3(signature = (counter, ic_threshold))]
+pub fn filter_annotations_by_ic<'py>(
+    py: Python<'py>,
+    counter: &TermCounter,
+    ic_threshold: Option<f64>,
+) -> PyResult<Bound<'py, pyo3::types::PyDict>> {
+    if let Some(thr) = ic_threshold {
+        if thr.is_nan() {
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "ic_threshold must be a number, not NaN",
+            ));
+        }
+    }
+
+    let gene2go_lock = GENE2GO_CACHE.get().ok_or_else(|| {
+        pyo3::exceptions::PyRuntimeError::new_err(
+            "Gene2GO mapping not loaded. Call go3.load_gaf() first.",
+        )
+    })?;
+    let backup_lock = GENE2GO_UNFILTERED_CACHE.get_or_init(|| RwLock::new(None));
+
+    let mut gene2go = gene2go_lock.write();
+    let mut backup = backup_lock.write();
+    if backup.is_none() {
+        *backup = Some(gene2go.clone());
+    }
+    let original = backup.as_ref().expect("backup initialised above");
+
+    let count_annotations = |m: &HashMap<String, Vec<String>>| m.values().map(Vec::len).sum::<usize>();
+    let annotations_before = count_annotations(original);
+    let genes_before = original.len();
+
+    let filtered: HashMap<String, Vec<String>> = match ic_threshold {
+        None => original.clone(),
+        Some(thr) => original
+            .iter()
+            .filter_map(|(gene, go_ids)| {
+                let kept: Vec<String> = go_ids
+                    .iter()
+                    .filter(|go_id| counter.ic.get(go_id.as_str()).copied().unwrap_or(0.0) > thr)
+                    .cloned()
+                    .collect();
+                (!kept.is_empty()).then(|| (gene.clone(), kept))
+            })
+            .collect(),
+    };
+
+    let mut removed_genes: Vec<String> = original
+        .keys()
+        .filter(|g| !filtered.contains_key(g.as_str()))
+        .cloned()
+        .collect();
+    removed_genes.sort_unstable();
+
+    let annotations_after = count_annotations(&filtered);
+    let genes_after = filtered.len();
+    *gene2go = filtered;
+    if ic_threshold.is_none() {
+        *backup = None;
+    }
+    drop(backup);
+    drop(gene2go);
+
+    let summary = pyo3::types::PyDict::new(py);
+    summary.set_item("annotations_before", annotations_before)?;
+    summary.set_item("annotations_after", annotations_after)?;
+    summary.set_item("genes_before", genes_before)?;
+    summary.set_item("genes_after", genes_after)?;
+    summary.set_item("removed_genes", removed_genes)?;
+    Ok(summary)
 }
 
 /// Build a term counter (counts, IC) from GAF annotations.

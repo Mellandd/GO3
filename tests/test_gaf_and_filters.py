@@ -275,3 +275,127 @@ def test_go_enrichment(tmp_path):
 
 
 
+
+
+def _gaf_line(obj_id, symbol, go_id, evidence="IDA", ref="PMID:1", aspect="P"):
+    return (
+        f"UniProtKB\t{obj_id}\t{symbol}\tinvolved_in\t{go_id}\t{ref}\t{evidence}\t\t{aspect}"
+        f"\t{symbol}\t{symbol}\tprotein\ttaxon:9606\t20260101\tUniProt\t\t"
+    )
+
+
+def test_remove_duplicates(tmp_path):
+    go3.load_go_terms("tests/go-basic.obo")
+    lines = [
+        "!gaf-version: 2.2",
+        # GENE1 -> GO:0006397 three times (different evidence / references)
+        _gaf_line("P00001", "GENE1", "GO:0006397", "IDA", "PMID:1"),
+        _gaf_line("P00001", "GENE1", "GO:0006397", "IMP", "PMID:2"),
+        _gaf_line("P00001", "GENE1", "GO:0006397", "IEA", "GO_REF:0000002"),
+        _gaf_line("P00001", "GENE1", "GO:0007049", "IDA", "PMID:3"),
+        _gaf_line("P00002", "GENE2", "GO:0008380", "IDA", "PMID:4"),
+        _gaf_line("P00002", "GENE2", "GO:0008380", "IDA", "PMID:5"),
+        # Extra gene so the shared ancestor of GENE1/GENE2 terms has IC > 0
+        _gaf_line("P00003", "GENE3", "GO:0007049", "IDA", "PMID:6"),
+    ]
+    gaf_path = tmp_path / "dups.gaf"
+    gaf_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    assert go3.GAFParseOptions().remove_duplicates is False
+
+    ann_all = go3.load_gaf(str(gaf_path))
+    assert len(ann_all) == 7
+    counter = go3.build_term_counter(ann_all)
+    sim_with_dups = go3.compare_genes("GENE1", "GENE2", "BP", "lin", "bma", counter)
+
+    opts = go3.GAFParseOptions(remove_duplicates=True)
+    assert "remove_duplicates=true" in repr(opts)
+    ann_unique = go3.load_gaf(str(gaf_path), opts)
+    assert [(a.db_object_symbol, a.go_id) for a in ann_unique] == [
+        ("GENE1", "GO:0006397"),
+        ("GENE1", "GO:0007049"),
+        ("GENE2", "GO:0008380"),
+        ("GENE3", "GO:0007049"),
+    ]
+    # The first occurrence of each (gene, term) pair is the one kept
+    assert ann_unique[0].evidence == "IDA" and ann_unique[0].references == ["PMID:1"]
+
+    # IC does not depend on duplicates (counts are per gene)
+    counter_unique = go3.build_term_counter(ann_unique)
+    assert counter_unique.ic == counter.ic
+
+    # Gene similarity now weights each GO term once
+    sim_unique = go3.compare_genes("GENE1", "GENE2", "BP", "lin", "bma", counter)
+    expected = go3.termset_similarity(
+        ["GO:0006397", "GO:0007049"], ["GO:0008380"], "lin", "bma", counter
+    )
+    assert abs(sim_unique - expected) < 1e-12
+    assert abs(sim_unique - sim_with_dups) > 1e-6
+
+
+def test_filter_annotations_by_ic(tmp_path):
+    go3.load_go_terms("tests/go-basic.obo")
+    lines = [
+        "!gaf-version: 2.2",
+        _gaf_line("P00001", "GENE1", "GO:0006397"),  # mRNA processing
+        _gaf_line("P00002", "GENE2", "GO:0008380"),  # RNA splicing
+        _gaf_line("P00003", "GENE3", "GO:0006396"),  # RNA processing (parent of both above)
+        _gaf_line("P00003", "GENE3", "GO:0007049"),  # cell cycle
+        _gaf_line("P00004", "GENE4", "GO:0008150"),  # biological_process (root)
+    ]
+    gaf_path = tmp_path / "ic.gaf"
+    gaf_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    ann = go3.load_gaf(str(gaf_path))
+    counter = go3.build_term_counter(ann)
+
+    # 4 BP genes: root IC = 0, RNA processing IC = ln(4/3), leaves IC = ln(4)
+    assert go3.term_ic("GO:0008150", counter) == 0.0
+    assert 0.0 < go3.term_ic("GO:0006396", counter) < 0.5
+    assert go3.term_ic("GO:0006397", counter) > 0.5
+
+    # Threshold 0 drops root-only annotations (IC must be strictly greater)
+    summary = go3.filter_annotations_by_ic(counter, 0.0)
+    assert summary == {
+        "annotations_before": 5,
+        "annotations_after": 4,
+        "genes_before": 4,
+        "genes_after": 3,
+        "removed_genes": ["GENE4"],
+    }
+    assert go3.list_genes() == ["GENE1", "GENE2", "GENE3"]
+    assert go3.get_terms_for_gene("GENE3") == ["GO:0006396", "GO:0007049"]
+
+    # A higher threshold also removes the generic "RNA processing" term from GENE3.
+    # Filters are applied to the original mapping, so they never stack.
+    summary = go3.filter_annotations_by_ic(counter, 0.5)
+    assert summary["annotations_before"] == 5
+    assert summary["annotations_after"] == 3
+    assert summary["removed_genes"] == ["GENE4"]
+    assert go3.get_terms_for_gene("GENE3") == ["GO:0007049"]
+    with pytest.raises(ValueError, match="not found"):
+        go3.get_terms_for_gene("GENE4")
+
+    # Lowering the threshold again brings GO:0006396 back
+    go3.filter_annotations_by_ic(counter, 0.1)
+    assert go3.get_terms_for_gene("GENE3") == ["GO:0006396", "GO:0007049"]
+
+    # None restores the unfiltered mapping
+    summary = go3.filter_annotations_by_ic(counter, None)
+    assert summary["annotations_after"] == 5 and summary["removed_genes"] == []
+    assert go3.list_genes() == ["GENE1", "GENE2", "GENE3", "GENE4"]
+    assert go3.get_terms_for_gene("GENE4") == ["GO:0008150"]
+
+    # Downstream analyses see the filtered mapping
+    go3.filter_annotations_by_ic(counter, 0.5)
+    sim = go3.compare_genes("GENE1", "GENE3", "BP", "lin", "bma", counter)
+    expected = go3.termset_similarity(["GO:0006397"], ["GO:0007049"], "lin", "bma", counter)
+    assert abs(sim - expected) < 1e-12
+
+    # Reloading the GAF resets the filter
+    go3.load_gaf(str(gaf_path))
+    assert go3.list_genes() == ["GENE1", "GENE2", "GENE3", "GENE4"]
+    summary = go3.filter_annotations_by_ic(counter, 0.0)
+    assert summary["annotations_before"] == 5
+
+    with pytest.raises(ValueError, match="NaN"):
+        go3.filter_annotations_by_ic(counter, float("nan"))

@@ -78,6 +78,7 @@ opts = go3.GAFParseOptions(
     exclude_qualifiers={"NOT"},
     allow_obsolete_terms=False,
     allow_nd_root_only=False,
+    remove_duplicates=True,         # keep one annotation per (gene, GO term) pair
 )
 
 annots = go3.load_gaf("goa_human.gaf.gz", options=opts)
@@ -86,6 +87,23 @@ counter = go3.build_term_counter(annots)
 # Inspect any annotation record
 a = annots[0]
 print(a.db_object_symbol, a.go_id, a.evidence, a.taxon, a.assigned_by)
+```
+
+A GAF file often annotates the same gene to the same GO term several times (different
+evidence codes or references); in `goa_human.gaf` about 60% of the rows are such repeats.
+They do not change IC values, but they give repeated terms more weight in gene-level
+groupwise similarity (`bma`, `avg`). Set `remove_duplicates=True` to drop them.
+
+To discard very generic GO terms (roots, "binding", "cellular process", ...) from every
+gene, filter the loaded annotations by Information Content. Build the counter from the
+full annotation set first so IC reflects the whole corpus:
+
+```python
+summary = go3.filter_annotations_by_ic(counter, ic_threshold=2.0)  # keep terms with IC > 2.0
+print(summary["annotations_after"], len(summary["removed_genes"]))
+
+go3.filter_annotations_by_ic(counter, ic_threshold=1.0)   # replaces the previous filter
+go3.filter_annotations_by_ic(counter, ic_threshold=None)  # restores all annotations
 ```
 
 ### 2. Ontology Navigation & Bidirectional Gene–Term Queries
@@ -191,6 +209,7 @@ ordered, emb_u, fig_u, ax_u = go3.plot_umap_genes(
 | **Loading & IC** | `load_go_terms(path=None)` | Load OBO/OBO.gz ontology (auto-downloads `go-basic.obo` if omitted) |
 | | `load_gaf(path, options=None)` | Parse GAF/GAF.gz file with optional `GAFParseOptions`; returns `list[GAFAnnotation]` |
 | | `build_term_counter(annotations)` | Propagate counts up the GO DAG and compute per-term IC (`TermCounter`) |
+| | `filter_annotations_by_ic(counter, ic_threshold)` | Keep only gene annotations whose term has `IC > ic_threshold` (`None` restores them) |
 | **Ontology & Queries** | `get_term_by_id(go_id)` | Return `PyGOTerm` metadata (`name`, `namespace`, `parents`, `children`, `depth`, etc.) |
 | | `ancestors(go_id, relations=None)` | All ancestors of `go_id` (optionally including `["part_of"]`) |
 | | `descendants(go_id, relations=None)` | All descendants of `go_id` (optionally including `["part_of"]`) |
